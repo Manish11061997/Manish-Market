@@ -1,0 +1,4 @@
+/* Vite starter styles (.hero, #next-steps, .counter, #center, #docs, #spacer,
+   .ticks) removed — none were referenced by any component in src/.
+   Global design-system styles live in index.css; shared UI primitives
+   (Modal, ErrorBanner, EmptyState, Spinner) live in components/ui/primitives.jsx. */

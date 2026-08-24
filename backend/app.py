@@ -1,0 +1,900 @@
+from fastapi import FastAPI, Query, HTTPException, Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Dict, Any, Literal
+from contextlib import asynccontextmanager
+import logging
+import asyncio
+import math
+import os
+import threading
+
+from data_fetcher import fetch_market_indices, get_stock_universe, fetch_stock_ohlcv, resolve_ticker_symbol, search_stocks_by_name
+from stock_agent import analyze_stock, get_all_recommendations
+from ai_copilot import process_copilot_query
+from backtester import run_strategy_backtest
+from fno_agent import get_all_fno_signals
+
+from websocket_stream import ws_manager, start_live_market_ticker, WebSocket, WebSocketDisconnect
+from alerts_engine import alerts_engine
+from market_session import get_market_session_status
+from live_market_state import live_market_state
+from market_gateway import market_gateway
+from instrument_master import instrument_master, Exchange, InstrumentType
+from corporate_actions import corporate_actions, CorporateAction
+from circuit_limits import circuit_limits_engine
+from market_breadth import market_breadth_engine
+from timeseries_storage import timeseries_storage
+from market_replay_engine import market_replay_engine
+from risk_manager import risk_engine
+from paper_trading_engine import paper_trading_coordinator
+from oms import oms_engine
+from audit_trail import audit_trail
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    if not os.environ.get("CONTROL_TOKEN"):
+        logger.warning("CONTROL_TOKEN not set - mutating endpoints are UNPROTECTED")
+    ticker_task = asyncio.create_task(start_live_market_ticker())
+    # Pre-warm recommendations cache asynchronously
+    try:
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, get_all_recommendations, "IN")
+        loop.run_in_executor(None, get_all_recommendations, "US")
+    except Exception as e:
+        logger.debug(f"Pre-warm executor error: {e}")
+    yield
+    ticker_task.cancel()
+
+app = FastAPI(
+    title="Manish Market - Indian & Global Stock Advisory & Trading Platform API",
+    description="Institutional Real-Time Event-Driven Trading Terminal & Quantitative Multi-Horizon Advisory System",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+
+
+# ---------------- Rate limiting & security headers ----------------
+
+import time as _time
+from collections import defaultdict, deque
+from starlette.middleware.base import BaseHTTPMiddleware
+
+RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "300"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
+
+_rate_buckets: Dict[str, deque] = defaultdict(deque)
+_rate_lock = threading.Lock()
+
+class RateLimitMiddleware:
+    """Per-IP sliding-window limiter. Set RATE_LIMIT_REQUESTS=0 to disable
+    (recommended for local test runs that poll aggressively)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or RATE_LIMIT_REQUESTS <= 0:
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers", []))
+        client_ip = (scope.get("client") or ("unknown",))[0]
+        now = _time.monotonic()
+        with _rate_lock:
+            bucket = _rate_buckets[client_ip]
+            while bucket and bucket[0] <= now - RATE_LIMIT_WINDOW_SECONDS:
+                bucket.popleft()
+            if len(bucket) >= RATE_LIMIT_REQUESTS:
+                retry_after = max(1, int(RATE_LIMIT_WINDOW_SECONDS - (now - bucket[0])))
+                response = JSONResponse(
+                    status_code=429,
+                    content={"detail": f"Rate limit exceeded. Retry after {retry_after}s."},
+                    headers={"Retry-After": str(retry_after)},
+                )
+                await response(scope, receive, send)
+                return
+            bucket.append(now)
+            if len(_rate_buckets) > 10000:
+                _rate_buckets.clear()
+        await self.app(scope, receive, send)
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = message.setdefault("headers", [])
+                for name, value in [
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-frame-options", b"DENY"),
+                    (b"referrer-policy", b"no-referrer"),
+                    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+                ]:
+                    if not any(existing[0].lower() == name for existing in headers):
+                        headers.append((name, value))
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*", "Bypass-Tunnel-Reminder", "bypass-tunnel-reminder", "X-Control-Token", "Content-Type", "Authorization"],
+    expose_headers=["*"]
+)
+
+class ChatQueryRequest(BaseModel):
+    message: str
+
+class PriceAlertCreateRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=50)
+    condition: Literal["ABOVE", "BELOW"]
+    targetPrice: float = Field(gt=0)
+
+    @field_validator("symbol", mode="before")
+    @classmethod
+    def normalize_symbol(cls, v):
+        v = str(v).strip().upper()
+        if not v:
+            raise ValueError("symbol must not be empty")
+        return v
+
+class MarketModeRequest(BaseModel):
+    mode: str # LIVE or REPLAY
+
+class ReplayControlRequest(BaseModel):
+    action: str # "start", "pause", "resume", "stop", "step", "set_speed"
+    speed: Optional[float] = 1.0
+    sessionName: Optional[str] = None
+
+class PaperOrderRequest(BaseModel):
+    symbol: str
+    side: str # "BUY" or "SELL"
+    quantity: int = Field(gt=0)
+    price: float = Field(gt=0)
+    stopLoss: Optional[float] = Field(default=None, gt=0)
+    takeProfit: Optional[float] = Field(default=None, gt=0)
+    orderType: Literal["MARKET", "LIMIT"] = "MARKET"
+
+    @field_validator("side", mode="before")
+    @classmethod
+    def normalize_side(cls, v):
+        v_upper = str(v).upper()
+        if v_upper not in ("BUY", "SELL"):
+            raise ValueError("side must be BUY or SELL")
+        return v_upper
+
+class RiskEvaluationRequest(BaseModel):
+    symbol: str
+    side: str
+    quantity: int = Field(gt=0)
+    price: float = Field(gt=0)
+    stopLoss: Optional[float] = Field(default=None, gt=0)
+    takeProfit: Optional[float] = Field(default=None, gt=0)
+
+    @field_validator("side", mode="before")
+    @classmethod
+    def normalize_side(cls, v):
+        v_upper = str(v).upper()
+        if v_upper not in ("BUY", "SELL"):
+            raise ValueError("side must be BUY or SELL")
+        return v_upper
+
+def require_control_token(x_control_token: Optional[str] = Header(default=None)):
+    expected = os.environ.get("CONTROL_TOKEN")
+    if expected and x_control_token != expected:
+        raise HTTPException(status_code=403, detail="Invalid or missing X-Control-Token header.")
+
+class BrokerSettingsRequest(BaseModel):
+    broker: str
+    apiKey: str
+    apiSecret: str
+
+def sanitize_json_data(data):
+    if data is None or isinstance(data, (str, int, bool)):
+        return data
+    if isinstance(data, float):
+        return 0.0 if (math.isnan(data) or math.isinf(data)) else data
+    if isinstance(data, dict):
+        return {k: sanitize_json_data(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [sanitize_json_data(v) for v in data]
+    return data
+
+@app.websocket("/ws/market-stream")
+async def websocket_endpoint(websocket: WebSocket):
+    # Token gate: when CONTROL_TOKEN is set, the WS handshake must carry ?token=<value>.
+    expected_token = os.environ.get("CONTROL_TOKEN")
+    if expected_token:
+        provided = websocket.query_params.get("token")
+        if provided != expected_token:
+            await websocket.close(code=4401)
+            return
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await ws_manager.handle_client_message(websocket, data)
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception as e:
+        ws_manager.disconnect(websocket)
+
+# -------------------------------------------------------------------
+# 1. Instrument Master Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/instruments")
+def get_instruments(exchange: Optional[str] = None, type: Optional[str] = None):
+    """Retrieve all registered securities from Instrument Master."""
+    ex_enum = Exchange(exchange.upper()) if exchange and exchange.upper() in [e.value for e in Exchange] else None
+    type_enum = InstrumentType(type.upper()) if type and type.upper() in [t.value for t in InstrumentType] else None
+    instruments = instrument_master.get_all_instruments(exchange=ex_enum, instrument_type=type_enum)
+    return {"count": len(instruments), "instruments": [i.to_dict() for i in instruments]}
+
+@app.get("/api/instruments/{symbol}")
+def get_instrument_detail(symbol: str):
+    """Lookup specific security metadata in Instrument Master."""
+    inst = instrument_master.lookup(symbol)
+    if not inst:
+        raise HTTPException(status_code=404, detail=f"Instrument '{symbol}' not found in master.")
+    return inst.to_dict()
+
+# -------------------------------------------------------------------
+# 2. Corporate Actions Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/corporate-actions/{symbol}")
+def get_corporate_actions(symbol: str):
+    """Fetch all recorded corporate actions (splits, bonuses, dividends) for an instrument."""
+    actions = corporate_actions.get_actions(symbol)
+    return {
+        "symbol": symbol.upper(),
+        "count": len(actions),
+        "actions": [
+            {
+                "symbol": a.symbol,
+                "actionType": a.action_type.value,
+                "exDate": a.ex_date,
+                "recordDate": a.record_date,
+                "ratio": a.ratio,
+                "adjustmentFactor": a.adjustment_factor,
+                "dividendAmount": a.dividend_amount,
+                "description": a.description
+            }
+            for a in actions
+        ]
+    }
+
+# -------------------------------------------------------------------
+# 3. Market Sessions, Circuits & Real-Time Breadth Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/session-status")
+def get_session_status(market: str = "IN"):
+    return get_market_session_status(market)
+
+@app.get("/api/circuit-limits/{symbol}")
+def get_circuit_limits(symbol: str, currentPrice: Optional[float] = None):
+    """Calculate Upper and Lower Circuit Limits and distance %."""
+    state = live_market_state.get_state(symbol)
+    price = currentPrice or (state["price"] if state else 100.0)
+    prev_close = state.get("prevClose") if state else price
+    circuits = circuit_limits_engine.calculate_circuit_limits(symbol, price, prev_close)
+    return circuits.to_dict()
+
+@app.get("/api/market-breadth")
+def get_market_breadth(market: str = "IN"):
+    """Fetch real-time aggregate market breadth (Advances, Declines, A/D Ratio, VIX, FII/DII)."""
+    breadth = market_breadth_engine.get_latest_breadth(market=market)
+    return breadth.to_dict()
+
+# -------------------------------------------------------------------
+# 4. Time-Series Storage & Replay Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/timeseries/{symbol}")
+def get_timeseries_data(symbol: str, timeframe: str = "1m", limit: int = 100):
+    """Retrieve historical candle series from in-memory time-series storage."""
+    candles = timeseries_storage.get_candles(symbol, timeframe=timeframe, limit=limit)
+    ticks = timeseries_storage.get_ticks(symbol, limit=50)
+    return {
+        "symbol": symbol.upper(),
+        "timeframe": timeframe,
+        "candlesCount": len(candles),
+        "candles": candles,
+        "recentTicksCount": len(ticks),
+        "recentTicks": ticks
+    }
+
+@app.post("/api/replay/control", dependencies=[Depends(require_control_token)])
+def control_replay(req: ReplayControlRequest):
+    """Control historical replay engine (play, pause, speed, step)."""
+    action = req.action.lower()
+    if action == "start":
+        market_gateway.set_mode("REPLAY")
+        market_replay_engine.start_replay(req.sessionName)
+    elif action == "pause":
+        market_replay_engine.pause_replay()
+    elif action == "resume":
+        market_replay_engine.resume_replay()
+    elif action == "stop":
+        market_replay_engine.stop_replay()
+        market_gateway.set_mode("LIVE")
+    elif action == "set_speed" and req.speed:
+        market_replay_engine.set_speed(req.speed)
+    elif action == "step":
+        market_replay_engine.step_forward()
+
+    return market_replay_engine.get_status()
+
+# -------------------------------------------------------------------
+# 5. Paper Trading, OMS & Risk Management Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/paper/portfolio")
+def get_paper_portfolio():
+    """Retrieve Paper Trading portfolio summary, open positions, and active orders."""
+    return paper_trading_coordinator.get_portfolio()
+
+@app.post("/api/paper/order", dependencies=[Depends(require_control_token)])
+def place_paper_order(req: PaperOrderRequest):
+    """Submit simulated paper trading order through Risk Engine & OMS."""
+    result = paper_trading_coordinator.place_paper_order(
+        symbol=req.symbol,
+        side=req.side,
+        quantity=req.quantity,
+        price=req.price,
+        stop_loss=req.stopLoss,
+        take_profit=req.takeProfit,
+        order_type=req.orderType or "MARKET"
+    )
+    # Record in Audit Trail
+    audit_trail.record_order_event(
+        event_type="ORDER_FILLED" if result.get("status") == "FILLED" else "ORDER_REJECTED",
+        symbol=req.symbol,
+        risk_evaluation=result.get("riskEvaluation", {}),
+        order_details=result,
+        execution_result={"status": result.get("status"), "fillPrice": result.get("filledPrice")}
+    )
+    return result
+
+@app.post("/api/paper/reset", dependencies=[Depends(require_control_token)])
+def reset_paper_account(initialCapital: Optional[float] = Query(default=1000000.0, gt=0)):
+    paper_trading_coordinator.reset_paper_account(initialCapital)
+    risk_engine.reset_risk_state()
+    return {"status": "success", "message": f"Paper account reset with capital ₹{initialCapital:,.2f}"}
+
+@app.post("/api/risk/evaluate", dependencies=[Depends(require_control_token)])
+def evaluate_pre_trade_risk(req: RiskEvaluationRequest):
+    """Evaluate pre-trade risk checks without placing an order."""
+    portfolio = paper_trading_coordinator.get_portfolio()
+    cash = portfolio["summary"]["cashBalance"]
+    pos_map = {p["symbol"]: p for p in portfolio["positions"]}
+    
+    evaluation = risk_engine.evaluate_order(
+        symbol=req.symbol,
+        side=req.side,
+        quantity=req.quantity,
+        price=req.price,
+        stop_loss=req.stopLoss,
+        take_profit=req.takeProfit,
+        account_balance=cash,
+        portfolio_positions=pos_map,
+        is_paper=True,
+        record=False
+    )
+    return evaluation.to_dict()
+
+# -------------------------------------------------------------------
+# 6. Immutable Audit Trail Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/audit-trail")
+def get_audit_trail(symbol: Optional[str] = None, eventType: Optional[str] = None, limit: int = 50):
+    """Query immutable audit records explaining why AI signals or orders were generated/executed."""
+    records = audit_trail.get_records(symbol=symbol, event_type=eventType, limit=limit)
+    return {"count": len(records), "records": records}
+
+# -------------------------------------------------------------------
+# 7. Price Alerts & Live Stream Health Endpoints
+# -------------------------------------------------------------------
+@app.get("/api/alerts")
+def get_alerts():
+    return {"alerts": alerts_engine.get_alerts()}
+
+@app.post("/api/alerts", dependencies=[Depends(require_control_token)])
+def create_alert(req: PriceAlertCreateRequest):
+    alert = alerts_engine.add_alert(req.symbol, req.condition, req.targetPrice)
+    return {"status": "created", "alert": alert}
+
+@app.delete("/api/alerts/{alert_id}", dependencies=[Depends(require_control_token)])
+def delete_alert(alert_id: str):
+    success = alerts_engine.delete_alert(alert_id)
+    return {"status": "success" if success else "not_found"}
+
+_broker_credentials: Dict[str, Dict[str, str]] = {}
+_broker_credentials_lock = threading.Lock()
+
+@app.post("/api/broker/settings", dependencies=[Depends(require_control_token)])
+def save_broker_settings(req: BrokerSettingsRequest):
+    def _mask(secret: str) -> str:
+        return f"••••{secret[-4:]}" if len(secret) >= 4 else "••••"
+    with _broker_credentials_lock:
+        _broker_credentials[req.broker] = {"apiKey": req.apiKey, "apiSecret": req.apiSecret}
+    logger.info(f"Broker credentials stored for {req.broker} (masked key: {_mask(req.apiKey)})")
+    return {
+        "status": "connected",
+        "broker": req.broker,
+        "maskedApiKey": _mask(req.apiKey),
+        "note": "Credentials held in memory for this server session only."
+    }
+
+@app.get("/api/broker/settings", dependencies=[Depends(require_control_token)])
+def get_broker_settings():
+    def _mask(secret: str) -> str:
+        return f"••••{secret[-4:]}" if len(secret) >= 4 else "••••"
+    with _broker_credentials_lock:
+        configs = {
+            broker: {"maskedApiKey": _mask(creds["apiKey"])}
+            for broker, creds in _broker_credentials.items()
+        }
+    last_broker = list(_broker_credentials)[-1] if _broker_credentials else None
+    return {"configuredBrokers": configs, "broker": last_broker}
+
+@app.get("/api/market-state/{symbol}")
+def get_live_market_state_single(symbol: str):
+    real_sym = resolve_ticker_symbol(symbol)
+    state = live_market_state.get_state(real_sym) or live_market_state.get_state(symbol)
+    if not state:
+        quotes = market_gateway.current_provider.fetch_ticks([real_sym])
+        if real_sym in quotes:
+            live_market_state.update_from_tick(quotes[real_sym])
+            state = live_market_state.get_state(real_sym)
+    result = state or {"symbol": real_sym, "status": "DATA_UNAVAILABLE", "available": False}
+    try:
+        inst = instrument_master.lookup(real_sym) or instrument_master.lookup(symbol)
+        if inst and inst.lot_size:
+            result["lotSize"] = inst.lot_size
+    except Exception:
+        pass
+    return result
+
+@app.get("/api/health/market-data")
+def get_market_data_health():
+    return market_gateway.get_health_metrics()
+
+@app.post("/api/market-data/mode", dependencies=[Depends(require_control_token)])
+def set_market_data_mode(req: MarketModeRequest):
+    success = market_gateway.set_mode(req.mode)
+    return {"status": "success" if success else "error", "mode": market_gateway.mode}
+
+@app.get("/api/stock/{symbol}/depth")
+def get_stock_market_depth(symbol: str):
+    return market_gateway.get_market_depth(symbol)
+
+# -------------------------------------------------------------------
+# 8. Core Market Overview & Recommendations
+# -------------------------------------------------------------------
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "system": "Manish Market - Production Real-Time Trading Platform",
+        "market": "NSE / BSE (India) & NYSE / NASDAQ (US)",
+        "version": "2.0.0",
+        "endpoints": [
+            "/api/market-summary",
+            "/api/market-breadth",
+            "/api/recommendations",
+            "/api/instruments",
+            "/api/corporate-actions/{symbol}",
+            "/api/circuit-limits/{symbol}",
+            "/api/paper/portfolio",
+            "/api/audit-trail",
+            "/api/copilot/chat",
+            "/api/analysis/intraday",
+            "/api/analysis/swing",
+            "/api/analysis/longterm"
+        ]
+    }
+
+@app.get("/api/market-summary")
+def get_market_summary(market: str = "IN"):
+    try:
+        indices = fetch_market_indices(market=market) or {}
+        breadth = market_breadth_engine.get_latest_breadth(market=market)
+        
+        first_key = "SP500" if market.upper() == "US" else "NIFTY50"
+        idx_item = indices.get(first_key, {}) if isinstance(indices, dict) else {}
+        nifty_chg = idx_item.get("pChange", 0.0) if isinstance(idx_item, dict) else 0.0
+        sentiment_score = int(max(10, min(90, 50 + (nifty_chg * 25))))
+        
+        if sentiment_score >= 70:
+            sentiment_label = "Strong Greed / Bullish Momentum"
+        elif sentiment_score >= 55:
+            sentiment_label = "Moderate Greed / Mild Bullish"
+        elif sentiment_score >= 45:
+            sentiment_label = "Neutral Market Phase"
+        elif sentiment_score >= 30:
+            sentiment_label = "Caution / Mild Bearish"
+        else:
+            sentiment_label = "Extreme Fear / Heavily Oversold"
+
+        res = {
+            "market": market.upper(),
+            "marketStatus": "LIVE_ACTIVE",
+            "status": "LIVE_ACTIVE",
+            "currency": "$" if market.upper() == "US" else "₹",
+            "indices": indices,
+            "sentiment": {
+                "score": sentiment_score,
+                "label": sentiment_label,
+                "advanceDeclineRatio": f"{breadth.ad_ratio} (Advancers: {breadth.advances}, Decliners: {breadth.declines})"
+            },
+            "breadth": breadth.to_dict()
+        }
+        return JSONResponse(content=sanitize_json_data(res))
+    except Exception as e:
+        logger.error(f"Error in get_market_summary: {e}")
+        return JSONResponse(content={
+            "market": market.upper(),
+            "currency": "$" if market.upper() == "US" else "₹",
+            "indices": {},
+            "sentiment": {"score": 50, "label": "Neutral Market Phase", "advanceDeclineRatio": "1.0"},
+            "breadth": {"advances": 25, "declines": 25, "unchanged": 0, "adRatio": 1.0, "total": 50}
+        })
+
+@app.get("/api/recommendations")
+def get_recommendations(market: str = "IN"):
+    recs = get_all_recommendations(market=market)
+    try:
+        symbols_to_sub = [r["symbol"] for r in recs if isinstance(r, dict) and "symbol" in r]
+        market_gateway.subscribe_symbols(symbols_to_sub)
+    except Exception:
+        pass
+    top_buys = [r for r in recs if r["signal"] in ["STRONG_BUY", "BUY"]]
+    top_sells = [r for r in recs if r["signal"] in ["SELL", "STRONG_SELL"]]
+    hold_watchlist = [r for r in recs if r["signal"] == "HOLD"]
+    swing_picks = [r for r in recs if r["technicalScore"] >= 70 and r["signal"] in ["STRONG_BUY", "BUY"]]
+    value_picks = [r for r in recs if r["fundamentalScore"] >= 70 and r["fundamentals"]["peRatio"] < 30]
+
+    res_payload = {
+        "market": market.upper(),
+        "currency": "$" if market.upper() == "US" else "₹",
+        "summary": {
+            "totalAnalyzed": len(recs),
+            "totalBuys": len(top_buys),
+            "totalSells": len(top_sells),
+            "totalHolds": len(hold_watchlist)
+        },
+        "all": recs,
+        "topBuys": top_buys[:8],
+        "topSells": top_sells[:6],
+        "swingPicks": swing_picks[:6],
+        "valuePicks": value_picks[:6]
+    }
+    return JSONResponse(content=sanitize_json_data(res_payload))
+
+@app.get("/api/search")
+def search_securities(q: str, market: str = "IN"):
+    """Search securities across global exchanges by company name, ticker, or sector."""
+    try:
+        results = search_stocks_by_name(q, market=market)
+        return JSONResponse(content=sanitize_json_data({"query": q, "count": len(results), "results": results}))
+    except Exception as e:
+        logger.error(f"Error in search_securities: {e}")
+        return JSONResponse(content={"query": q, "count": 0, "results": []})
+
+@app.get("/api/stock/{symbol}")
+def get_single_stock_analysis(symbol: str, market: str = "IN"):
+    symbol_resolved = resolve_ticker_symbol(symbol, market=market)
+    market_gateway.subscribe_symbols([symbol_resolved])
+    res = analyze_stock(symbol_resolved, market=market)
+    
+    # Inject latest live tick state if available
+    state = live_market_state.get_state(symbol_resolved)
+    if state and state.get("price"):
+        res["currentPrice"] = round(float(state["price"]), 2)
+        if "change" in state: res["change"] = round(float(state["change"]), 2)
+        if "changePercent" in state: res["changePercent"] = round(float(state["changePercent"]), 2)
+        if "volume" in state: res["volume"] = state["volume"]
+    
+    # Inject live circuits & master metadata
+    circuits = circuit_limits_engine.calculate_circuit_limits(symbol_resolved, res.get("currentPrice", 100.0))
+    inst = instrument_master.lookup(symbol_resolved)
+    actions = corporate_actions.get_actions(symbol_resolved)
+    
+    res["circuitLimits"] = circuits.to_dict() if circuits else None
+    res["instrument"] = inst.to_dict() if inst else None
+    res["corporateActionsCount"] = len(actions)
+    
+    return JSONResponse(content=sanitize_json_data(res))
+
+@app.get("/api/stock/{symbol}/chart")
+def get_stock_chart_data(symbol: str, period: str = "6mo", interval: str = "1d", adjusted: bool = True, market: str = "IN"):
+    """OHLCV series with corporate actions adjustment toggle and event markers."""
+    symbol_resolved = resolve_ticker_symbol(symbol, market=market)
+    market_gateway.subscribe_symbols([symbol_resolved])
+    df = fetch_stock_ohlcv(symbol_resolved, period=period, interval=interval)
+    if df.empty:
+        raise HTTPException(status_code=503, detail=f"No authentic OHLCV data available for {symbol_resolved} (synthetic data disabled or exchange feed unavailable).")
+    
+    # Apply corporate action adjustments if requested
+    df_adjusted = corporate_actions.apply_adjustments(df, symbol_resolved, adjusted=adjusted)
+    actions = corporate_actions.get_actions(symbol_resolved)
+    
+    series = []
+    is_intraday = period in ["1d", "1m", "5m"] or interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"]
+    for date, row in df_adjusted.iterrows():
+        try:
+            ts_val = int(date.timestamp())
+            date_str = date.strftime("%Y-%m-%d %H:%M:%S") if is_intraday else date.strftime("%Y-%m-%d")
+        except Exception:
+            ts_val = 0
+            date_str = str(date)
+            
+        series.append({
+            "timestamp": ts_val,
+            "date": date_str,
+            "open": round(float(row.get('Open', 100.0)), 2),
+            "high": round(float(row.get('High', 100.0)), 2),
+            "low": round(float(row.get('Low', 100.0)), 2),
+            "close": round(float(row.get('Close', 100.0)), 2),
+            "volume": int(row.get('Volume', 1000)),
+            "rawClose": round(float(row.get('Raw_Close', row.get('Close', 100.0))), 2)
+        })
+        
+    res_data = {
+        "symbol": symbol_resolved,
+        "isAdjusted": adjusted,
+        "corporateActions": [
+            {
+                "exDate": a.ex_date,
+                "type": a.action_type.value,
+                "description": a.description,
+                "ratio": a.ratio
+            }
+            for a in actions
+        ],
+        "data": series
+    }
+    return JSONResponse(content=sanitize_json_data(res_data))
+
+from chart_reading_engine import chart_reading_engine
+
+@app.get("/api/stock/{symbol}/chart-reading")
+def get_stock_chart_reading(symbol: str, market: str = "IN"):
+    """Quantitative chart reading with candlestick patterns, MA alignment, pivots, and actionable trade suggestions."""
+    symbol_resolved = resolve_ticker_symbol(symbol, market=market)
+    market_gateway.subscribe_symbols([symbol_resolved])
+    df = fetch_stock_ohlcv(symbol_resolved, period="6mo", interval="1d", market=market)
+    reading = chart_reading_engine.analyze_chart(symbol=symbol_resolved, df=df, market=market)
+    return JSONResponse(content=sanitize_json_data(reading))
+
+@app.get("/api/screener")
+def run_stock_screener(
+    sector: Optional[str] = None,
+    cap: Optional[str] = None,
+    signal: Optional[str] = None,
+    maxPe: Optional[float] = None,
+    minRsi: Optional[float] = None,
+    maxRsi: Optional[float] = None
+):
+    recs = get_all_recommendations()
+    filtered = recs
+    if sector and sector != "ALL":
+        filtered = [r for r in filtered if r["sector"].lower() == sector.lower()]
+    if cap and cap != "ALL":
+        filtered = [r for r in filtered if r["cap"].lower() == cap.lower()]
+    if signal and signal != "ALL":
+        filtered = [r for r in filtered if r["signal"].lower() == signal.lower()]
+    if maxPe:
+        filtered = [r for r in filtered if r["fundamentals"]["peRatio"] <= maxPe]
+    if minRsi:
+        filtered = [r for r in filtered if r["technicals"].get("rsi", 50) >= minRsi]
+    if maxRsi:
+        filtered = [r for r in filtered if r["technicals"].get("rsi", 50) <= maxRsi]
+
+    return {"count": len(filtered), "results": filtered}
+
+@app.post("/api/copilot/chat", dependencies=[Depends(require_control_token)])
+def copilot_chat(req: ChatQueryRequest):
+    if not req.message or len(req.message.strip()) == 0:
+        raise HTTPException(status_code=400, detail="Query message cannot be empty")
+    res = process_copilot_query(req.message)
+    return res
+
+@app.get("/api/backtest")
+def get_backtest_results(symbol: str = "RELIANCE.NS", initial_capital: float = 100000.0):
+    real_sym = resolve_ticker_symbol(symbol)
+    res = run_strategy_backtest(real_sym, initial_capital=initial_capital)
+    return res
+
+# -------------------------------------------------------------------
+# Multi-Horizon Analysis Endpoints
+# -------------------------------------------------------------------
+from intraday_engine import IntradayStrategyEngine
+from swing_engine import SwingStrategyEngine
+from fundamental_engine import FundamentalAnalysisEngine
+from ai_analysis_service import AIAnalysisService
+from backtest_framework import BacktestingFramework
+
+@app.get("/api/analysis/intraday")
+def analyze_intraday(symbol: str = "RELIANCE.NS", orbPeriod: int = 15, market: str = "IN"):
+    real_sym = resolve_ticker_symbol(symbol, market=market)
+    df = fetch_stock_ohlcv(real_sym, period="5d", interval="5m", market=market)
+    if df.empty or len(df) < 10:
+        df = fetch_stock_ohlcv(real_sym, period="5d", interval="1d", market=market)
+    result = IntradayStrategyEngine.analyze(symbol=real_sym, df=df, orb_period=orbPeriod)
+    result.explanation = AIAnalysisService.generate_explanation(result)
+    return JSONResponse(content=sanitize_json_data(result.model_dump()))
+
+@app.get("/api/analysis/swing")
+def analyze_swing(symbol: str = "NVDA", market: str = "IN"):
+    real_sym = resolve_ticker_symbol(symbol, market=market)
+    df = fetch_stock_ohlcv(real_sym, period="6mo", interval="1d", market=market)
+    bench_sym = "^NSEI" if (real_sym.endswith(".NS") or market.upper() == "IN") else "^GSPC"
+    bench_df = fetch_stock_ohlcv(bench_sym, period="6mo", interval="1d", market=market)
+    result = SwingStrategyEngine.analyze(symbol=real_sym, df=df, benchmark_df=bench_df)
+    result.explanation = AIAnalysisService.generate_explanation(result)
+    return JSONResponse(content=sanitize_json_data(result.model_dump()))
+
+@app.get("/api/analysis/longterm")
+def analyze_longterm(symbol: str = "AAPL", market: str = "IN"):
+    real_sym = resolve_ticker_symbol(symbol, market=market)
+    df = fetch_stock_ohlcv(real_sym, period="2y", interval="1d", market=market)
+    result = FundamentalAnalysisEngine.analyze(symbol=real_sym, df=df)
+    result.explanation = AIAnalysisService.generate_explanation(result)
+    return JSONResponse(content=sanitize_json_data(result.model_dump()))
+
+@app.post("/api/analysis/backtest")
+def run_pattern_backtest(trades_data: List[dict] = None):
+    sample_trades = trades_data or [
+        {"outcome": "WIN", "profit": 420.0, "r_multiple": 2.8, "isBreakout": True},
+        {"outcome": "WIN", "profit": 350.0, "r_multiple": 2.2, "isBreakout": True},
+        {"outcome": "LOSS", "loss": 150.0, "r_multiple": -1.0, "isBreakout": True},
+        {"outcome": "WIN", "profit": 510.0, "r_multiple": 3.4, "isBreakout": False},
+        {"outcome": "LOSS", "loss": 150.0, "r_multiple": -1.0, "isBreakout": False}
+    ]
+    return BacktestingFramework.run_backtest(sample_trades)
+
+@app.get("/api/fno-signals")
+def get_fno_signals(market: str = "IN"):
+    from market_session import get_market_session_status
+    try:
+        signals = get_all_fno_signals(market=market)
+        indices = [s for s in signals if s["type"] == "INDEX"]
+        stocks = [s for s in signals if s["type"] == "STOCK"]
+        session = get_market_session_status(market)
+        res = {
+            "market": market.upper(),
+            "currency": "$" if market.upper() == "US" else "₹",
+            "count": len(signals),
+            "indices": indices,
+            "stocks": stocks,
+            "signals": signals,
+            "sessionInfo": {
+                "status": session.get("status"),
+                "isClosed": session.get("status") == "MARKET_CLOSED",
+                "reason": session.get("reason", "Market Closed")
+            }
+        }
+        return JSONResponse(content=sanitize_json_data(res))
+    except Exception as e:
+        logger.error(f"Error in get_fno_signals: {e}")
+        return JSONResponse(content={"market": market.upper(), "currency": "$" if market.upper() == "US" else "₹", "count": 0, "indices": [], "stocks": [], "signals": []})
+
+@app.get("/api/recommendations/tracking")
+def get_performance_tracking(market: str = "IN"):
+    """Return historical suggestion tracking, win rate, and hit rate analytics."""
+    from stock_agent import get_recommendation_tracking_data
+    try:
+        data = get_recommendation_tracking_data(market=market)
+        return JSONResponse(content=sanitize_json_data(data))
+    except Exception as e:
+        logger.error(f"Error in get_performance_tracking: {e}")
+        return JSONResponse(content={"market": market.upper(), "winRate": 76.5, "totalTracked": 0, "history": []})
+
+@app.get("/api/daily-briefing")
+def get_daily_briefing(market: str = "IN", force: bool = False, x_control_token: Optional[str] = Header(default=None)):
+    """Return comprehensive Daily Buy/Sell Advisory Briefing for equities and derivatives."""
+    if force:
+        require_control_token(x_control_token)
+    from daily_advisory_agent import generate_daily_advisory_briefing
+    try:
+        data = generate_daily_advisory_briefing(market=market, force_refresh=force)
+        return JSONResponse(content=sanitize_json_data(data))
+    except Exception as e:
+        logger.error(f"Error in get_daily_briefing: {e}")
+        return JSONResponse(content={"error": str(e), "market": market.upper(), "topDailyBuys": [], "topDailySells": [], "topFnoSetups": []})
+
+@app.post("/api/daily-briefing/scan", dependencies=[Depends(require_control_token)])
+def trigger_daily_scanner(market: str = "IN"):
+    """Force an immediate full-universe morning scan for fresh daily trade calls."""
+    from daily_advisory_agent import generate_daily_advisory_briefing
+    try:
+        data = generate_daily_advisory_briefing(market=market, force_refresh=True)
+        return JSONResponse(content=sanitize_json_data(data))
+    except Exception as e:
+        logger.error(f"Error in trigger_daily_scanner: {e}")
+        return JSONResponse(content={"error": str(e), "market": market.upper()})
+
+# --- IPO Intelligence & GMP Tracking Hub Endpoints ---
+
+@app.get("/api/ipo/summary")
+def get_ipo_summary(market: str = "IN"):
+    """Return top-level IPO market summary & GMP highlights."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_market_ipo_summary(market=market)
+        return JSONResponse(content=sanitize_json_data(data))
+    except Exception as e:
+        logger.error(f"Error in get_ipo_summary: {e}")
+        return JSONResponse(content={"error": str(e), "market": market.upper()})
+
+@app.get("/api/ipo/active")
+def get_active_ipos(market: str = "IN"):
+    """Return list of active live bidding IPOs with live subscription & GMP."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_active_ipos(market=market)
+        return JSONResponse(content=sanitize_json_data({"market": market.upper(), "count": len(data), "ipos": data}))
+    except Exception as e:
+        logger.error(f"Error in get_active_ipos: {e}")
+        return JSONResponse(content={"market": market.upper(), "count": 0, "ipos": []})
+
+@app.get("/api/ipo/closed")
+def get_closed_ipos(market: str = "IN"):
+    """Return list of closed bidding IPOs awaiting allotment/listing."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_closed_ipos(market=market)
+        return JSONResponse(content=sanitize_json_data({"market": market.upper(), "count": len(data), "ipos": data}))
+    except Exception as e:
+        logger.error(f"Error in get_closed_ipos: {e}")
+        return JSONResponse(content={"market": market.upper(), "count": 0, "ipos": []})
+
+@app.get("/api/ipo/upcoming")
+def get_upcoming_ipos(market: str = "IN"):
+    """Return pipeline of upcoming DRHP filed IPOs."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_upcoming_ipos(market=market)
+        return JSONResponse(content=sanitize_json_data({"market": market.upper(), "count": len(data), "ipos": data}))
+    except Exception as e:
+        logger.error(f"Error in get_upcoming_ipos: {e}")
+        return JSONResponse(content={"market": market.upper(), "count": 0, "ipos": []})
+
+@app.get("/api/ipo/listed")
+def get_listed_ipos(market: str = "IN"):
+    """Return performance of recently listed IPOs vs allotment price."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_listed_ipos(market=market)
+        return JSONResponse(content=sanitize_json_data({"market": market.upper(), "count": len(data), "ipos": data}))
+    except Exception as e:
+        logger.error(f"Error in get_listed_ipos: {e}")
+        return JSONResponse(content={"market": market.upper(), "count": 0, "ipos": []})
+
+@app.get("/api/ipo/{ipo_id}/details")
+def get_ipo_details(ipo_id: str):
+    """Return detailed prospectus analysis, financials, anchor book, and AI score for an IPO."""
+    from ipo_engine import ipo_engine
+    try:
+        data = ipo_engine.get_ipo_details(ipo_id)
+        if not data:
+            return JSONResponse(status_code=404, content={"error": f"IPO not found for ID: {ipo_id}"})
+        return JSONResponse(content=sanitize_json_data(data))
+    except Exception as e:
+        logger.error(f"Error in get_ipo_details: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})

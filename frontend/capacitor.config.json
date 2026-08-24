@@ -1,0 +1,9 @@
+{
+  "appId": "com.manishmarket.app",
+  "appName": "Manish Market",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "totalTests": 31,
+  "passed": 31,
+  "failed": 0,
+  "passPercentage": 100.0,
+  "tests": [
+    {
+      "category": "REST_CORE",
+      "name": "Root Status Endpoint (/)",
+      "status": "PASSED",
+      "detail": "Server online and healthy",
+      "responseTimeMs": 14.71
+    },
+    {
+      "category": "REST_CORE",
+      "name": "Market Summary (IN)",
+      "status": "PASSED",
+      "detail": "NIFTY 50: 24252.0",
+      "responseTimeMs": 696.16
+    },
+    {
+      "category": "REST_CORE",
+      "name": "Market Summary (US)",
+      "status": "PASSED",
+      "detail": "S&P 500: 7674.37",
+      "responseTimeMs": 795.34
+    },
+    {
+      "category": "REST_CORE",
+      "name": "Recommendations (IN)",
+      "status": "PASSED",
+      "detail": "Total Analyzed: 39 stocks",
+      "responseTimeMs": 22.24
+    },
+    {
+      "category": "REST_CORE",
+      "name": "Recommendations (US)",
+      "status": "PASSED",
+      "detail": "Total Analyzed: 24 stocks",
+      "responseTimeMs": 20.14
+    },
+    {
+      "category": "ENGINE_INTRADAY",
+      "name": "Intraday Analysis (RELIANCE.NS)",
+      "status": "PASSED",
+      "detail": "Signal: STRONG_LONG | Score: 100",
+      "responseTimeMs": 27.17
+    },
+    {
+      "category": "ENGINE_SWING",
+      "name": "Swing Analysis (RELIANCE.NS)",
+      "status": "PASSED",
+      "detail": "Signal: WATCH | Score: 64",
+      "responseTimeMs": 8.64
+    },
+    {
+      "category": "ENGINE_LONGTERM",
+      "name": "Long-Term Analysis (RELIANCE.NS)",
+      "status": "PASSED",
+      "detail": "Signal: STRONG_ACCUMULATE | Score: 100",
+      "responseTimeMs": 275.51
+    },
+    {
+      "category": "ENGINE_INTRADAY",
+      "name": "Intraday Analysis (VIDYAWIRES.NS)",
+      "status": "PASSED",
+      "detail": "Signal: WATCH | Score: 50",
+      "responseTimeMs": 202.33
+    },
+    {
+      "category": "ENGINE_SWING",
+      "name": "Swing Analysis (VIDYAWIRES.NS)",
+      "status": "PASSED",
+      "detail": "Signal: WATCH | Score: 50",
+      "responseTimeMs": 176.24
+    },
+    {
+      "category": "ENGINE_LONGTERM",
+      "name": "Long-Term Analysis (VIDYAWIRES.NS)",
+      "status": "PASSED",
+      "detail": "Signal: STRONG_ACCUMULATE | Score: 100",
+      "responseTimeMs": 184.14
+    },
+    {
+      "category": "ENGINE_INTRADAY",
+      "name": "Intraday Analysis (NVDA)",
+      "status": "PASSED",
+      "detail": "Signal: NEUTRAL | Score: 38",
+      "responseTimeMs": 176.09
+    },
+    {
+      "category": "ENGINE_SWING",
+      "name": "Swing Analysis (NVDA)",
+      "status": "PASSED",
+      "detail": "Signal: WATCH | Score: 59",
+      "responseTimeMs": 234.96
+    },
+    {
+      "category": "ENGINE_LONGTERM",
+      "name": "Long-Term Analysis (NVDA)",
+      "status": "PASSED",
+      "detail": "Signal: STRONG_ACCUMULATE | Score: 100",
+      "responseTimeMs": 186.58
+    },
+    {
+      "category": "CALC_SANITY",
+      "name": "Stock Price Accuracy (RELIANCE.NS)",
+      "status": "PASSED",
+      "detail": "Real Price: \u20b9/$1316.0 (Valid Range)",
+      "responseTimeMs": 84.64
+    },
+    {
+      "category": "CALC_SANITY",
+      "name": "Stock Price Accuracy (VIDYAWIRES.NS)",
+      "status": "PASSED",
+      "detail": "Real Price: \u20b9/$86.27 (Valid Range)",
+      "responseTimeMs": 118.66
+    },
+    {
+      "category": "CALC_SANITY",
+      "name": "Stock Price Accuracy (NVDA)",
+      "status": "PASSED",
+      "detail": "Real Price: \u20b9/$214.72 (Valid Range)",
+      "responseTimeMs": 88.01
+    },
+    {
+      "category": "CALC_SANITY",
+      "name": "Stock Price Accuracy (AAPL)",
+      "status": "PASSED",
+      "detail": "Real Price: \u20b9/$309.35 (Valid Range)",
+      "responseTimeMs": 393.24
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'tcs'",
+      "status": "PASSED",
+      "detail": "Resolved -> TCS.NS",
+      "responseTimeMs": 245.81
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'infy'",
+      "status": "PASSED",
+      "detail": "Resolved -> INFY.NS",
+      "responseTimeMs": 298.9
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'sbin'",
+      "status": "PASSED",
+      "detail": "Resolved -> SBIN.NS",
+      "responseTimeMs": 175.81
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'vidya'",
+      "status": "PASSED",
+      "detail": "Resolved -> VIDYAWIRES.NS",
+      "responseTimeMs": 559.42
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'apple'",
+      "status": "PASSED",
+      "detail": "Resolved -> AAPL",
+      "responseTimeMs": 1468.66
+    },
+    {
+      "category": "FUZZY_SEARCH",
+      "name": "Search Query 'nifty'",
+      "status": "PASSED",
+      "detail": "Resolved -> ^NSEI",
+      "responseTimeMs": 583.23
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Input: Non-existent ticker",
+      "status": "PASSED",
+      "detail": "Graceful Response Code: 200",
+      "responseTimeMs": 3235.02
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Input: Special characters",
+      "status": "PASSED",
+      "detail": "Graceful Response Code: 200",
+      "responseTimeMs": 9818.12
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Input: SQL Injection attempt",
+      "status": "PASSED",
+      "detail": "Graceful Response Code: 200",
+      "responseTimeMs": 6564.07
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Input: XSS Payload attempt",
+      "status": "PASSED",
+      "detail": "Graceful Response Code: 200",
+      "responseTimeMs": 4104.72
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Input: Extremely long symbol string",
+      "status": "PASSED",
+      "detail": "Graceful Response Code: 200",
+      "responseTimeMs": 3288.51
+    },
+    {
+      "category": "EDGE_CASE",
+      "name": "Screener Extreme Boundaries (RSI>95, PE<0.1)",
+      "status": "PASSED",
+      "detail": "Returned 0 items cleanly",
+      "responseTimeMs": 4.85
+    },
+    {
+      "category": "WEBSOCKET",
+      "name": "Native Tick Stream (ws://)",
+      "status": "PASSED",
+      "detail": "PONG received immediately",
+      "responseTimeMs": 3.06
+    }
+  ]
+}

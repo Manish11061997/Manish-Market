@@ -1,0 +1,25 @@
+{
+  "short_name": "ManishMarket",
+  "name": "Manish Market - Stock Market Advisory & Trading Terminal",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0D1117",
+  "theme_color": "#00E676",
+  "display": "standalone"
+}
