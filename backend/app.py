@@ -485,6 +485,20 @@ def get_stock_market_depth(symbol: str):
 # -------------------------------------------------------------------
 # 8. Core Market Overview & Recommendations
 # -------------------------------------------------------------------
+from fastapi.responses import FileResponse
+
+@app.api_route("/download-apk", methods=["GET", "HEAD"])
+@app.api_route("/ManishMarket-debug.apk", methods=["GET", "HEAD"])
+def download_apk_file():
+    apk_path = "/Users/manish/Documents/antigravity/delightful-davinci/ManishMarket-debug.apk"
+    if not os.path.exists(apk_path):
+        raise HTTPException(status_code=404, detail="APK not found")
+    return FileResponse(
+        path=apk_path,
+        media_type="application/vnd.android.package-archive",
+        filename="ManishMarket.apk"
+    )
+
 @app.get("/")
 def read_root():
     return {
