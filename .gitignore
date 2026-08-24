@@ -64,3 +64,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# GitHub Workflows (unless PAT has workflow scope)
+.github/
