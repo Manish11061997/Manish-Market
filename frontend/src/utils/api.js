@@ -1,5 +1,5 @@
-const DEFAULT_LOCAL_IP = '10.73.152.182';
-const LIVE_CLOUDFLARE_URL = 'https://late-mic-heavily-prayer.trycloudflare.com';
+const DEFAULT_LOCAL_IP = '192.168.31.184';
+const LIVE_CLOUDFLARE_URL = 'https://aluminium-shorts-waterproof-distinction.trycloudflare.com';
 
 export function isSecureContext() {
   return typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -37,7 +37,11 @@ export function getApiBase() {
     const savedIp = localStorage.getItem('manish_market_server_ip');
     if (savedIp && savedIp.trim()) {
       const val = savedIp.trim();
-      return val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`;
+      if (val.includes('trycloudflare.com') && !val.includes('aluminium-shorts-waterproof-distinction')) {
+        localStorage.removeItem('manish_market_server_ip');
+      } else {
+        return val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`;
+      }
     }
     if (isSecureContext() || isCapacitorNative()) {
       return LIVE_CLOUDFLARE_URL;
