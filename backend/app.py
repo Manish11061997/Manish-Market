@@ -40,13 +40,6 @@ async def lifespan(app_instance: FastAPI):
     if not os.environ.get("CONTROL_TOKEN"):
         logger.warning("CONTROL_TOKEN not set - mutating endpoints are UNPROTECTED")
     ticker_task = asyncio.create_task(start_live_market_ticker())
-    # Pre-warm recommendations cache asynchronously
-    try:
-        loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, get_all_recommendations, "IN")
-        loop.run_in_executor(None, get_all_recommendations, "US")
-    except Exception as e:
-        logger.debug(f"Pre-warm executor error: {e}")
     yield
     ticker_task.cancel()
 
@@ -586,11 +579,11 @@ def get_recommendations(market: str = "IN"):
         market_gateway.subscribe_symbols(symbols_to_sub)
     except Exception:
         pass
-    top_buys = [r for r in recs if r["signal"] in ["STRONG_BUY", "BUY"]]
-    top_sells = [r for r in recs if r["signal"] in ["SELL", "STRONG_SELL"]]
-    hold_watchlist = [r for r in recs if r["signal"] == "HOLD"]
-    swing_picks = [r for r in recs if r["technicalScore"] >= 70 and r["signal"] in ["STRONG_BUY", "BUY"]]
-    value_picks = [r for r in recs if r["fundamentalScore"] >= 70 and r["fundamentals"]["peRatio"] < 30]
+    top_buys = [r for r in recs if r.get("signal") in ["STRONG_BUY", "BUY"]]
+    top_sells = [r for r in recs if r.get("signal") in ["SELL", "STRONG_SELL"]]
+    hold_watchlist = [r for r in recs if r.get("signal") == "HOLD"]
+    swing_picks = [r for r in recs if r.get("technicalScore", r.get("overallScore", 70)) >= 70 and r.get("signal") in ["STRONG_BUY", "BUY"]]
+    value_picks = [r for r in recs if r.get("fundamentalScore", r.get("overallScore", 70)) >= 65]
 
     res_payload = {
         "market": market.upper(),
@@ -889,6 +882,9 @@ def get_performance_tracking(market: str = "IN"):
         return JSONResponse(content={"market": market.upper(), "winRate": 76.5, "totalTracked": 0, "history": []})
 
 @app.get("/api/daily-briefing")
+@app.get("/api/advisory/today")
+@app.get("/api/advisory/briefing")
+@app.get("/api/v1/advisory/today")
 def get_daily_briefing(market: str = "IN", force: bool = False, x_control_token: Optional[str] = Header(default=None)):
     """Return comprehensive Daily Buy/Sell Advisory Briefing for equities and derivatives."""
     if force:

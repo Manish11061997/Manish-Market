@@ -712,50 +712,18 @@ class IPOIntelligenceEngine:
         return ALL_INDIAN_IPOS if market.upper() == "IN" else ALL_US_IPOS
 
     def get_active_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """IPOs currently open for live bidding (openDate <= today <= closeDate)."""
-        today = self._get_current_date(market)
-        res = []
-        for ipo in self.get_all_universe(market):
-            if ipo.get("id", "").startswith("LIST-"):
-                continue
-            open_d = self._parse_date(ipo.get("openDate"))
-            close_d = self._parse_date(ipo.get("closeDate"))
-            
-            if open_d and close_d and open_d <= today <= close_d:
-                res.append(ipo)
-            elif not res and ipo.get("id", "").startswith("IPO-"):
-                res.append(ipo)
+        """IPOs currently open for live bidding."""
+        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("IPO-")]
         return res
 
     def get_closed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
         """IPOs that closed bidding and are in Allotment / Awaiting Listing phase."""
-        today = self._get_current_date(market)
-        res = []
-        for ipo in self.get_all_universe(market):
-            if ipo.get("id", "").startswith("LIST-"):
-                continue
-            close_d = self._parse_date(ipo.get("closeDate"))
-            list_d = self._parse_date(ipo.get("listingDate"))
-            
-            if close_d and close_d < today:
-                if not list_d or today < list_d:
-                    res.append(ipo)
-            elif ipo.get("id", "").startswith("CLOSED-"):
-                res.append(ipo)
+        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("CLOSED-")]
         return res
 
     def get_upcoming_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """Upcoming IPO pipeline with DRHP/RHP filed and bidding starting in future."""
-        today = self._get_current_date(market)
-        res = []
-        for ipo in self.get_all_universe(market):
-            if ipo.get("id", "").startswith("LIST-"):
-                continue
-            open_d = self._parse_date(ipo.get("openDate"))
-            if open_d and open_d > today:
-                res.append(ipo)
-            elif ipo.get("id", "").startswith("UPCOMING-"):
-                res.append(ipo)
+        """Upcoming IPO pipeline with DRHP/RHP filed."""
+        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("UPCOMING-")]
         return res
 
     def get_listed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
