@@ -1,5 +1,22 @@
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-const LIVE_CLOUDFLARE_URL = 'https://aluminium-shorts-waterproof-distinction.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://deutschland-rpg-dim-webpage.trycloudflare.com';
+
+let dynamicApiBase = LIVE_CLOUDFLARE_URL;
+if (typeof window !== 'undefined') {
+  const cachedDynamic = localStorage.getItem('manish_market_dynamic_api');
+  if (cachedDynamic && cachedDynamic.startsWith('https://')) {
+    dynamicApiBase = cachedDynamic;
+  }
+  fetch('https://manishmarket.web.app/config.json?t=' + Date.now())
+    .then(r => r.json())
+    .then(cfg => {
+      if (cfg && cfg.apiUrl && cfg.apiUrl.startsWith('https://')) {
+        dynamicApiBase = cfg.apiUrl;
+        localStorage.setItem('manish_market_dynamic_api', cfg.apiUrl);
+      }
+    })
+    .catch(() => {});
+}
 
 export function isSecureContext() {
   return typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -19,7 +36,7 @@ export function getServerIp() {
     const saved = localStorage.getItem('manish_market_server_ip');
     if (saved && saved.trim()) return saved.trim();
   }
-  return LIVE_CLOUDFLARE_URL;
+  return dynamicApiBase || LIVE_CLOUDFLARE_URL;
 }
 
 export function setServerIp(ip) {
@@ -37,21 +54,17 @@ export function getApiBase() {
     const savedIp = localStorage.getItem('manish_market_server_ip');
     if (savedIp && savedIp.trim()) {
       const val = savedIp.trim();
-      if (val.includes('trycloudflare.com') && !val.includes('aluminium-shorts-waterproof-distinction')) {
-        localStorage.removeItem('manish_market_server_ip');
-      } else {
-        return val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`;
-      }
+      return val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`;
     }
     if (isSecureContext() || isCapacitorNative()) {
-      return LIVE_CLOUDFLARE_URL;
+      return dynamicApiBase || LIVE_CLOUDFLARE_URL;
     }
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:8000';
     }
   }
-  return LIVE_CLOUDFLARE_URL;
+  return dynamicApiBase || LIVE_CLOUDFLARE_URL;
 }
 
 export const API_BASE = getApiBase();
@@ -82,11 +95,15 @@ export async function apiFetch(endpointPath, options = {}) {
 
   const isHttps = isSecureContext();
 
+  if (dynamicApiBase) {
+    candidateBases.push(dynamicApiBase);
+  }
+
   if (isHttps) {
     // HTTPS web browser running on https://manishmarket.web.app
     candidateBases.push(LIVE_CLOUDFLARE_URL);
   } else if (isCapacitorNative()) {
-    // Native Android App: try Cloudflare URL, local host IP, and localhost
+    // Native Android App: try dynamic tunnel URL, fallback Cloudflare URL, local host IP, and localhost
     candidateBases.push(LIVE_CLOUDFLARE_URL);
     candidateBases.push(`http://${DEFAULT_LOCAL_IP}:8000`);
     candidateBases.push('http://localhost:8000');
