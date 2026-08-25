@@ -61,11 +61,8 @@ export default function App() {
 
   // 1. Initial REST fetch for full state
   useEffect(() => {
-    setLoading(true);
+    setLoading(false);
     setFetchErrors([]);
-    setMarketData(null);
-    setBreadthData(null);
-    setRecommendations(null);
 
     let loadedCount = 0;
     const failedFetches = [];

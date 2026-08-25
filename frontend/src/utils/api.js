@@ -2,16 +2,22 @@ const DEFAULT_LOCAL_IP = '192.168.31.184';
 export const LIVE_CLOUDFLARE_URL = 'https://level-prescribed-key-rat.trycloudflare.com';
 
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
+let activeWorkingBase = null;
+
 if (typeof window !== 'undefined') {
   const cachedDynamic = localStorage.getItem('manish_market_dynamic_api');
-  if (cachedDynamic && cachedDynamic.startsWith('https://')) {
+  if (cachedDynamic && cachedDynamic.startsWith('http')) {
     dynamicApiBase = cachedDynamic;
+    activeWorkingBase = cachedDynamic;
   }
-  fetch('https://manishmarket.web.app/config.json?t=' + Date.now())
+
+  // Asynchronously refresh dynamic endpoint from Firebase CDN
+  fetch('https://manishmarket.web.app/config.json?t=' + Date.now(), { cache: 'no-store' })
     .then(r => r.json())
     .then(cfg => {
-      if (cfg && cfg.apiUrl && cfg.apiUrl.startsWith('https://')) {
+      if (cfg && cfg.apiUrl && cfg.apiUrl.startsWith('http')) {
         dynamicApiBase = cfg.apiUrl;
+        activeWorkingBase = cfg.apiUrl;
         localStorage.setItem('manish_market_dynamic_api', cfg.apiUrl);
       }
     })
@@ -36,7 +42,7 @@ export function getServerIp() {
     const saved = localStorage.getItem('manish_market_server_ip');
     if (saved && saved.trim()) return saved.trim();
   }
-  return dynamicApiBase || LIVE_CLOUDFLARE_URL;
+  return activeWorkingBase || dynamicApiBase || LIVE_CLOUDFLARE_URL;
 }
 
 export function setServerIp(ip) {
@@ -56,7 +62,13 @@ export function getApiBase() {
       const val = savedIp.trim();
       return val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`;
     }
-    if (isSecureContext() || isCapacitorNative()) {
+    if (activeWorkingBase) {
+      return activeWorkingBase;
+    }
+    if (isSecureContext()) {
+      return dynamicApiBase || LIVE_CLOUDFLARE_URL;
+    }
+    if (isCapacitorNative()) {
       return dynamicApiBase || LIVE_CLOUDFLARE_URL;
     }
     const hostname = window.location.hostname;
@@ -64,7 +76,7 @@ export function getApiBase() {
       return 'http://localhost:8000';
     }
   }
-  return dynamicApiBase || LIVE_CLOUDFLARE_URL;
+  return activeWorkingBase || dynamicApiBase || LIVE_CLOUDFLARE_URL;
 }
 
 export const API_BASE = getApiBase();
@@ -79,7 +91,7 @@ export const CONTROL_HEADERS = {
 };
 
 /**
- * Fast, Fail-Safe Fetch Wrapper with HTTPS Mixed-Content Guard & Live Failover
+ * Fast, Fail-Safe Fetch Wrapper with Multi-Tier Fallback and Active Host Caching
  */
 export async function apiFetch(endpointPath, options = {}) {
   const path = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
@@ -87,34 +99,33 @@ export async function apiFetch(endpointPath, options = {}) {
 
   const candidateBases = [];
 
-  // 1. Custom user-configured IP/URL if present
+  // 1. Custom user-configured server IP/URL if present
   if (customIp && customIp.trim()) {
     const val = customIp.trim();
     candidateBases.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
   }
 
-  const isHttps = isSecureContext();
+  // 2. Currently known active working base (Fast Path)
+  if (activeWorkingBase) {
+    candidateBases.push(activeWorkingBase);
+  }
 
+  // 3. Dynamic tunnel from Firebase CDN
   if (dynamicApiBase) {
     candidateBases.push(dynamicApiBase);
   }
 
-  if (isHttps) {
-    // HTTPS web browser running on https://manishmarket.web.app
-    candidateBases.push(LIVE_CLOUDFLARE_URL);
-  } else if (isCapacitorNative()) {
-    // Native Android App: try dynamic tunnel URL, fallback Cloudflare URL, local host IP, and localhost
-    candidateBases.push(LIVE_CLOUDFLARE_URL);
+  // 4. Default cloudflare tunnel fallback
+  candidateBases.push(LIVE_CLOUDFLARE_URL);
+
+  // 5. Local LAN IP and localhost (for Android on local WiFi or emulator)
+  if (typeof window !== 'undefined' && !isSecureContext()) {
     candidateBases.push(`http://${DEFAULT_LOCAL_IP}:8000`);
     candidateBases.push('http://localhost:8000');
-  } else {
-    // Local HTTP web browser
-    candidateBases.push('http://localhost:8000');
-    candidateBases.push(LIVE_CLOUDFLARE_URL);
-    candidateBases.push(`http://${DEFAULT_LOCAL_IP}:8000`);
+    candidateBases.push('http://127.0.0.1:8000');
   }
 
-  // Deduplicate candidate list
+  // Deduplicate candidate list preserving order
   const uniqueBases = Array.from(new Set(candidateBases.filter(Boolean)));
 
   const mergedHeaders = {
@@ -123,33 +134,28 @@ export async function apiFetch(endpointPath, options = {}) {
   };
 
   let lastError = null;
-  const maxRetries = options.retries ?? 1;
+  const timeoutMs = options.timeout || 2200; // Fast 2.2s timeout per candidate to prevent stalling
 
   for (const base of uniqueBases) {
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutMs = options.timeout || 4000;
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-        const url = `${base}${path}`;
-        const res = await fetch(url, {
-          ...options,
-          signal: options.signal || controller.signal,
-          headers: mergedHeaders
-        });
-        clearTimeout(timeoutId);
+      const url = `${base}${path}`;
+      const res = await fetch(url, {
+        ...options,
+        signal: options.signal || controller.signal,
+        headers: mergedHeaders
+      });
+      clearTimeout(timeoutId);
 
-        if (res.ok) {
-          return res;
-        }
-      } catch (err) {
-        lastError = err;
-        // Small delay before retry
-        if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 100));
-        }
+      if (res.ok) {
+        // Cache this working base so all subsequent requests take the 0ms fast path
+        activeWorkingBase = base;
+        return res;
       }
+    } catch (err) {
+      lastError = err;
     }
   }
 

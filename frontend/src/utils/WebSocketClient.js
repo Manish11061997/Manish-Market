@@ -10,12 +10,16 @@
  * - Connection status state machine (LIVE, RECONNECTING, DISCONNECTED, STALE, REPLAY)
  */
 
-import { getApiBase } from './api';
+import { getApiBase, isCapacitorNative } from './api';
 
+const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
 
-function getDynamicWsUrl() {
-  const base = getApiBase();
+function getDynamicWsUrl(attempt = 0) {
+  let base = getApiBase();
+  if (attempt >= 2 && isCapacitorNative()) {
+    base = `http://${DEFAULT_LOCAL_IP}:8000`;
+  }
   const wsScheme = base.startsWith('https') ? 'wss' : 'ws';
   const cleanHost = base.replace(/^https?:\/\//, '');
   return `${wsScheme}://${cleanHost}/ws/market-stream${wsToken ? `?token=${encodeURIComponent(wsToken)}` : ''}`;
@@ -59,7 +63,7 @@ class WebSocketClient {
     this.intentionalClose = false;
     this.setStatus('RECONNECTING');
     try {
-      const targetUrl = getDynamicWsUrl();
+      const targetUrl = getDynamicWsUrl(this.reconnectAttempts);
       console.log("Connecting WebSocket to dynamic URL:", targetUrl);
       this.ws = new WebSocket(targetUrl);
 
