@@ -9,81 +9,81 @@ const DEFAULT_FNO_SIGNALS_IN = [
     symbol: "NIFTY50",
     name: "Nifty 50 Index",
     type: "INDEX OPTION",
-    lotSize: 75,
-    spotPrice: 24250.0,
+    lotSize: 25,
+    spotPrice: 24334.55,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "82.4%",
     profitFactor: "2.85x",
-    strike: "24300 CE",
+    strike: "24350 CE",
     iv: "13.8%",
     pcr: "1.12",
     greeks: { delta: "0.54", theta: "-0.12" },
-    optionSetup: { strike: "24300 CE", estimatedPremium: "₹145.00", targetPremium1: "₹220.00", targetPremium2: "₹290.00", stopLossPremium: "₹85.00" }
+    optionSetup: { strike: "24350 CE", estimatedPremium: "₹145.00", targetPremium1: "₹220.00", targetPremium2: "₹290.00", stopLossPremium: "₹85.00" }
   },
   {
     symbol: "NIFTYBANK",
     name: "Bank Nifty Index",
     type: "INDEX OPTION",
-    lotSize: 30,
-    spotPrice: 57760.0,
+    lotSize: 15,
+    spotPrice: 57514.20,
     fnoDirection: "BULLISH",
     strategyName: "LONG CALL OPTION",
     winProbability: "79.1%",
     profitFactor: "2.40x",
-    strike: "58000 CE",
+    strike: "57600 CE",
     iv: "16.4%",
     pcr: "1.25",
     greeks: { delta: "0.48", theta: "-0.22" },
-    optionSetup: { strike: "58000 CE", estimatedPremium: "₹380.00", targetPremium1: "₹550.00", targetPremium2: "₹720.00", stopLossPremium: "₹240.00" }
+    optionSetup: { strike: "57600 CE", estimatedPremium: "₹380.00", targetPremium1: "₹550.00", targetPremium2: "₹720.00", stopLossPremium: "₹240.00" }
   },
   {
     symbol: "RELIANCE.NS",
     name: "Reliance Industries",
     type: "STOCK OPTION",
     lotSize: 250,
-    spotPrice: 2985.0,
+    spotPrice: 1317.00,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "84.0%",
     profitFactor: "3.10x",
-    strike: "3000 CE",
+    strike: "1320 CE",
     iv: "18.2%",
     pcr: "1.08",
     greeks: { delta: "0.52", theta: "-0.08" },
-    optionSetup: { strike: "3000 CE", estimatedPremium: "₹42.50", targetPremium1: "₹65.00", targetPremium2: "₹85.00", stopLossPremium: "₹26.00" }
+    optionSetup: { strike: "1320 CE", estimatedPremium: "₹22.50", targetPremium1: "₹36.00", targetPremium2: "₹48.00", stopLossPremium: "₹14.00" }
   },
   {
     symbol: "HDFCBANK.NS",
     name: "HDFC Bank Ltd",
     type: "STOCK OPTION",
     lotSize: 550,
-    spotPrice: 1642.0,
+    spotPrice: 727.50,
     fnoDirection: "BULLISH",
     strategyName: "LONG CALL OPTION",
     winProbability: "81.5%",
     profitFactor: "2.60x",
-    strike: "1660 CE",
+    strike: "730 CE",
     iv: "15.6%",
     pcr: "1.18",
     greeks: { delta: "0.50", theta: "-0.05" },
-    optionSetup: { strike: "1660 CE", estimatedPremium: "₹24.00", targetPremium1: "₹38.00", targetPremium2: "₹50.00", stopLossPremium: "₹14.00" }
+    optionSetup: { strike: "730 CE", estimatedPremium: "₹14.00", targetPremium1: "₹22.00", targetPremium2: "₹30.00", stopLossPremium: "₹8.50" }
   }
 ];
 
 const DEFAULT_CHAIN_DATA_IN = {
-  underlyingValue: 24250.0,
-  atmStrike: 24250,
+  underlyingValue: 24334.55,
+  atmStrike: 24350,
   pcr: 1.12,
   nearestExpiry: "28-Aug-2026",
   strikes: [
-    { strike: 24100, callOI: 45200, callDelta: 0.72, callLtp: 215.0, putLtp: 38.0, putDelta: -0.28, putOI: 124500 },
-    { strike: 24150, callOI: 58900, callDelta: 0.65, callLtp: 172.0, putLtp: 52.0, putDelta: -0.35, putOI: 142800 },
-    { strike: 24200, callOI: 92400, callDelta: 0.58, callLtp: 135.0, putLtp: 71.0, putDelta: -0.42, putOI: 168000 },
-    { strike: 24250, callOI: 145000, callDelta: 0.50, callLtp: 104.0, putLtp: 98.0, putDelta: -0.50, putOI: 152000 },
-    { strike: 24300, callOI: 189000, callDelta: 0.42, callLtp: 76.0, putLtp: 132.0, putDelta: -0.58, putOI: 95400 },
-    { strike: 24350, callOI: 162000, callDelta: 0.35, callLtp: 54.0, putLtp: 170.0, putDelta: -0.65, putOI: 62100 },
-    { strike: 24400, callOI: 138000, callDelta: 0.28, callLtp: 38.0, putLtp: 215.0, putDelta: -0.72, putOI: 41800 }
+    { strike: 24200, callOI: 92400, callDelta: 0.68, callLtp: 178.0, putLtp: 42.0, putDelta: -0.32, putOI: 168000 },
+    { strike: 24250, callOI: 115000, callDelta: 0.61, callLtp: 142.0, putLtp: 58.0, putDelta: -0.39, putOI: 152000 },
+    { strike: 24300, callOI: 148000, callDelta: 0.54, callLtp: 110.0, putLtp: 76.0, putDelta: -0.46, putOI: 135400 },
+    { strike: 24350, callOI: 189000, callDelta: 0.50, callLtp: 82.0, putLtp: 98.0, putDelta: -0.50, putOI: 118000 },
+    { strike: 24400, callOI: 162000, callDelta: 0.43, callLtp: 58.0, putLtp: 124.0, putDelta: -0.57, putOI: 82100 },
+    { strike: 24450, callOI: 138000, callDelta: 0.36, callLtp: 39.0, putLtp: 155.0, putDelta: -0.64, putOI: 54800 },
+    { strike: 24500, callOI: 112000, callDelta: 0.29, callLtp: 25.0, putLtp: 192.0, putDelta: -0.71, putOI: 38200 }
   ]
 };
 

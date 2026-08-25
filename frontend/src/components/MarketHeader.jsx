@@ -161,13 +161,15 @@ function MarketHeader({
     }
   });
 
-  const [highlightIndex, setHighlightIndex] = useState(-1);
-
   const selectSymbol = (sym) => {
-    onSelectStock(sym);
+    if (!sym) return;
+    if (typeof onSelectStock === 'function') {
+      onSelectStock(sym);
+    }
     setSearchQuery('');
     setHighlightIndex(-1);
     setShowSearchDropdown(false);
+    setShowMobileSearch(false);
   };
 
   const handleKeyDown = (e) => {
@@ -505,14 +507,13 @@ function MarketHeader({
                 }}>
                 {/* Instant Dynamic Symbol Analysis Trigger */}
                 <div
-                  onPointerDown={(e) => {
+                  onMouseDown={(e) => {
                     e.preventDefault();
                     let sym = searchQuery.trim().toUpperCase();
                     if (currentMarket === 'IN' && !sym.endsWith('.NS') && !sym.startsWith('^')) {
                       sym = `${sym}.NS`;
                     }
-                    onSelectStock(sym);
-                    setShowSearchDropdown(false);
+                    selectSymbol(sym);
                   }}
                   style={{
                     padding: '10px 12px',
@@ -550,7 +551,7 @@ function MarketHeader({
                     role="option"
                     id={`market-search-option-${idx}`}
                     aria-selected={idx === highlightIndex}
-                    onPointerDown={(e) => {
+                    onMouseDown={(e) => {
                       e.preventDefault();
                       selectSymbol(s.symbol);
                     }}
@@ -774,14 +775,12 @@ function MarketHeader({
 
             {searchQuery.trim() && (
               <div
-                onPointerDown={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   let sym = searchQuery.trim().toUpperCase();
                   if (currentMarket === 'IN' && !sym.endsWith('.NS') && !sym.startsWith('^')) {
                     sym = `${sym}.NS`;
                   }
-                  onSelectStock(sym);
-                  setShowMobileSearch(false);
+                  selectSymbol(sym);
                 }}
                 style={{
                   padding: '12px 14px',
@@ -808,10 +807,8 @@ function MarketHeader({
             {combinedResults.map((s) => (
               <div
                 key={s.symbol}
-                onPointerDown={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   selectSymbol(s.symbol);
-                  setShowMobileSearch(false);
                 }}
                 style={{
                   padding: '12px 14px',

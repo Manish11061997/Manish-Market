@@ -91,9 +91,9 @@ export default function App() {
           market: currentMarket,
           marketStatus: "LIVE_ACTIVE",
           indices: {
-            NIFTY50: { name: "Nifty 50", price: 24252.0, change: 20.15, pChange: 0.08, status: "BULLISH" },
-            SENSEX: { name: "BSE Sensex", price: 77540.83, change: 3.11, pChange: 0.0, status: "NEUTRAL" },
-            NIFTYBANK: { name: "Nifty Bank", price: 57761.95, change: 266.05, pChange: 0.46, status: "BULLISH" }
+            NIFTY50: { name: "Nifty 50", price: 24334.55, change: 115.50, pChange: 0.48, status: "BULLISH" },
+            SENSEX: { name: "BSE Sensex", price: 77656.09, change: 286.98, pChange: 0.37, status: "BULLISH" },
+            NIFTYBANK: { name: "Nifty Bank", price: 57514.20, change: -11.75, pChange: -0.02, status: "NEUTRAL" }
           }
         });
         checkDone('Market Summary', true);
