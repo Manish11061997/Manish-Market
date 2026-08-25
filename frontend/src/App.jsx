@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import SidebarNav from './components/SidebarNav';
 import MarketHeader from './components/MarketHeader';
 import MarketBreadthBar from './components/MarketBreadthBar';
@@ -236,6 +237,69 @@ export default function App() {
       toastTimersRef.current = {};
     };
   }, [currentMarket]);
+
+  // 📱 Mobile Hardware Back Button & Back Gesture Navigation Handler
+  useEffect(() => {
+    let backListener;
+    let lastBackTap = 0;
+
+    try {
+      backListener = CapApp.addListener('backButton', () => {
+        // 1. Close stock detail modal if open
+        if (selectedStock) {
+          setSelectedStock(null);
+          return;
+        }
+        // 2. Close any open dialogs / modals / drawer
+        if (showAlertsModal) { setShowAlertsModal(false); return; }
+        if (showBrokerModal) { setShowBrokerModal(false); return; }
+        if (drawerOpen) { setDrawerOpen(false); return; }
+        if (showHealthHUD) { setShowHealthHUD(false); return; }
+        if (showDebugHUD) { setShowDebugHUD(false); return; }
+
+        // 3. If on a subview, return to home (Recommendations)
+        if (activeView !== 'RECOMMENDATIONS') {
+          setActiveView('RECOMMENDATIONS');
+          return;
+        }
+
+        // 4. Double tap back on Home screen to exit app safely
+        const now = Date.now();
+        if (now - lastBackTap < 2000) {
+          CapApp.exitApp();
+        } else {
+          lastBackTap = now;
+          setActiveToasts(prev => [...prev, {
+            id: `back-toast-${now}`,
+            text: 'Press back again to exit'
+          }].slice(-3));
+          setTimeout(() => {
+            setActiveToasts(prev => prev.filter(t => t.id !== `back-toast-${now}`));
+          }, 2000);
+        }
+      });
+    } catch (e) {
+      console.log('CapApp listener error:', e);
+    }
+
+    const handlePop = () => {
+      if (selectedStock) {
+        setSelectedStock(null);
+      } else if (activeView !== 'RECOMMENDATIONS') {
+        setActiveView('RECOMMENDATIONS');
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+
+    return () => {
+      if (backListener && typeof backListener.then === 'function') {
+        backListener.then(handle => handle?.remove?.());
+      } else if (backListener?.remove) {
+        backListener.remove();
+      }
+      window.removeEventListener('popstate', handlePop);
+    };
+  }, [selectedStock, showAlertsModal, showBrokerModal, drawerOpen, showHealthHUD, showDebugHUD, activeView]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', overflow: 'hidden' }}>

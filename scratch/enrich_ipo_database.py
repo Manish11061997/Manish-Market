@@ -1,4 +1,6 @@
-"""
+import os
+
+content = '''"""
 ipo_engine.py
 Institutional IPO Intelligence & Deep Quantitative Analysis Engine
 Features:
@@ -793,3 +795,9 @@ class IPOIntelligenceEngine:
         }
 
 ipo_engine = IPOIntelligenceEngine()
+'''
+
+with open("/Users/manish/Documents/antigravity/delightful-davinci/backend/ipo_engine.py", "w") as f:
+    f.write(content.strip() + "\n")
+
+print("Enriched ipo_engine.py successfully written!")
