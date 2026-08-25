@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://level-prescribed-key-rat.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://participate-smile-coalition-cheapest.trycloudflare.com';
 
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
 let activeWorkingBase = null;
