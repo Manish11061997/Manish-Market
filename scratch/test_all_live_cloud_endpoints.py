@@ -2,7 +2,7 @@ import urllib.request
 import json
 import ssl
 
-BASE_URL = "https://deutschland-rpg-dim-webpage.trycloudflare.com"
+BASE_URL = "https://level-prescribed-key-rat.trycloudflare.com"
 
 endpoints = [
     ("/api/session-status?market=IN", "Session Status (IN)"),

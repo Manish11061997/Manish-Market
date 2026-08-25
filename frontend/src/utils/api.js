@@ -1,5 +1,5 @@
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://deutschland-rpg-dim-webpage.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://level-prescribed-key-rat.trycloudflare.com';
 
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
 if (typeof window !== 'undefined') {
