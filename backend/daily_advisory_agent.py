@@ -93,12 +93,12 @@ def generate_daily_advisory_briefing(market: str = "IN", force_refresh: bool = F
         except Exception:
             return None
 
-    # 2. Fast Parallel Scan of Top Focus Liquid Assets
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = {executor.submit(_scan_single, s): s for s in universe[:6]}
+    # 2. Fast Parallel Scan of Top Focus Liquid Assets with 2.5s ceiling
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(_scan_single, s): s for s in universe[:4]}
         for f in as_completed(futures):
             try:
-                item = f.result(timeout=6.0)
+                item = f.result(timeout=2.5)
                 if item:
                     if item["signal"] in ["STRONG_BUY", "BUY"]:
                         equity_buys.append(item)
