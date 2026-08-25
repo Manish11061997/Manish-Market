@@ -222,9 +222,8 @@ class WebSocketClient {
     if (this.staleTimer) clearTimeout(this.staleTimer);
     this.staleTimer = setTimeout(() => {
       this.staleTimer = null;
-      if ((this.status === 'LIVE' || this.status === 'REPLAY') && Date.now() - this.lastTickTime > 15000) {
-        this.setStatus('STALE');
-        this.scheduleReconnect();
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ action: "ping" }));
       }
     }, 15000);
   }

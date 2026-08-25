@@ -195,6 +195,48 @@ class MarketDataGateway:
                 "health": self.get_health_metrics()
             }
 
+        # Periodic Heartbeat Broadcast when market is static or after-hours
+        if getattr(self, "_last_heartbeat_time", 0) < time.time() - 1.5:
+            self._last_heartbeat_time = time.time()
+            cached_ticks = {
+                sym: {
+                    "symbol": sym,
+                    "price": state.get("price", 0.0),
+                    "change": state.get("change", 0.0),
+                    "changePercent": state.get("changePercent", 0.0),
+                    "prevClose": state.get("prevClose", 0.0),
+                    "high": state.get("high", 0.0),
+                    "low": state.get("low", 0.0),
+                    "volume": state.get("volume", 0),
+                    "timestamp": time.strftime("%H:%M:%S")
+                }
+                for sym, state in live_market_state._states.items()
+            }
+            session_in = get_market_session_status("IN")
+            session_us = get_market_session_status("US")
+            breadth_in = market_breadth_engine.get_latest_breadth(market="IN")
+            breadth_us = market_breadth_engine.get_latest_breadth(market="US")
+            from datetime import datetime
+            return {
+                "type": "TICK_STREAM",
+                "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                "ms": int(time.time() * 1000),
+                "mode": self.mode,
+                "provider": self.current_provider.name,
+                "isFailover": self.is_failover_active,
+                "ticks": cached_ticks,
+                "breadth": {
+                    "IN": breadth_in.to_dict(),
+                    "US": breadth_us.to_dict()
+                },
+                "session": {
+                    "IN": session_in,
+                    "US": session_us
+                },
+                "triggeredAlerts": [],
+                "health": self.get_health_metrics()
+            }
+
         return {}
 
     def get_market_depth(self, symbol: str) -> dict:

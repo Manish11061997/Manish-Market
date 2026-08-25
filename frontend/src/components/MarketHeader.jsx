@@ -327,7 +327,7 @@ function MarketHeader({
                 fontSize: '10px',
                 fontWeight: 800
               }}>
-                <span>🌴 HOLIDAY ({sessionInfo.reason || 'NSE/BSE Closed'})</span>
+                <span>{sessionInfo.reason?.toLowerCase().includes('holiday') ? '🌴 HOLIDAY' : '🌙 AFTER-HOURS'} ({currentMarket === 'IN' ? 'NSE/BSE Closed' : 'US Closed'})</span>
               </div>
             )}
           </div>
