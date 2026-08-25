@@ -499,6 +499,11 @@ def download_apk_file():
         filename="ManishMarket.apk"
     )
 
+@app.get("/health")
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "service": "manish-market-backend", "online": True}
+
 @app.get("/")
 def read_root():
     return {
