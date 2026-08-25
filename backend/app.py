@@ -528,6 +528,9 @@ def read_root():
     }
 
 @app.get("/api/market-summary")
+@app.get("/api/market/overview")
+@app.get("/api/v1/market/overview")
+@app.get("/api/v1/market-summary")
 def get_market_summary(market: str = "IN"):
     try:
         indices = fetch_market_indices(market=market) or {}
