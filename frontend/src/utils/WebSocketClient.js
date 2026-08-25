@@ -10,7 +10,7 @@
  * - Connection status state machine (LIVE, RECONNECTING, DISCONNECTED, STALE, REPLAY)
  */
 
-import { getApiBase, isCapacitorNative } from './api';
+import { getApiBase, isCapacitorNative, probeFastestServer } from './api';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
@@ -166,9 +166,12 @@ class WebSocketClient {
   scheduleReconnect() {
     this.clearReconnectTimer();
     this.reconnectAttempts += 1;
-    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), this.maxReconnectDelay);
-    this.reconnectTimer = setTimeout(() => {
+    const delay = Math.min(800 * Math.pow(1.3, this.reconnectAttempts), this.maxReconnectDelay);
+    this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
+      if (this.reconnectAttempts >= 2) {
+        try { await probeFastestServer(); } catch {}
+      }
       this.connect();
     }, delay);
   }

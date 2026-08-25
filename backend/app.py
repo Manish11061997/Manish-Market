@@ -65,7 +65,7 @@ import time as _time
 from collections import defaultdict, deque
 from starlette.middleware.base import BaseHTTPMiddleware
 
-RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "300"))
+RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "1200"))
 RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 
 _rate_buckets: Dict[str, deque] = defaultdict(deque)
@@ -83,7 +83,9 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
         headers = dict(scope.get("headers", []))
-        client_ip = (scope.get("client") or ("unknown",))[0]
+        cf_ip = headers.get(b"cf-connecting-ip", b"").decode("utf-8", "ignore")
+        xf_ip = headers.get(b"x-forwarded-for", b"").decode("utf-8", "ignore").split(",")[0].strip()
+        client_ip = cf_ip or xf_ip or (scope.get("client") or ("unknown",))[0]
         now = _time.monotonic()
         with _rate_lock:
             bucket = _rate_buckets[client_ip]

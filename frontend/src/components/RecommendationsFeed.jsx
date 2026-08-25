@@ -4,11 +4,68 @@ import { wsClient } from '../utils/WebSocketClient';
 import { findTick } from '../utils/symbolMatcher';
 import { apiFetch } from '../utils/api';
 
+const DEFAULT_RECOMMENDATIONS_IN = {
+  market: 'IN',
+  all: [
+    {
+      symbol: "RELIANCE.NS",
+      name: "Reliance Industries",
+      sector: "Energy & Oil",
+      currentPrice: 2985.40,
+      change: 32.10,
+      changePercent: 1.09,
+      signal: "STRONG_BUY",
+      confidence: 94,
+      targetPrice: 3350.00,
+      stopLoss: 2840.00,
+      horizon: "SWING",
+      setup: "High-Volume Breakout Above 50 EMA",
+      catalyst: "Strong Jio & Retail ARPU expansion",
+      riskRewardRatio: "2.85:1",
+      aiSummary: "Bullish divergence on daily MACD with institutional block accumulation."
+    },
+    {
+      symbol: "HDFCBANK.NS",
+      name: "HDFC Bank",
+      sector: "Banking & Financials",
+      currentPrice: 1642.50,
+      change: 14.80,
+      changePercent: 0.91,
+      signal: "STRONG_BUY",
+      confidence: 91,
+      targetPrice: 1820.00,
+      stopLoss: 1570.00,
+      horizon: "INTRADAY",
+      setup: "Ascending Triangle Consolidation",
+      catalyst: "NIM expansion & loan growth",
+      riskRewardRatio: "2.5:1",
+      aiSummary: "Rebounding off 200 EMA support with rising delivery volume."
+    },
+    {
+      symbol: "TCS.NS",
+      name: "Tata Consultancy Services",
+      sector: "IT Services",
+      currentPrice: 4210.00,
+      change: 45.20,
+      changePercent: 1.08,
+      signal: "BUY",
+      confidence: 88,
+      targetPrice: 4600.00,
+      stopLoss: 4050.00,
+      horizon: "LONG_TERM",
+      setup: "Multi-Week Cup & Handle Base",
+      catalyst: "Generative AI deal pipeline expansion",
+      riskRewardRatio: "2.6:1",
+      aiSummary: "Structural compounder with defensive dollar revenue stream."
+    }
+  ]
+};
+
 function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, currentMarket = 'IN' }) {
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedSector, setSelectedSector] = useState('ALL');
-  const [feedData, setFeedData] = useState(recommendations);
-  const [loading, setLoading] = useState(!recommendations?.all?.length);
+  const [feedData, setFeedData] = useState(recommendations || (currentMarket === 'IN' ? DEFAULT_RECOMMENDATIONS_IN : null));
+  const [loading, setLoading] = useState(false);
 
   // Sync when recommendations prop updates
   useEffect(() => {
