@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import LogoHexagon from './LogoHexagon';
 import { useAuth } from '../utils/useAuth';
+import GoogleSignInModal from './GoogleSignInModal';
 
 export default function UnauthenticatedLandingView({ marketData, currentMarket = 'IN', onMarketChange }) {
   const [mode, setMode] = useState('LOGIN'); // 'LOGIN' or 'SIGNUP'
@@ -29,30 +30,13 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
   const [showPassword, setShowPassword] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState(currentMarket);
   const [localError, setLocalError] = useState(null);
-  const [googlePromptOpen, setGooglePromptOpen] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [googleName, setGoogleName] = useState('');
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
-  const { login, signup, loginWithGoogle, loading } = useAuth();
+  const { login, signup, loading } = useAuth();
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setLocalError(null);
-    if (googlePromptOpen) {
-      if (!googleEmail.trim() || !googleEmail.includes('@')) {
-        setLocalError('Please enter a valid Google email address.');
-        return;
-      }
-      try {
-        await loginWithGoogle(googleName.trim(), googleEmail.trim(), selectedMarket);
-        if (onMarketChange && selectedMarket !== currentMarket) {
-          onMarketChange(selectedMarket);
-        }
-      } catch (err) {
-        setLocalError(err.message || 'Google Sign-in failed.');
-      }
-      return;
-    }
-    setGooglePromptOpen(true);
+    setShowGoogleModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -475,74 +459,6 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
                 </svg>
                 <span>{mode === 'LOGIN' ? 'Continue with Google' : 'Sign up with Google'}</span>
               </button>
-
-              {/* Google Prompt for Email */}
-              {googlePromptOpen && (
-                <div style={{
-                  padding: '12px',
-                  borderRadius: '14px',
-                  backgroundColor: 'var(--bg-elevated)',
-                  border: '1px solid var(--accent-blue-border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)' }}>
-                    Confirm your Google Account details:
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Your Name (optional)"
-                    value={googleName}
-                    onChange={(e) => setGoogleName(e.target.value)}
-                    className="pro-input-field"
-                    style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '8px' }}
-                  />
-                  <input
-                    type="email"
-                    placeholder="Google Email (e.g. you@gmail.com)"
-                    value={googleEmail}
-                    onChange={(e) => setGoogleEmail(e.target.value)}
-                    className="pro-input-field"
-                    style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '8px' }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={handleGoogleSignIn}
-                      disabled={loading}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--accent-blue)',
-                        color: '#04060a',
-                        fontWeight: 800,
-                        fontSize: '12px',
-                        border: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Confirm & Enter
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGooglePromptOpen(false)}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: 'transparent',
-                        color: 'var(--text-muted)',
-                        fontSize: '12px',
-                        border: '1px solid var(--border-subtle)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Divider */}
@@ -691,6 +607,14 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
         </div>
 
       </main>
+
+      {/* Dedicated Google Sign In Dialog */}
+      <GoogleSignInModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        currentMarket={currentMarket}
+        onMarketChange={onMarketChange}
+      />
 
     </div>
   );

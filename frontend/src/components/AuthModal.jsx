@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Lock, Mail, Globe, ArrowRight, ShieldCheck, Sparkles, X, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../utils/useAuth';
 import LogoHexagon from './LogoHexagon';
+import GoogleSignInModal from './GoogleSignInModal';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'LOGIN', currentMarket = 'IN', onMarketChange }) {
   const [mode, setMode] = useState(initialMode); // 'LOGIN' or 'SIGNUP'
@@ -11,35 +12,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'LOGIN', curr
   const [showPassword, setShowPassword] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState(currentMarket);
   const [localError, setLocalError] = useState(null);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
-  const { login, signup, loginWithGoogle, loading } = useAuth();
-  const [googlePromptOpen, setGooglePromptOpen] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [googleName, setGoogleName] = useState('');
+  const { login, signup, loading } = useAuth();
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setLocalError(null);
-    // If prompt is open and email entered:
-    if (googlePromptOpen) {
-      if (!googleEmail.trim() || !googleEmail.includes('@')) {
-        setLocalError('Please enter a valid Google email address.');
-        return;
-      }
-      try {
-        await loginWithGoogle(googleName.trim(), googleEmail.trim(), selectedMarket);
-        if (onMarketChange && selectedMarket !== currentMarket) {
-          onMarketChange(selectedMarket);
-        }
-        onClose();
-      } catch (err) {
-        setLocalError(err.message || 'Google Sign-in failed.');
-      }
-      return;
-    }
-    // Open Google Account dialog
-    setGooglePromptOpen(true);
+    setShowGoogleModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -256,74 +237,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'LOGIN', curr
             </svg>
             <span>{mode === 'LOGIN' ? 'Sign in with Google' : 'Sign up with Google'}</span>
           </button>
-
-          {/* Google Quick Account Input (when triggered) */}
-          {googlePromptOpen && (
-            <div style={{
-              padding: '12px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--accent-blue-border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}>
-              <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)' }}>
-                Enter your Google Account email to proceed:
-              </div>
-              <input
-                type="text"
-                placeholder="Your Name (optional)"
-                value={googleName}
-                onChange={(e) => setGoogleName(e.target.value)}
-                className="pro-input-field"
-                style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '8px' }}
-              />
-              <input
-                type="email"
-                placeholder="Google Email (e.g. you@gmail.com)"
-                value={googleEmail}
-                onChange={(e) => setGoogleEmail(e.target.value)}
-                className="pro-input-field"
-                style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '8px' }}
-              />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--accent-blue)',
-                    color: '#04060a',
-                    fontWeight: 800,
-                    fontSize: '12px',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Confirm Google Sign-In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGooglePromptOpen(false)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-muted)',
-                    fontSize: '12px',
-                    border: '1px solid var(--border-subtle)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Divider */}
@@ -540,6 +453,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'LOGIN', curr
         </div>
 
       </div>
+
+      {/* Dedicated Google Sign In Dialog */}
+      <GoogleSignInModal
+        isOpen={showGoogleModal}
+        onClose={() => {
+          setShowGoogleModal(false);
+          onClose();
+        }}
+        currentMarket={currentMarket}
+        onMarketChange={onMarketChange}
+      />
+
     </div>
   );
 }
