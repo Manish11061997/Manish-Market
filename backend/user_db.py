@@ -183,6 +183,28 @@ class UserDatabaseManager:
         finally:
             conn.close()
 
+    def get_or_create_google_user(self, email: str, name: str, market_preference: str = 'IN') -> Dict[str, Any]:
+        email_clean = email.strip().lower()
+        if not email_clean or '@' not in email_clean:
+            raise ValueError("Invalid Google email address format.")
+        
+        conn = get_db_connection()
+        try:
+            row = conn.execute("SELECT id FROM users WHERE email = ?;", (email_clean,)).fetchone()
+            if row:
+                return self.get_user_by_id(row['id'])
+        finally:
+            conn.close()
+
+        # User doesn't exist yet, create with randomized secure password
+        random_pwd = uuid.uuid4().hex + uuid.uuid4().hex
+        return self.create_user(
+            email=email_clean,
+            name=name if name and name.strip() else email_clean.split('@')[0].capitalize(),
+            password=random_pwd,
+            market_preference=market_preference
+        )
+
     def authenticate_user(self, email: str, password: str) -> Optional[Dict[str, Any]]:
         email_clean = email.strip().lower()
         conn = get_db_connection()

@@ -18,6 +18,7 @@ export default function SidebarNav({
   onOpenBrokerSettings,
   onOpenAuthModal
 }) {
+  const { currentUser, isAuthenticated, logout } = useAuth();
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
   );

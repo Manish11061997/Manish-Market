@@ -116,6 +116,32 @@ export function useAuth() {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (name, email, marketPreference = 'IN') => {
+    setLoading(true);
+    setAuthError(null);
+    try {
+      const res = await apiFetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, marketPreference })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Google sign-in failed.');
+      }
+      setAuthToken(data.token);
+      saveStoredUser(data.user);
+      setCurrentUser(data.user);
+      setToken(data.token);
+      setLoading(false);
+      return data.user;
+    } catch (err) {
+      setLoading(false);
+      setAuthError(err.message);
+      throw err;
+    }
+  }, []);
+
   const logout = useCallback(() => {
     setAuthToken(null);
     saveStoredUser(null);
@@ -152,6 +178,7 @@ export function useAuth() {
     authError,
     signup,
     login,
+    loginWithGoogle,
     logout,
     updateProfile
   };

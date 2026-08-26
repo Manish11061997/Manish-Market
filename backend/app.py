@@ -145,6 +145,11 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    marketPreference: Optional[str] = "IN"
+
 class ProfileUpdateRequest(BaseModel):
     name: Optional[str] = None
     marketPreference: Optional[str] = None
@@ -279,6 +284,23 @@ def login_user(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid email or password. Please check your credentials.")
     token = create_access_token(user["id"], user["email"], user["name"])
     return {"status": "success", "token": token, "user": user}
+
+@app.post("/api/auth/google")
+def google_auth(req: GoogleAuthRequest):
+    """Authenticate or register user via Google Sign-In."""
+    try:
+        user = user_db.get_or_create_google_user(
+            email=req.email,
+            name=req.name or req.email.split('@')[0].capitalize(),
+            market_preference=req.marketPreference or "IN"
+        )
+        token = create_access_token(user["id"], user["email"], user["name"])
+        return {"status": "success", "token": token, "user": user}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Google auth error: {e}")
+        raise HTTPException(status_code=500, detail="Google authentication failed.")
 
 @app.get("/api/auth/me")
 def get_current_user_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
