@@ -9,6 +9,9 @@ import asyncio
 import math
 import os
 import threading
+import time
+from datetime import datetime
+import pandas as pd
 
 from data_fetcher import fetch_market_indices, get_stock_universe, fetch_stock_ohlcv, resolve_ticker_symbol, search_stocks_by_name
 from stock_agent import analyze_stock, get_all_recommendations
@@ -795,23 +798,32 @@ def get_stock_chart_data(symbol: str, period: str = "6mo", interval: str = "1d",
     
     series = []
     is_intraday = period in ["1d", "1m", "5m"] or interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"]
-    for date, row in df_adjusted.iterrows():
-        try:
-            ts_val = int(date.timestamp())
-            date_str = date.strftime("%Y-%m-%d %H:%M:%S") if is_intraday else date.strftime("%Y-%m-%d")
-        except Exception:
-            ts_val = 0
-            date_str = str(date)
-            
+    for idx_val, row in df_adjusted.iterrows():
+        ts_val = 0
+        if "timestamp" in row and pd.notna(row["timestamp"]):
+            try:
+                ts_val = int(row["timestamp"])
+            except Exception:
+                pass
+        
+        date_str = str(row.get("date", row.get("Date", "")))
+        if not date_str and ts_val > 0:
+            date_str = datetime.fromtimestamp(ts_val).strftime("%Y-%m-%d %H:%M:%S" if is_intraday else "%Y-%m-%d")
+        elif date_str and ts_val == 0:
+            try:
+                ts_val = int(datetime.strptime(date_str[:10], "%Y-%m-%d").timestamp())
+            except Exception:
+                ts_val = int(time.time())
+
         series.append({
             "timestamp": ts_val,
             "date": date_str,
-            "open": round(float(row.get('Open', 100.0)), 2),
-            "high": round(float(row.get('High', 100.0)), 2),
-            "low": round(float(row.get('Low', 100.0)), 2),
-            "close": round(float(row.get('Close', 100.0)), 2),
-            "volume": int(row.get('Volume', 1000)),
-            "rawClose": round(float(row.get('Raw_Close', row.get('Close', 100.0))), 2)
+            "open": round(float(row.get('Open', row.get('open', 100.0))), 2),
+            "high": round(float(row.get('High', row.get('high', 100.0))), 2),
+            "low": round(float(row.get('Low', row.get('low', 100.0))), 2),
+            "close": round(float(row.get('Close', row.get('close', 100.0))), 2),
+            "volume": int(row.get('Volume', row.get('volume', 1000))),
+            "rawClose": round(float(row.get('Raw_Close', row.get('Close', row.get('close', 100.0)))), 2)
         })
         
     res_data = {

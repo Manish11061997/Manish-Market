@@ -9,41 +9,17 @@ const DEFAULT_WATCHLISTS = {
   IN: [
     {
       id: 'favorites_in',
-      name: '⭐ Favorites',
+      name: '⭐ My Watchlist',
       isDefault: true,
-      symbols: ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 'BHARTIARTL.NS', 'SBIN.NS']
-    },
-    {
-      id: 'growth_in',
-      name: '🚀 High Growth',
-      isDefault: false,
-      symbols: ['ZOMATO.NS', 'TRENT.NS', 'HAL.NS', 'BEL.NS', 'KPITTECH.NS', 'DIXON.NS']
-    },
-    {
-      id: 'banking_in',
-      name: '🏦 Banking & Finance',
-      isDefault: false,
-      symbols: ['HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'AXISBANK.NS', 'KOTAKBANK.NS', 'BAJFINANCE.NS']
+      symbols: []
     }
   ],
   US: [
     {
       id: 'favorites_us',
-      name: '⭐ Favorites',
+      name: '⭐ My Watchlist',
       isDefault: true,
-      symbols: ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA']
-    },
-    {
-      id: 'ai_semis_us',
-      name: '🤖 AI & Semis',
-      isDefault: false,
-      symbols: ['NVDA', 'AMD', 'AVGO', 'ARM', 'QCOM', 'PLTR']
-    },
-    {
-      id: 'fintech_us',
-      name: '💳 Fintech & Mega',
-      isDefault: false,
-      symbols: ['V', 'MA', 'JPM', 'PYPL', 'SQ', 'COIN']
+      symbols: []
     }
   ]
 };
@@ -65,7 +41,7 @@ function getCurrentUserId() {
 }
 
 function getStorageKey() {
-  return `${STORAGE_KEY_PREFIX}${getCurrentUserId()}_v1`;
+  return `${STORAGE_KEY_PREFIX}${getCurrentUserId()}_v2`;
 }
 
 function getStoredWatchlists() {

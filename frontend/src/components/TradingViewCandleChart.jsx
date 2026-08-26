@@ -2,20 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
+import { Maximize2, Minimize2, RotateCw, X, TrendingUp, RefreshCw } from 'lucide-react';
 
 /**
  * TradingViewCandleChart
- * Universal High-Performance Candlestick & Volume Chart.
- * Features:
- * - Dynamic TradingView lightweight-charts engine with automatic canvas resize
- * - Fallback to High-Precision SVG Candlestick engine if canvas is not initialized
- * - Real-time incoming WebSocket tick aggregation (stretching wicks, candle color shift)
- * - Volume histogram sub-series with color sync
- * - EMA 20 & EMA 50 indicators
- * - Multi-timeframe support (1m, 5m, 15m, 1h, 1D, 1W)
+ * High-Performance Candlestick Chart powered by TradingView lightweight-charts.
+ * Supports:
+ * - Real-time incoming WebSocket ticks & wick updates
+ * - Multi-timeframe switching (1m, 5m, 15m, 1h, 1D, 1W)
+ * - True Full-Screen & Landscape Rotation modes
+ * - Resilient fallback rendering
  */
-import { Maximize2, RotateCw, X } from 'lucide-react';
-
 export default function TradingViewCandleChart({
   symbol,
   timeframe = '1D',
@@ -26,9 +23,9 @@ export default function TradingViewCandleChart({
   const chartContainerRef = useRef(null);
   const fullChartContainerRef = useRef(null);
   const chartInstanceRef = useRef(null);
+  const fullChartInstanceRef = useRef(null);
   const candleSeriesRef = useRef(null);
-  const volumeSeriesRef = useRef(null);
-  const chartReadyRef = useRef(null);
+  const fullCandleSeriesRef = useRef(null);
 
   const [candles, setCandles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,16 +36,31 @@ export default function TradingViewCandleChart({
   const [isLandscape, setIsLandscape] = useState(false);
 
   const activeCandleRef = useRef(null);
-  const timeframeRef = useRef(timeframe);
-  timeframeRef.current = timeframe;
-
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
+  const timeframesList = ['1m', '5m', '15m', '1h', '1D', '1W'];
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('resize'));
+  // Helper to format candles for lightweight-charts
+  const formatTVCandles = (rawList) => {
+    const seen = new Set();
+    const formatted = [];
+    for (const c of rawList) {
+      let t = c.time;
+      if (typeof t !== 'number' || t <= 0) {
+        if (c.timestamp) t = c.timestamp;
+        else if (c.date) t = Math.floor(new Date(c.date).getTime() / 1000);
+      }
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      formatted.push({
+        time: t,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close)
+      });
     }
-  }, [isFullScreen, isLandscape]);
+    return formatted.sort((a, b) => a.time - b.time);
+  };
 
   // 1. Fetch Historical OHLCV Series
   useEffect(() => {
@@ -67,41 +79,6 @@ export default function TradingViewCandleChart({
     else if (timeframe === '1W') { period = '2y'; interval = '1wk'; }
 
     const targetSym = encodeURIComponent(symbol);
-    const applyCandles = async (parsed) => {
-      if (chartReadyRef.current) {
-        try { await chartReadyRef.current; } catch { return; }
-      }
-      if (controller.signal.aborted || !candleSeriesRef.current) return;
-      try {
-        const seenTimes = new Set();
-        const tvCandles = [];
-
-        for (const c of parsed) {
-          if (!seenTimes.has(c.time)) {
-            seenTimes.add(c.time);
-            tvCandles.push({
-              time: c.time,
-              open: c.open,
-              high: c.high,
-              low: c.low,
-              close: c.close
-            });
-          }
-        }
-
-        // Sort ascending by time
-        tvCandles.sort((a, b) => a.time - b.time);
-
-        candleSeriesRef.current.setData(tvCandles);
-        if (chartInstanceRef.current && chartInstanceRef.current.timeScale) {
-          chartInstanceRef.current.timeScale().fitContent();
-        }
-        setUseSvgFallback(false);
-      } catch (e) {
-        console.warn("TV chart setData error, falling back to SVG:", e);
-        setUseSvgFallback(true);
-      }
-    };
 
     apiFetch(`/api/stock/${targetSym}/chart?period=${period}&interval=${interval}&adjusted=${isAdjusted}&market=${currentMarket}`)
       .then(r => r.ok ? r.json() : { data: [] })
@@ -148,25 +125,46 @@ export default function TradingViewCandleChart({
         }
 
         setCandles(parsed);
-        if (parsed.length > 0) {
-          const latest = parsed[parsed.length - 1];
-          activeCandleRef.current = { ...latest };
-          setLastCandle(latest);
+        const latest = parsed[parsed.length - 1];
+        activeCandleRef.current = { ...latest };
+        setLastCandle(latest);
+
+        const tvData = formatTVCandles(parsed);
+
+        // Update normal chart
+        if (candleSeriesRef.current) {
+          try {
+            candleSeriesRef.current.setData(tvData);
+            if (chartInstanceRef.current?.timeScale) {
+              chartInstanceRef.current.timeScale().fitContent();
+            }
+          } catch (e) {
+            console.warn("Chart setData fallback:", e);
+          }
         }
 
-        applyCandles(parsed);
+        // Update fullscreen chart if active
+        if (fullCandleSeriesRef.current) {
+          try {
+            fullCandleSeriesRef.current.setData(tvData);
+            if (fullChartInstanceRef.current?.timeScale) {
+              fullChartInstanceRef.current.timeScale().fitContent();
+            }
+          } catch {}
+        }
 
         setLoading(false);
       })
       .catch(err => {
         if (err.name === 'AbortError') return;
-        console.error("Failed to load candles:", err);
+        console.warn("Candles fetch notice:", err);
         setLoading(false);
       });
+
     return () => controller.abort();
   }, [symbol, timeframe, isAdjusted, currentMarket]);
 
-  // 2. Real-time WebSocket Ticks subscriber
+  // 2. Real-time WebSocket Ticks
   useEffect(() => {
     if (!symbol) return;
     const unsub = wsClient.onTick((payload) => {
@@ -185,23 +183,19 @@ export default function TradingViewCandleChart({
         activeCandleRef.current = updated;
         setLastCandle(updated);
 
-        setCandles(prev => {
-          if (!prev.length) return [updated];
-          const next = [...prev];
-          next[next.length - 1] = updated;
-          return next;
-        });
+        const candleUpdate = {
+          time: updated.time,
+          open: updated.open,
+          high: updated.high,
+          low: updated.low,
+          close: updated.close
+        };
 
         if (candleSeriesRef.current) {
-          try {
-            candleSeriesRef.current.update({
-              time: updated.time,
-              open: updated.open,
-              high: updated.high,
-              low: updated.low,
-              close: updated.close
-            });
-          } catch {}
+          try { candleSeriesRef.current.update(candleUpdate); } catch {}
+        }
+        if (fullCandleSeriesRef.current) {
+          try { fullCandleSeriesRef.current.update(candleUpdate); } catch {}
         }
       }
     });
@@ -209,22 +203,23 @@ export default function TradingViewCandleChart({
     return () => unsub();
   }, [symbol]);
 
-  // 3. Initialize TradingView Chart on Mount
+  // 3. Mount Primary Regular Chart
   useEffect(() => {
     let chart = null;
     let isMounted = true;
     let resizeObserver = null;
 
-    async function initTV() {
+    async function initPrimary() {
       if (!chartContainerRef.current) return;
       try {
         const lc = await import('lightweight-charts');
         if (!isMounted || !chartContainerRef.current) return;
 
         const container = chartContainerRef.current;
-        const isMobile = window.innerWidth < 768;
+        container.innerHTML = '';
+
         const width = container.clientWidth || 360;
-        const height = container.clientHeight || (isMobile ? 230 : 340);
+        const height = container.clientHeight || 320;
 
         chart = lc.createChart(container, {
           width,
@@ -239,8 +234,18 @@ export default function TradingViewCandleChart({
             vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
             horzLines: { color: 'rgba(255, 255, 255, 0.04)' }
           },
-          rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.08)' },
-          timeScale: { borderColor: 'rgba(255, 255, 255, 0.08)' }
+          crosshair: {
+            mode: lc.CrosshairMode.Normal
+          },
+          rightPriceScale: { 
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            scaleMargins: { top: 0.1, bottom: 0.1 }
+          },
+          timeScale: { 
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            timeVisible: true,
+            secondsVisible: false
+          }
         });
 
         let candleSeries = null;
@@ -257,78 +262,175 @@ export default function TradingViewCandleChart({
         chartInstanceRef.current = chart;
         candleSeriesRef.current = candleSeries;
 
+        if (candles.length > 0 && candleSeries) {
+          candleSeries.setData(formatTVCandles(candles));
+          chart.timeScale().fitContent();
+        }
+
         resizeObserver = new ResizeObserver((entries) => {
           for (const entry of entries) {
             if (entry.contentRect && chart) {
               const newW = Math.floor(entry.contentRect.width);
-              const newH = Math.floor(entry.contentRect.height) || (window.innerWidth < 768 ? 230 : 340);
+              const newH = Math.floor(entry.contentRect.height) || 320;
               if (newW > 0) {
                 chart.applyOptions({ width: newW, height: newH });
-                if (chart.timeScale) chart.timeScale().fitContent();
               }
             }
           }
         });
         resizeObserver.observe(container);
       } catch (err) {
-        console.warn("TV chart init failed, using SVG fallback:", err);
+        console.warn("Primary TV chart fallback notice:", err);
         setUseSvgFallback(true);
       }
     }
 
-    chartReadyRef.current = initTV();
+    initPrimary();
 
     return () => {
       isMounted = false;
-      chartReadyRef.current = null;
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
+      if (resizeObserver) resizeObserver.disconnect();
       if (chart) {
         try { chart.remove(); } catch {}
       }
       chartInstanceRef.current = null;
       candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
     };
   }, []);
 
-  const timeframesList = ['1m', '5m', '15m', '1h', '1D', '1W'];
+  // 4. Mount Full-Screen Chart when FullScreen is active
+  useEffect(() => {
+    if (!isFullScreen) {
+      if (fullChartInstanceRef.current) {
+        try { fullChartInstanceRef.current.remove(); } catch {}
+        fullChartInstanceRef.current = null;
+        fullCandleSeriesRef.current = null;
+      }
+      return;
+    }
 
-  // SVG Candlestick calculations
+    let fullChart = null;
+    let isMounted = true;
+    let resizeObserver = null;
+
+    async function initFullScreen() {
+      if (!fullChartContainerRef.current) return;
+      try {
+        const lc = await import('lightweight-charts');
+        if (!isMounted || !fullChartContainerRef.current) return;
+
+        const container = fullChartContainerRef.current;
+        container.innerHTML = '';
+
+        const width = container.clientWidth || window.innerWidth;
+        const height = container.clientHeight || (window.innerHeight - 60);
+
+        fullChart = lc.createChart(container, {
+          width,
+          height,
+          layout: {
+            background: { type: lc.ColorType.Solid, color: '#090d16' },
+            textColor: '#94a3b8',
+            fontSize: 11,
+            fontFamily: 'JetBrains Mono, monospace'
+          },
+          grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          crosshair: {
+            mode: lc.CrosshairMode.Normal
+          },
+          rightPriceScale: { 
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            scaleMargins: { top: 0.08, bottom: 0.08 }
+          },
+          timeScale: { 
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            timeVisible: true
+          }
+        });
+
+        let candleSeries = null;
+        if (lc.CandlestickSeries && typeof fullChart.addSeries === 'function') {
+          candleSeries = fullChart.addSeries(lc.CandlestickSeries, {
+            upColor: '#10b981',
+            downColor: '#f43f5e',
+            borderVisible: false,
+            wickUpColor: '#10b981',
+            wickDownColor: '#f43f5e'
+          });
+        }
+
+        fullChartInstanceRef.current = fullChart;
+        fullCandleSeriesRef.current = candleSeries;
+
+        if (candles.length > 0 && candleSeries) {
+          candleSeries.setData(formatTVCandles(candles));
+          fullChart.timeScale().fitContent();
+        }
+
+        resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.contentRect && fullChart) {
+              const newW = Math.floor(entry.contentRect.width);
+              const newH = Math.floor(entry.contentRect.height);
+              if (newW > 0 && newH > 0) {
+                fullChart.applyOptions({ width: newW, height: newH });
+              }
+            }
+          }
+        });
+        resizeObserver.observe(container);
+      } catch (err) {
+        console.warn("FullScreen TV chart init notice:", err);
+      }
+    }
+
+    const timer = setTimeout(initFullScreen, 50);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      if (resizeObserver) resizeObserver.disconnect();
+      if (fullChart) {
+        try { fullChart.remove(); } catch {}
+      }
+      fullChartInstanceRef.current = null;
+      fullCandleSeriesRef.current = null;
+    };
+  }, [isFullScreen, isLandscape]);
+
+  // SVG Fallback Renderer
   const renderSvgCandlesticks = () => {
     if (!candles.length) return null;
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const slice = candles.slice(isMobile ? -25 : -50);
+    const slice = candles.slice(-50);
     const minP = Math.min(...slice.map(c => c.low));
     const maxP = Math.max(...slice.map(c => c.high));
     const pRange = maxP - minP || 1;
-    const height = isMobile ? 220 : 320;
-    const width = isMobile ? 360 : 760;
+    const height = 300;
+    const width = 600;
     const padY = 16;
-    const candleW = Math.max(3, Math.floor((width - 50) / slice.length) - 3);
+    const candleW = Math.max(4, Math.floor((width - 40) / slice.length) - 2);
 
     const getY = (val) => height - padY - ((val - minP) / pRange) * (height - 2 * padY);
 
     return (
-      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}>
-        {/* Horizontal grid lines */}
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         {[0, 0.33, 0.66, 1].map((pct, i) => {
           const val = minP + pct * pRange;
           const y = getY(val);
           return (
             <g key={i}>
               <line x1="0" y1={y} x2={width} y2={y} stroke="rgba(255, 255, 255, 0.05)" strokeDasharray="3 3" />
-              <text x={width - 45} y={y - 3} fill="#64748b" fontSize="9" fontFamily="monospace">
+              <text x={width - 50} y={y - 3} fill="#64748b" fontSize="9" fontFamily="monospace">
                 {currPrefix}{val.toFixed(1)}
               </text>
             </g>
           );
         })}
-
-        {/* Candlesticks */}
         {slice.map((c, i) => {
-          const x = 12 + i * ((width - 55) / slice.length);
+          const x = 10 + i * ((width - 50) / slice.length);
           const isGreen = c.close >= c.open;
           const color = isGreen ? '#10b981' : '#f43f5e';
           const wickTop = getY(c.high);
@@ -340,14 +442,7 @@ export default function TradingViewCandleChart({
           return (
             <g key={i}>
               <line x1={x + candleW / 2} y1={wickTop} x2={x + candleW / 2} y2={wickBottom} stroke={color} strokeWidth="1.2" />
-              <rect
-                x={x}
-                y={bodyTop}
-                width={candleW}
-                height={bodyHeight}
-                fill={color}
-                rx="1"
-              />
+              <rect x={x} y={bodyTop} width={candleW} height={bodyHeight} fill={color} rx="1" />
             </g>
           );
         })}
@@ -358,25 +453,27 @@ export default function TradingViewCandleChart({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
       
-      {/* Toolbar */}
+      {/* Top Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
         
-        {/* Timeframe Pills */}
+        {/* Timeframe Selector Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div className="mobile-tab-scroll" style={{ display: 'flex', gap: '3px', backgroundColor: 'var(--md-sys-color-surface-container-high)', padding: '2px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+          <div style={{ display: 'flex', gap: '2px', backgroundColor: 'var(--md-sys-color-surface-container-high)', padding: '2px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
             {timeframesList.map(tf => (
               <button
                 key={tf}
+                type="button"
                 onClick={() => onTimeframeChange && onTimeframeChange(tf)}
                 style={{
                   padding: '3px 8px',
                   borderRadius: '6px',
-                  fontSize: '10px',
+                  fontSize: '11px',
                   fontWeight: timeframe === tf ? 800 : 600,
                   backgroundColor: timeframe === tf ? 'var(--accent-blue)' : 'transparent',
                   color: timeframe === tf ? 'var(--bg-dark)' : 'var(--text-secondary)',
                   border: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {tf}
@@ -384,20 +481,21 @@ export default function TradingViewCandleChart({
             ))}
           </div>
 
-          {/* Full-Screen Chart Trigger Button */}
+          {/* Full Screen Chart Trigger Button */}
           <button
+            type="button"
             onClick={() => setIsFullScreen(true)}
-            title="Expand Full Screen Chart (Landscape Mode)"
+            title="Expand Full Screen Chart"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '6px',
+              padding: '4px 10px',
+              borderRadius: '8px',
               backgroundColor: 'var(--accent-blue-bg)',
               border: '1px solid var(--accent-blue-border)',
               color: 'var(--accent-blue)',
-              fontSize: '10px',
+              fontSize: '11px',
               fontWeight: 800,
               cursor: 'pointer'
             }}
@@ -407,9 +505,9 @@ export default function TradingViewCandleChart({
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Real-time OHLC Bar Stats */}
         {lastCandle && (
-          <div className="mono-num" style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="mono-num" style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <span>O: <strong style={{ color: 'var(--text-main)' }}>{currPrefix}{lastCandle.open}</strong></span>
             <span>H: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{lastCandle.high}</strong></span>
             <span>L: <strong style={{ color: 'var(--accent-red)' }}>{currPrefix}{lastCandle.low}</strong></span>
@@ -419,12 +517,23 @@ export default function TradingViewCandleChart({
 
       </div>
 
-      {/* Normal Viewport Chart Container */}
-      <div className="candle-chart-viewport" style={{ position: 'relative', width: '100%', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--md-sys-color-outline-variant)', backgroundColor: 'var(--md-sys-color-surface-container-high)', padding: '4px' }}>
+      {/* Main Standard Chart Canvas */}
+      <div 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '340px',
+          minHeight: '280px',
+          borderRadius: '12px', 
+          overflow: 'hidden', 
+          border: '1px solid var(--md-sys-color-outline-variant)', 
+          backgroundColor: '#090d16'
+        }}
+      >
         {loading && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 13, 22, 0.85)', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ width: '22px', height: '22px', border: '2px solid var(--accent-blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Loading Candlesticks...</span>
+          <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 13, 22, 0.85)', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ width: '24px', height: '24px', border: '2px solid var(--accent-blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Rendering Live Candlesticks...</span>
           </div>
         )}
 
@@ -439,14 +548,14 @@ export default function TradingViewCandleChart({
         )}
       </div>
 
-      {/* 🚀 FULL-SCREEN LANDSCAPE OVERLAY FOR MOBILE & DESKTOP */}
+      {/* 🚀 FULL-SCREEN OVERLAY & LANDSCAPE VIEWPORT */}
       {isFullScreen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 999999,
-            backgroundColor: '#04060a',
+            backgroundColor: '#06090e',
             display: 'flex',
             flexDirection: 'column',
             padding: '12px',
@@ -454,25 +563,33 @@ export default function TradingViewCandleChart({
           }}
         >
           {/* Full Screen Top Control Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="mono-num" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent-blue)' }}>
-                {symbol} • Interactive Technical Chart
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="mono-num" style={{ fontSize: '15px', fontWeight: 900, color: '#38bdf8' }}>
+                  {symbol}
+                </span>
+                {lastCandle && (
+                  <span className="mono-num" style={{ fontSize: '15px', fontWeight: 800, color: lastCandle.close >= lastCandle.open ? '#10b981' : '#f43f5e' }}>
+                    {currPrefix}{lastCandle.close}
+                  </span>
+                )}
+              </div>
 
-              {/* Timeframe Pills */}
-              <div style={{ display: 'flex', gap: '3px', backgroundColor: 'var(--md-sys-color-surface-container-high)', padding: '2px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              {/* Timeframe Pills in Full Screen */}
+              <div style={{ display: 'flex', gap: '3px', backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 {timeframesList.map(tf => (
                   <button
                     key={tf}
+                    type="button"
                     onClick={() => onTimeframeChange && onTimeframeChange(tf)}
                     style={{
-                      padding: '3px 8px',
+                      padding: '4px 10px',
                       borderRadius: '6px',
                       fontSize: '11px',
                       fontWeight: timeframe === tf ? 800 : 600,
-                      backgroundColor: timeframe === tf ? 'var(--accent-blue)' : 'transparent',
-                      color: timeframe === tf ? 'var(--bg-dark)' : 'var(--text-secondary)',
+                      backgroundColor: timeframe === tf ? '#38bdf8' : 'transparent',
+                      color: timeframe === tf ? '#000000' : '#94a3b8',
                       border: 'none',
                       cursor: 'pointer'
                     }}
@@ -483,9 +600,10 @@ export default function TradingViewCandleChart({
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions: Rotate & Close */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
+                type="button"
                 onClick={() => setIsLandscape(prev => !prev)}
                 title="Toggle Landscape Rotation Mode"
                 style={{
@@ -494,9 +612,9 @@ export default function TradingViewCandleChart({
                   gap: '4px',
                   padding: '6px 12px',
                   borderRadius: '8px',
-                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                  border: '1px solid var(--md-sys-color-outline-variant)',
-                  color: 'var(--accent-gold)',
+                  backgroundColor: 'rgba(255, 184, 0, 0.1)',
+                  border: '1px solid rgba(255, 184, 0, 0.3)',
+                  color: '#fbbf24',
                   fontSize: '11px',
                   fontWeight: 800,
                   cursor: 'pointer'
@@ -507,6 +625,7 @@ export default function TradingViewCandleChart({
               </button>
 
               <button
+                type="button"
                 onClick={() => setIsFullScreen(false)}
                 title="Exit Full Screen Chart"
                 style={{
@@ -515,7 +634,7 @@ export default function TradingViewCandleChart({
                   gap: '4px',
                   padding: '6px 14px',
                   borderRadius: '8px',
-                  backgroundColor: 'var(--accent-red)',
+                  backgroundColor: '#ef4444',
                   color: '#ffffff',
                   fontSize: '11px',
                   fontWeight: 800,
@@ -524,7 +643,7 @@ export default function TradingViewCandleChart({
                 }}
               >
                 <X style={{ width: '14px', height: '14px' }} />
-                <span>Close</span>
+                <span>Exit</span>
               </button>
             </div>
           </div>
@@ -534,7 +653,7 @@ export default function TradingViewCandleChart({
             style={{
               flex: 1,
               width: '100%',
-              marginTop: '8px',
+              marginTop: '10px',
               position: 'relative',
               borderRadius: '8px',
               overflow: 'hidden',
@@ -550,11 +669,7 @@ export default function TradingViewCandleChart({
               } : {})
             }}
           >
-            {useSvgFallback ? (
-              renderSvgCandlesticks()
-            ) : (
-              <div ref={fullChartContainerRef} style={{ width: '100%', height: '100%' }} />
-            )}
+            <div ref={fullChartContainerRef} style={{ width: '100%', height: '100%' }} />
           </div>
         </div>
       )}
