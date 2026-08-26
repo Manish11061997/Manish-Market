@@ -32,5 +32,16 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Manish Market",
+        "supportEmail": "manish@market.com",
+        "authorizedRedirectUris": [
+          "https://manishmarket.web.app"
+        ]
+      }
+    }
   }
 }

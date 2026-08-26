@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch, getAuthToken, setAuthToken } from './api';
-import { signInWithRealGoogle } from './firebase';
+import { signInWithRealGoogle, checkRedirectAuth } from './firebase';
 
 const USER_STORAGE_KEY = 'manish_market_current_user';
 const AUTH_EVENT = 'manish_market_auth_change';
@@ -41,28 +41,50 @@ export function useAuth() {
     return () => window.removeEventListener(AUTH_EVENT, handleAuthChange);
   }, []);
 
-  // On initial mount, verify session if token exists
+  // On initial mount, check for redirect auth or verify existing session
   useEffect(() => {
-    const activeToken = getAuthToken();
-    if (activeToken && !currentUser) {
-      apiFetch('/api/auth/me')
-        .then(async res => {
+    checkRedirectAuth().then(async (googleUser) => {
+      if (googleUser?.email) {
+        try {
+          const res = await apiFetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: googleUser.name, email: googleUser.email, marketPreference: 'IN' })
+          });
           if (res.ok) {
             const data = await res.json();
-            if (data?.user) {
-              setCurrentUser(data.user);
-              saveStoredUser(data.user);
-            }
-          } else {
-            // Token expired or invalid
-            setAuthToken(null);
-            saveStoredUser(null);
-            setCurrentUser(null);
-            setToken(null);
+            setAuthToken(data.token);
+            saveStoredUser(data.user);
+            setCurrentUser(data.user);
+            setToken(data.token);
+            return;
           }
-        })
-        .catch(() => {});
-    }
+        } catch (e) {
+          console.warn('Redirect login sync notice:', e);
+        }
+      }
+
+      // Check existing token
+      const activeToken = getAuthToken();
+      if (activeToken && !currentUser) {
+        apiFetch('/api/auth/me')
+          .then(async res => {
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.user) {
+                setCurrentUser(data.user);
+                saveStoredUser(data.user);
+              }
+            } else {
+              setAuthToken(null);
+              saveStoredUser(null);
+              setCurrentUser(null);
+              setToken(null);
+            }
+          })
+          .catch(() => {});
+      }
+    });
   }, []);
 
   const signup = useCallback(async (name, email, password, marketPreference = 'IN') => {

@@ -1,89 +1,44 @@
 import React, { useState } from 'react';
 import { 
-  TrendingUp, 
   ShieldCheck, 
   Zap, 
   Sparkles, 
   Lock, 
-  Mail, 
-  User, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
   Activity, 
   Star, 
   Globe, 
-  CheckCircle2,
-  BarChart3,
   Flame,
-  ChevronRight
+  CheckCircle2,
+  ArrowRight
 } from 'lucide-react';
 import LogoHexagon from './LogoHexagon';
 import { useAuth } from '../utils/useAuth';
-import GoogleSignInModal from './GoogleSignInModal';
 
 export default function UnauthenticatedLandingView({ marketData, currentMarket = 'IN', onMarketChange }) {
-  const [mode, setMode] = useState('LOGIN'); // 'LOGIN' or 'SIGNUP'
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [selectedMarket, setSelectedMarket] = useState(currentMarket);
   const [localError, setLocalError] = useState(null);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const { loginWithGoogle, loading } = useAuth();
 
-  const { login, signup, loading } = useAuth();
-
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setLocalError(null);
-    setShowGoogleModal(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLocalError(null);
-
     try {
-      if (mode === 'LOGIN') {
-        if (!email.trim() || !password) {
-          setLocalError('Please enter both email and password.');
-          return;
-        }
-        await login(email.trim(), password);
-      } else {
-        if (!name.trim()) {
-          setLocalError('Please enter your full name.');
-          return;
-        }
-        if (!email.trim() || !email.includes('@')) {
-          setLocalError('Please enter a valid email address.');
-          return;
-        }
-        if (password.length < 6) {
-          setLocalError('Password must be at least 6 characters.');
-          return;
-        }
-        await signup(name.trim(), email.trim(), password, selectedMarket);
-        if (onMarketChange && selectedMarket !== currentMarket) {
-          onMarketChange(selectedMarket);
-        }
-      }
+      await loginWithGoogle(null, null, currentMarket);
+      if (onMarketChange) onMarketChange(currentMarket);
     } catch (err) {
-      setLocalError(err.message || 'Authentication failed.');
+      setLocalError(err.message || 'Google Sign-In was cancelled or failed.');
     }
   };
 
   // Preview sample securities for guest preview
   const sampleStocks = currentMarket === 'US' ? [
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 128.50, change: 4.25, pChange: 3.42, horizon: 'SWING', horizonTarget: 145.00 },
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 224.23, change: 1.85, pChange: 0.83, horizon: 'POSITIONAL', horizonTarget: 240.00 },
-    { symbol: 'MSFT', name: 'Microsoft Corp.', price: 448.90, change: -2.10, pChange: -0.46, horizon: 'INTRADAY', horizonTarget: 455.00 },
-    { symbol: 'TSLA', name: 'Tesla Inc.', price: 215.60, change: 6.80, pChange: 3.26, horizon: 'SHORT_TERM', horizonTarget: 235.00 },
+    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 128.50, change: 4.25, pChange: 3.42, horizon: 'SWING' },
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 224.23, change: 1.85, pChange: 0.83, horizon: 'POSITIONAL' },
+    { symbol: 'MSFT', name: 'Microsoft Corp.', price: 448.90, change: -2.10, pChange: -0.46, horizon: 'INTRADAY' },
+    { symbol: 'TSLA', name: 'Tesla Inc.', price: 215.60, change: 6.80, pChange: 3.26, horizon: 'SHORT_TERM' },
   ] : [
-    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: 2985.40, change: 32.10, pChange: 1.09, horizon: 'SWING', horizonTarget: 3150.00 },
-    { symbol: 'TCS.NS', name: 'Tata Consultancy Services', price: 4210.80, change: 45.20, pChange: 1.08, horizon: 'POSITIONAL', horizonTarget: 4450.00 },
-    { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', price: 1642.15, change: -8.30, pChange: -0.50, horizon: 'INTRADAY', horizonTarget: 1675.00 },
-    { symbol: 'ZOMATO.NS', name: 'Zomato Ltd.', price: 262.40, change: 8.90, pChange: 3.51, horizon: 'SHORT_TERM', horizonTarget: 290.00 },
+    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: 2985.40, change: 32.10, pChange: 1.09, horizon: 'SWING' },
+    { symbol: 'TCS.NS', name: 'Tata Consultancy Services', price: 4210.80, change: 45.20, pChange: 1.08, horizon: 'POSITIONAL' },
+    { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', price: 1642.15, change: -8.30, pChange: -0.50, horizon: 'INTRADAY' },
+    { symbol: 'ZOMATO.NS', name: 'Zomato Ltd.', price: 262.40, change: 8.90, pChange: 3.51, horizon: 'SHORT_TERM' },
   ];
 
   return (
@@ -173,11 +128,11 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
         maxWidth: '1280px',
         width: '100%',
         margin: '0 auto',
-        padding: '32px 20px',
+        padding: '40px 20px',
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-        gap: '32px',
-        alignItems: 'start'
+        gap: '36px',
+        alignItems: 'center'
       }}>
         
         {/* Left Side: Market Overview, Highlights & Sample Data */}
@@ -202,7 +157,7 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
               <span>LIVE QUANTITATIVE TERMINAL</span>
             </div>
             <h1 style={{
-              fontSize: 'clamp(26px, 4vw, 36px)',
+              fontSize: 'clamp(28px, 4vw, 38px)',
               fontWeight: 900,
               letterSpacing: '-0.8px',
               lineHeight: 1.15,
@@ -212,7 +167,7 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
               Institutional-Grade Intelligence & Simulated Trading.
             </h1>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              Sign in to unlock personalized multi-horizon signals, your private <strong>₹10,00,000 / $100,000</strong> paper portfolio, real-time custom watchlists, and algorithmic pattern recognition.
+              Sign in with your Google account to unlock multi-horizon equity signals, private <strong>₹10,00,000 / $100,000</strong> paper portfolio, real-time custom watchlists, and algorithmic pattern recognition.
             </p>
           </div>
 
@@ -334,81 +289,55 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
                 <Lock style={{ width: '12px', height: '12px' }} />
                 <span>Full quant analysis & AI copilot locked</span>
               </span>
-              <span style={{ color: 'var(--text-muted)' }}>Sign in to unlock</span>
+              <span style={{ color: 'var(--text-muted)' }}>Sign in with Google to unlock</span>
             </div>
           </div>
 
         </div>
 
-        {/* Right Side: High-Converting Material 3 Auth Card */}
-        <div style={{ position: 'sticky', top: '88px' }}>
+        {/* Right Side: Exclusive 100% Google Authentication Card */}
+        <div>
           <div className="pro-card-glass" style={{
             backgroundColor: 'var(--bg-surface)',
-            borderRadius: '24px',
+            borderRadius: '28px',
             border: '1px solid var(--border-bright)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-            padding: '28px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+            padding: '36px 30px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px'
+            gap: '24px',
+            textAlign: 'center'
           }}>
             
-            {/* Form Header */}
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-main)', marginBottom: '4px' }}>
-                {mode === 'LOGIN' ? 'Welcome Back, Trader' : 'Create Free Account'}
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {mode === 'LOGIN' 
-                  ? 'Access your private workspace and portfolios.'
-                  : 'Get ₹10,00,000 / $100,000 paper trading capital.'}
-              </p>
-            </div>
+            {/* Header Icon & Title */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '20px',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+              }}>
+                <svg width="34" height="34" viewBox="0 0 48 48">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                  <path fill="none" d="M0 0h48v48H0z"/>
+                </svg>
+              </div>
 
-            {/* Mode Switcher Tabs */}
-            <div style={{
-              display: 'flex',
-              backgroundColor: 'var(--bg-elevated)',
-              borderRadius: '14px',
-              padding: '4px',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <button
-                type="button"
-                onClick={() => { setMode('LOGIN'); setLocalError(null); }}
-                style={{
-                  flex: 1,
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 800,
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: mode === 'LOGIN' ? 'var(--accent-blue)' : 'transparent',
-                  color: mode === 'LOGIN' ? '#04060a' : 'var(--text-muted)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => { setMode('SIGNUP'); setLocalError(null); }}
-                style={{
-                  flex: 1,
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 800,
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: mode === 'SIGNUP' ? 'var(--accent-blue)' : 'transparent',
-                  color: mode === 'SIGNUP' ? '#04060a' : 'var(--text-muted)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                Create Account
-              </button>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 900, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  Sign in with Google
+                </h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: '280px', margin: '0 auto' }}>
+                  One account for your private trading workspace, live watchlists & paper portfolio.
+                </p>
+              </div>
             </div>
 
             {/* Error Message */}
@@ -420,201 +349,95 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
                 border: '1px solid var(--accent-red-border)',
                 color: 'var(--accent-red)',
                 fontSize: '12px',
-                fontWeight: 600
+                fontWeight: 600,
+                textAlign: 'left'
               }}>
                 ⚠️ {localError}
               </div>
             )}
 
-            {/* Sign in with Google Button */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '14px',
-                  backgroundColor: '#ffffff',
-                  color: '#1f1f1f',
-                  border: '1px solid #dadce0',
-                  fontSize: '13px',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  <path fill="none" d="M0 0h48v48H0z"/>
-                </svg>
-                <span>{mode === 'LOGIN' ? 'Continue with Google' : 'Sign up with Google'}</span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-              <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
-                OR WITH EMAIL
-              </span>
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-            </div>
-
-            {/* Email / Password Form */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {mode === 'SIGNUP' && (
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                    Full Name
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <User style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-                    <input
-                      type="text"
-                      placeholder="e.g. Rahul Sharma"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pro-input-field"
-                      style={{
-                        width: '100%',
-                        paddingLeft: '38px',
-                        paddingRight: '12px',
-                        fontSize: '13px',
-                        borderRadius: '12px',
-                        backgroundColor: 'var(--bg-elevated)',
-                        border: '1px solid var(--border-subtle)'
-                      }}
-                    />
-                  </div>
-                </div>
+            {/* Primary Action Button: Sign In with Google */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '15px 20px',
+                borderRadius: '16px',
+                backgroundColor: '#ffffff',
+                color: '#1f1f1f',
+                border: 'none',
+                fontSize: '15px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                cursor: loading ? 'wait' : 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px #dadce0',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.3)'; }}
+            >
+              {loading ? (
+                <div style={{ width: '20px', height: '20px', border: '2px solid #1a73e8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <>
+                  <svg width="22" height="22" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    <path fill="none" d="M0 0h48v48H0z"/>
+                  </svg>
+                  <span>Continue with Google</span>
+                  <ArrowRight style={{ width: '16px', height: '16px', color: '#5f6368', marginLeft: 'auto' }} />
+                </>
               )}
+            </button>
 
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                  Email Address
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Mail style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    className="pro-input-field"
-                    style={{
-                      width: '100%',
-                      paddingLeft: '38px',
-                      paddingRight: '12px',
-                      fontSize: '13px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  />
-                </div>
+            {/* Benefits Checklist */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid var(--border-subtle)',
+              textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--accent-green)', flexShrink: 0 }} />
+                <span>Instant 1-Click login with your Gmail / Google account</span>
               </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                  Password
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Lock style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={mode === 'SIGNUP' ? 'Min 6 characters' : 'Enter your password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete={mode === 'SIGNUP' ? 'new-password' : 'current-password'}
-                    className="pro-input-field"
-                    style={{
-                      width: '100%',
-                      paddingLeft: '38px',
-                      paddingRight: '38px',
-                      fontSize: '13px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {showPassword ? <EyeOff style={{ width: '16px', height: '16px' }} /> : <Eye style={{ width: '16px', height: '16px' }} />}
-                  </button>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--accent-green)', flexShrink: 0 }} />
+                <span>Free ₹10,00,000 (IN) / $100,000 (US) simulated balance</span>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--accent-green)', flexShrink: 0 }} />
+                <span>Personalized custom multi-watchlists saved to cloud</span>
+              </div>
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="m3-button-filled"
-                style={{
-                  width: '100%',
-                  padding: '13px',
-                  borderRadius: '14px',
-                  fontSize: '14px',
-                  fontWeight: 800,
-                  backgroundColor: 'var(--accent-blue)',
-                  color: '#04060a',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  marginTop: '4px',
-                  boxShadow: '0 4px 14px rgba(41, 121, 255, 0.4)'
-                }}
-              >
-                {loading ? (
-                  <div style={{ width: '18px', height: '18px', border: '2px solid #04060a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <>
-                    <span>{mode === 'LOGIN' ? 'Sign In to Terminal' : 'Create Free Account'}</span>
-                    <ArrowRight style={{ width: '16px', height: '16px' }} />
-                  </>
-                )}
-              </button>
-            </form>
+            {/* Security Guarantee */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              color: 'var(--text-muted)'
+            }}>
+              <ShieldCheck style={{ width: '14px', height: '14px', color: 'var(--accent-green)' }} />
+              <span>Secured by Google Identity Services</span>
+            </div>
 
           </div>
         </div>
 
       </main>
-
-      {/* Dedicated Google Sign In Dialog */}
-      <GoogleSignInModal
-        isOpen={showGoogleModal}
-        onClose={() => setShowGoogleModal(false)}
-        currentMarket={currentMarket}
-        onMarketChange={onMarketChange}
-      />
 
     </div>
   );
