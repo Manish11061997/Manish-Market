@@ -586,8 +586,15 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
                     if i < len(opens) and i < len(highs) and i < len(lows) and i < len(closes) and i < len(volumes):
                         o, h, l, c, v = opens[i], highs[i], lows[i], closes[i], volumes[i]
                         if o is not None and h is not None and l is not None and c is not None:
+                            d_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S" if "m" in interval or "h" in interval else "%Y-%m-%d")
                             rows.append({
-                                "date": datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S" if "m" in interval or "h" in interval else "%Y-%m-%d"),
+                                "Date": d_str,
+                                "Open": round(float(o), 2),
+                                "High": round(float(h), 2),
+                                "Low": round(float(l), 2),
+                                "Close": round(float(c), 2),
+                                "Volume": int(v) if v is not None else 0,
+                                "date": d_str,
                                 "open": round(float(o), 2),
                                 "high": round(float(h), 2),
                                 "low": round(float(l), 2),

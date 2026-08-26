@@ -6,31 +6,35 @@ from data_fetcher import fetch_stock_ohlcv, fetch_stock_info, SyntheticDataDisal
 
 def calculate_technical_indicators(df: pd.DataFrame) -> dict:
     """Calculate institutional-grade indicators: Multi-MA, RSI, MACD, ADX, CMF, OBV, Stochastics, Bollinger Bands, ATR, Pivots."""
-    if df.empty or len(df) < 20:
+    if df is None or df.empty:
         return {}
     
-    close = df['Close']
-    high = df['High']
-    low = df['Low']
-    volume = df['Volume']
+    # Support both capitalized and lowercase column headers
+    close = df['Close'] if 'Close' in df.columns else (df['close'] if 'close' in df.columns else pd.Series())
+    high = df['High'] if 'High' in df.columns else (df['high'] if 'high' in df.columns else pd.Series())
+    low = df['Low'] if 'Low' in df.columns else (df['low'] if 'low' in df.columns else pd.Series())
+    volume = df['Volume'] if 'Volume' in df.columns else (df['volume'] if 'volume' in df.columns else pd.Series())
+    
+    if close.empty or len(close) < 5:
+        return {}
     
     # 1. Multi-timeframe Moving Averages
-    sma20 = float(close.rolling(window=20).mean().iloc[-1])
-    sma50 = float(close.rolling(window=min(50, len(df))).mean().iloc[-1])
-    sma100 = float(close.rolling(window=min(100, len(df))).mean().iloc[-1])
-    sma200 = float(close.rolling(window=min(200, len(df))).mean().iloc[-1])
+    sma20 = float(close.rolling(window=min(20, len(close))).mean().iloc[-1])
+    sma50 = float(close.rolling(window=min(50, len(close))).mean().iloc[-1])
+    sma100 = float(close.rolling(window=min(100, len(close))).mean().iloc[-1])
+    sma200 = float(close.rolling(window=min(200, len(close))).mean().iloc[-1])
     
-    ema20 = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
-    ema50 = float(close.ewm(span=50, adjust=False).mean().iloc[-1])
-    ema200 = float(close.ewm(span=min(200, len(df)), adjust=False).mean().iloc[-1])
+    ema20 = float(close.ewm(span=min(20, len(close)), adjust=False).mean().iloc[-1])
+    ema50 = float(close.ewm(span=min(50, len(close)), adjust=False).mean().iloc[-1])
+    ema200 = float(close.ewm(span=min(200, len(close)), adjust=False).mean().iloc[-1])
     
     # 2. RSI (14) - Wilder's Exponential Smoothing
     delta = close.diff()
     gain = delta.where(delta > 0, 0.0)
     loss = -delta.where(delta < 0, 0.0)
     
-    avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+    avg_gain = gain.ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean()
     
     last_gain = float(avg_gain.iloc[-1]) if not np.isnan(avg_gain.iloc[-1]) else 0.0
     last_loss = float(avg_loss.iloc[-1]) if not np.isnan(avg_loss.iloc[-1]) else 0.0
@@ -46,8 +50,8 @@ def calculate_technical_indicators(df: pd.DataFrame) -> dict:
         rsi = round(100.0 - (100.0 / (1.0 + rs)), 2)
     
     # 3. MACD Line & Signal Line
-    macd_series = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
-    signal_series = macd_series.ewm(span=9, adjust=False).mean()
+    macd_series = close.ewm(span=min(12, len(close)), adjust=False).mean() - close.ewm(span=min(26, len(close)), adjust=False).mean()
+    signal_series = macd_series.ewm(span=min(9, len(close)), adjust=False).mean()
     macd_hist = macd_series - signal_series
     
     macd_val = float(macd_series.iloc[-1])
@@ -55,70 +59,82 @@ def calculate_technical_indicators(df: pd.DataFrame) -> dict:
     macd_h = float(macd_hist.iloc[-1])
     
     # 4. Average Directional Index (ADX 14) & +DI / -DI
-    tr1 = high - low
-    tr2 = (high - close.shift(1)).abs()
-    tr3 = (low - close.shift(1)).abs()
-    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    
-    up_move = high - high.shift(1)
-    down_move = low.shift(1) - low
-    
-    plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
-    minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
-    
-    atr14_series = tr.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
-    plus_di_series = (pd.Series(plus_dm, index=df.index).ewm(alpha=1/14, min_periods=14, adjust=False).mean() / atr14_series) * 100
-    minus_di_series = (pd.Series(minus_dm, index=df.index).ewm(alpha=1/14, min_periods=14, adjust=False).mean() / atr14_series) * 100
-    
-    dx_series = ((plus_di_series - minus_di_series).abs() / (plus_di_series + minus_di_series).replace(0, 1)) * 100
-    adx_series = dx_series.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
-    
-    adx_val = round(float(adx_series.iloc[-1]), 1) if not np.isnan(adx_series.iloc[-1]) else 25.0
-    plus_di = round(float(plus_di_series.iloc[-1]), 1) if not np.isnan(plus_di_series.iloc[-1]) else 25.0
-    minus_di = round(float(minus_di_series.iloc[-1]), 1) if not np.isnan(minus_di_series.iloc[-1]) else 20.0
+    if not high.empty and not low.empty:
+        tr1 = high - low
+        tr2 = (high - close.shift(1)).abs()
+        tr3 = (low - close.shift(1)).abs()
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        
+        up_move = high - high.shift(1)
+        down_move = low.shift(1) - low
+        
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+        
+        atr14_series = tr.ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean()
+        plus_di_series = (pd.Series(plus_dm, index=df.index).ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean() / atr14_series.replace(0, 1)) * 100
+        minus_di_series = (pd.Series(minus_dm, index=df.index).ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean() / atr14_series.replace(0, 1)) * 100
+        
+        dx_series = ((plus_di_series - minus_di_series).abs() / (plus_di_series + minus_di_series).replace(0, 1)) * 100
+        adx_series = dx_series.ewm(alpha=1/14, min_periods=min(14, len(close)), adjust=False).mean()
+        
+        adx_val = round(float(adx_series.iloc[-1]), 1) if not np.isnan(adx_series.iloc[-1]) else 25.0
+        plus_di = round(float(plus_di_series.iloc[-1]), 1) if not np.isnan(plus_di_series.iloc[-1]) else 25.0
+        minus_di = round(float(minus_di_series.iloc[-1]), 1) if not np.isnan(minus_di_series.iloc[-1]) else 20.0
+        atr = float(tr.rolling(min(14, len(close))).mean().iloc[-1]) if not np.isnan(tr.rolling(min(14, len(close))).mean().iloc[-1]) else float(close.iloc[-1] * 0.02)
+    else:
+        adx_val, plus_di, minus_di = 25.0, 25.0, 20.0
+        atr = float(close.iloc[-1] * 0.02)
     
     # 5. Chaikin Money Flow (CMF 20) & On-Balance Volume (OBV)
-    high_low_range = (high - low).replace(0, 0.01)
-    mf_multiplier = ((close - low) - (high - close)) / high_low_range
-    mf_volume = mf_multiplier * volume
-    cmf_val = round(float(mf_volume.rolling(20).sum().iloc[-1] / max(1.0, volume.rolling(20).sum().iloc[-1])), 3)
-    if math.isnan(cmf_val):
-        cmf_val = 0.05
-        
-    obv_direction = np.where(close > close.shift(1), 1, np.where(close < close.shift(1), -1, 0))
-    obv = (obv_direction * volume).cumsum()
-    obv_sma20 = obv.rolling(20).mean().iloc[-1]
-    obv_trend = "BULLISH_INFLOW" if obv.iloc[-1] > obv_sma20 else "BEARISH_OUTFLOW"
+    cmf_val = 0.05
+    obv_trend = "BULLISH_INFLOW"
+    if not high.empty and not low.empty and not volume.empty and volume.sum() > 0:
+        high_low_range = (high - low).replace(0, 0.01)
+        mf_multiplier = ((close - low) - (high - close)) / high_low_range
+        mf_volume = mf_multiplier * volume
+        cmf_val = round(float(mf_volume.rolling(min(20, len(close))).sum().iloc[-1] / max(1.0, volume.rolling(min(20, len(close))).sum().iloc[-1])), 3)
+        if math.isnan(cmf_val):
+            cmf_val = 0.05
+            
+        obv_direction = np.where(close > close.shift(1), 1, np.where(close < close.shift(1), -1, 0))
+        obv = (obv_direction * volume).cumsum()
+        obv_sma20 = obv.rolling(min(20, len(close))).mean().iloc[-1]
+        obv_trend = "BULLISH_INFLOW" if obv.iloc[-1] > obv_sma20 else "BEARISH_OUTFLOW"
 
     # 6. Stochastic Oscillator (%K, %D 14,3,3)
-    low14 = low.rolling(14).min()
-    high14 = high.rolling(14).max()
-    stoch_k = ((close - low14) / (high14 - low14).replace(0, 0.01)) * 100
-    stoch_d = stoch_k.rolling(3).mean()
-    stoch_k_val = round(float(stoch_k.iloc[-1]), 1) if not np.isnan(stoch_k.iloc[-1]) else 50.0
-    stoch_d_val = round(float(stoch_d.iloc[-1]), 1) if not np.isnan(stoch_d.iloc[-1]) else 50.0
+    if not low.empty and not high.empty:
+        low14 = low.rolling(min(14, len(close))).min()
+        high14 = high.rolling(min(14, len(close))).max()
+        stoch_k = ((close - low14) / (high14 - low14).replace(0, 0.01)) * 100
+        stoch_d = stoch_k.rolling(min(3, len(close))).mean()
+        stoch_k_val = round(float(stoch_k.iloc[-1]), 1) if not np.isnan(stoch_k.iloc[-1]) else 50.0
+        stoch_d_val = round(float(stoch_d.iloc[-1]), 1) if not np.isnan(stoch_d.iloc[-1]) else 50.0
+    else:
+        stoch_k_val, stoch_d_val = 50.0, 50.0
 
     # 7. Bollinger Bands (20, 2) & Width
-    bb_mid = close.rolling(window=20).mean().iloc[-1]
-    bb_std = close.rolling(window=20).std().iloc[-1]
+    bb_mid = close.rolling(window=min(20, len(close))).mean().iloc[-1]
+    bb_std = close.rolling(window=min(20, len(close))).std().iloc[-1] if len(close) > 1 else close.iloc[-1] * 0.02
+    if math.isnan(bb_std): bb_std = close.iloc[-1] * 0.02
     bb_upper = bb_mid + (2 * bb_std)
     bb_lower = bb_mid - (2 * bb_std)
     bb_width_pct = round(float(((bb_upper - bb_lower) / max(0.01, bb_mid)) * 100), 2)
     bb_pct_b = round(float((close.iloc[-1] - bb_lower) / max(0.01, bb_upper - bb_lower)), 2)
 
-    # 8. Average True Range (ATR 14)
-    atr = float(tr.rolling(14).mean().iloc[-1]) if not np.isnan(tr.rolling(14).mean().iloc[-1]) else float(close.iloc[-1] * 0.02)
-    
-    # 9. Volume Ratio
-    avg_vol_20 = volume.rolling(20).mean().iloc[-1]
-    curr_vol = volume.iloc[-1]
-    vol_ratio = round(float(curr_vol / avg_vol_20), 2) if avg_vol_20 > 0 else 1.0
+    # 8. Volume Ratio
+    if not volume.empty and volume.sum() > 0:
+        avg_vol_20 = volume.rolling(min(20, len(close))).mean().iloc[-1]
+        curr_vol = volume.iloc[-1]
+        vol_ratio = round(float(curr_vol / avg_vol_20), 2) if avg_vol_20 > 0 else 1.0
+    else:
+        vol_ratio = 1.0
     
     current_price = float(close.iloc[-1])
     if math.isnan(current_price) or current_price <= 0:
-        current_price = float(close[close > 0].iloc[-1]) if (close > 0).any() else 100.0
+        current_price = 100.0
 
-    # 10. Classic Pivot Points & Support/Resistance Levels
+    # 9. Classic Pivot Points & Support/Resistance Levels
     prev_h = float(high.iloc[-2]) if len(high) > 1 else current_price * 1.02
     prev_l = float(low.iloc[-2]) if len(low) > 1 else current_price * 0.98
     prev_c = float(close.iloc[-2]) if len(close) > 1 else current_price
@@ -172,9 +188,8 @@ def calculate_technical_indicators(df: pd.DataFrame) -> dict:
 
 def analyze_stock(symbol: str, market: str = "IN") -> dict:
     """Analyze stock technicals + fundamentals and compute signal, target, stop loss & allocation."""
-    # Fetch 2y data for accurate SMA200 (needs ~250 trading days minimum)
     df = fetch_stock_ohlcv(symbol, period="2y", market=market)
-    if df is None or len(df) < 60:
+    if df is None or len(df) < 20:
         df = fetch_stock_ohlcv(symbol, period="1y", market=market)
     try:
         info = fetch_stock_info(symbol, market=market)
@@ -192,11 +207,20 @@ def analyze_stock(symbol: str, market: str = "IN") -> dict:
         
     if not tech:
         tech = {
-            "currentPrice": price, "sma20": price * 0.98, "sma50": price * 0.95,
-            "sma200": price * 0.90, "rsi": 52.0, "macd": 2.5, "macdSignal": 1.2,
-            "macdHist": 1.3, "bbUpper": price * 1.05, "bbLower": price * 0.95,
-            "atr": price * 0.02, "volumeRatio": 1.1, "isAboveSma50": True,
-            "isAboveSma200": True, "rsiStatus": "NEUTRAL"
+            "currentPrice": price,
+            "sma20": price * 0.98, "sma50": price * 0.95, "sma100": price * 0.92, "sma200": price * 0.90,
+            "ema20": price * 0.98, "ema50": price * 0.95, "ema200": price * 0.90,
+            "rsi": 52.0, "macd": 2.5, "macdSignal": 1.2, "macdHist": 1.3,
+            "adx": 25.0, "plusDi": 25.0, "minusDi": 20.0, "trendStrength": "STRONG",
+            "cmf": 0.05, "obvTrend": "BULLISH_INFLOW", "stochK": 50.0, "stochD": 50.0,
+            "bbUpper": price * 1.05, "bbMid": price, "bbLower": price * 0.95, "bbWidthPct": 10.0, "bbPctB": 0.5,
+            "isBandSqueeze": False, "atr": price * 0.02, "volatilityPct": 2.0, "volumeRatio": 1.1,
+            "pivots": {
+                "s3": price * 0.94, "s2": price * 0.96, "s1": price * 0.98,
+                "pivot": price, "r1": price * 1.02, "r2": price * 1.04, "r3": price * 1.06
+            },
+            "isAboveSma50": True, "isAboveSma200": True, "isAboveEma200": True,
+            "rsiStatus": "NEUTRAL"
         }
     tech["currentPrice"] = price
 
@@ -206,11 +230,11 @@ def analyze_stock(symbol: str, market: str = "IN") -> dict:
     plus_di = tech.get("plusDi", 25.0)
     minus_di = tech.get("minusDi", 20.0)
     
-    price_above_sma20 = price > tech["sma20"]
-    price_above_sma50 = price > tech["sma50"]
-    price_above_sma200 = tech["isAboveSma200"]
-    sma20_above_sma50 = tech["sma20"] > tech["sma50"]
-    sma50_above_sma200 = tech["sma50"] > tech["sma200"]
+    price_above_sma20 = price > tech.get("sma20", price)
+    price_above_sma50 = price > tech.get("sma50", price)
+    price_above_sma200 = tech.get("isAboveSma200", True)
+    sma20_above_sma50 = tech.get("sma20", price) > tech.get("sma50", price)
+    sma50_above_sma200 = tech.get("sma50", price) > tech.get("sma200", price)
 
     if price_above_sma20 and sma20_above_sma50 and price_above_sma200 and sma50_above_sma200:
         trend_score = 92
@@ -379,16 +403,16 @@ def analyze_stock(symbol: str, market: str = "IN") -> dict:
         {
             "id": "TREND_STRUCTURE",
             "name": "Long-Term Structural Trend (200 EMA)",
-            "status": "PASS" if tech["isAboveEma200"] else "FAIL",
-            "metric": f"Price {curr_symbol}{price} vs 200 EMA {curr_symbol}{tech['ema200']}",
+            "status": "PASS" if tech.get("isAboveEma200", True) else "FAIL",
+            "metric": f"Price {curr_symbol}{price} vs 200 EMA {curr_symbol}{tech.get('ema200', price)}",
             "benchmark": "Price > 200 EMA",
-            "detail": "Bullish long-term structural alignment intact" if tech["isAboveEma200"] else "Trading below 200 EMA — major overhead resistance"
+            "detail": "Bullish long-term structural alignment intact" if tech.get("isAboveEma200", True) else "Trading below 200 EMA — major overhead resistance"
         },
         {
             "id": "INTERMEDIATE_TREND",
             "name": "Intermediate Trend (20 / 50 EMA Alignment)",
             "status": "PASS" if (price_above_sma20 and sma20_above_sma50) else ("WARN" if price_above_sma20 else "FAIL"),
-            "metric": f"20 EMA: {curr_symbol}{tech['ema20']} | 50 EMA: {curr_symbol}{tech['ema50']}",
+            "metric": f"20 EMA: {curr_symbol}{tech.get('ema20', price)} | 50 EMA: {curr_symbol}{tech.get('ema50', price)}",
             "benchmark": "20 EMA > 50 EMA",
             "detail": "Confirmed golden trend alignment" if (price_above_sma20 and sma20_above_sma50) else "Corrective / neutral consolidation phase"
         },
@@ -404,7 +428,7 @@ def analyze_stock(symbol: str, market: str = "IN") -> dict:
             "id": "RSI_MOMENTUM",
             "name": "Momentum Velocity (RSI 14)",
             "status": "PASS" if (40 <= rsi <= 68 or rsi < 32) else ("WARN" if 32 <= rsi < 40 else "FAIL"),
-            "metric": f"RSI: {rsi} ({tech['rsiStatus']})",
+            "metric": f"RSI: {rsi} ({tech.get('rsiStatus', 'NEUTRAL')})",
             "benchmark": "40 <= RSI <= 68 (or <32 Reversal)",
             "detail": "Favorable momentum expansion zone" if (40 <= rsi <= 68) else ("Oversold value entry zone" if rsi < 32 else "Overbought exhaustion risk")
         },
@@ -412,7 +436,7 @@ def analyze_stock(symbol: str, market: str = "IN") -> dict:
             "id": "MACD_VELOCITY",
             "name": "MACD Histogram Momentum",
             "status": "PASS" if macd_hist > 0 else "FAIL",
-            "metric": f"MACD Hist: {macd_hist} (Line: {tech['macd']} / Sig: {tech['macdSignal']})",
+            "metric": f"MACD Hist: {macd_hist} (Line: {tech.get('macd', 0.0)} / Sig: {tech.get('macdSignal', 0.0)})",
             "benchmark": "Histogram > 0",
             "detail": "Bullish momentum acceleration" if macd_hist > 0 else "Momentum decelerating into negative territory"
         },

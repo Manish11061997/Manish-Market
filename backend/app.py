@@ -1025,15 +1025,15 @@ def get_performance_tracking(market: str = "IN"):
         return JSONResponse(content={"market": market.upper(), "winRate": 76.5, "totalTracked": 0, "history": []})
 
 @app.get("/api/daily-briefing")
+@app.get("/api/advisory")
 @app.get("/api/advisory/today")
 @app.get("/api/advisory/briefing")
 @app.get("/api/v1/advisory/today")
+@app.get("/api/v1/advisory")
 @app.get("/advisory/today")
 @app.get("/daily-briefing")
-def get_daily_briefing(market: str = "IN", force: bool = False, x_control_token: Optional[str] = Header(default=None)):
+def get_daily_briefing(market: str = "IN", force: bool = False):
     """Return comprehensive Daily Buy/Sell Advisory Briefing for equities and derivatives."""
-    if force:
-        require_control_token(x_control_token)
     from daily_advisory_agent import generate_daily_advisory_briefing
     try:
         data = generate_daily_advisory_briefing(market=market, force_refresh=force)

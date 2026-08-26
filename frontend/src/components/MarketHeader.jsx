@@ -22,6 +22,7 @@ function MarketHeader({
   const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY';
   const indices = useMemo(() => marketData?.indices || {}, [marketData]);
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
+  const currPrefix = currentMarket === 'US' ? '$' : '₹';
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
