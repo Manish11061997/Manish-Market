@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, TrendingUp, Sliders, MessageSquare, BarChart2, Cpu, Globe, ShieldCheck, FileText, Sparkles, Activity } from 'lucide-react';
+import { Zap, TrendingUp, Sliders, MessageSquare, BarChart2, Cpu, Globe, ShieldCheck, FileText, Sparkles, Activity, Star } from 'lucide-react';
 import LogoHexagon from './LogoHexagon';
 
 const MOBILE_QUERY = '(max-width: 1024px)';
@@ -28,6 +28,7 @@ export default function SidebarNav({
   }, []);
 
   const navItems = [
+    { id: 'WATCHLIST', label: '⭐ Watchlist Hub', icon: Star, badge: 'HOT' },
     { id: 'DAILY_ADVISORY', label: '🌅 Daily Advisory', icon: Zap, badge: 'DAILY' },
     { id: 'IPO_HUB', label: '🚀 IPO Intelligence Hub', icon: Sparkles, badge: 'NEW' },
     { id: 'ANALYSIS_ENGINE', label: '📈 Pattern Engine', icon: TrendingUp, badge: 'PRO' },

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Zap, Sparkles, TrendingUp, Menu, Activity } from 'lucide-react';
+import { Zap, Sparkles, TrendingUp, Menu, Activity, Star } from 'lucide-react';
 
 export default function MobileBottomNav({ activeView, setActiveView, onOpenMenu }) {
   const primaryTabs = [
+    { id: 'WATCHLIST', label: 'Watchlist', icon: Star },
     { id: 'RECOMMENDATIONS', label: 'Signals', icon: TrendingUp },
     { id: 'DAILY_ADVISORY', label: 'Advisory', icon: Zap },
     { id: 'IPO_HUB', label: 'IPO Hub', icon: Sparkles },

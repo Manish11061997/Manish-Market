@@ -12,6 +12,7 @@ import { findTick } from './utils/symbolMatcher';
 import { ErrorBanner, TabErrorBoundary } from './components/ui/primitives';
 import { Bell } from 'lucide-react';
 
+const WatchlistView = lazy(() => import('./components/WatchlistView'));
 const FNOTradingHub = lazy(() => import('./components/FNOTradingHub'));
 const StockScreener = lazy(() => import('./components/StockScreener'));
 const AICopilotChat = lazy(() => import('./components/AICopilotChat'));
@@ -397,6 +398,16 @@ export default function App() {
 
               <TabErrorBoundary>
                 <Suspense fallback={<LazyFallback />}>
+                  {activeView === 'WATCHLIST' && (
+                    <WatchlistView
+                      key={currentMarket}
+                      currentMarket={currentMarket}
+                      onSelectStock={(sym) => {
+                        setSelectedStock(sym);
+                      }}
+                    />
+                  )}
+
                   {activeView === 'ANALYSIS_ENGINE' && (
                   <AIAnalysisEngineView
                     selectedSymbol={engineSymbol}

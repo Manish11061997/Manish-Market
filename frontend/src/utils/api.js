@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://videos-strengths-fitness-satin.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://grammar-zope-locations-immigrants.trycloudflare.com';
 
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
 let activeWorkingBase = null;

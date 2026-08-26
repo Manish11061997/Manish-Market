@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, ArrowUpRight, Star } from 'lucide-react';
 import { wsClient } from '../utils/WebSocketClient';
 import { findTick } from '../utils/symbolMatcher';
 import { apiFetch } from '../utils/api';
+import { useWatchlist } from '../utils/useWatchlist';
 
 const DEFAULT_RECOMMENDATIONS_IN = {
   market: 'IN',
@@ -113,6 +114,7 @@ const DEFAULT_RECOMMENDATIONS_IN = {
 };
 
 function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, currentMarket = 'IN' }) {
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedSector, setSelectedSector] = useState('ALL');
   const [feedData, setFeedData] = useState(recommendations || (currentMarket === 'IN' ? DEFAULT_RECOMMENDATIONS_IN : null));
@@ -507,26 +509,53 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                   </div>
                 </div>
 
-                {/* Right: LTP + % Gain Pill */}
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div className={`mono-num ${stock.tickDirection === 'UP' ? 'flash-up' : (stock.tickDirection === 'DOWN' ? 'flash-down' : '')}`} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
-                    {stockCurrPrefix}{stock.currentPrice?.toLocaleString('en-US')}
+                {/* Right: LTP + % Gain Pill + Star Button */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className={`mono-num ${stock.tickDirection === 'UP' ? 'flash-up' : (stock.tickDirection === 'DOWN' ? 'flash-down' : '')}`} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
+                      {stockCurrPrefix}{stock.currentPrice?.toLocaleString('en-US')}
+                    </div>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      marginTop: '3px',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      backgroundColor: stock.directionCode === 'UP' ? 'var(--accent-green-bg)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red-bg)' : 'var(--accent-gold-bg)'),
+                      color: stock.directionCode === 'UP' ? 'var(--accent-green)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red)' : 'var(--accent-gold)'),
+                      border: stock.directionCode === 'UP' ? '1px solid var(--accent-green-border)' : (stock.directionCode === 'DOWN' ? '1px solid var(--accent-red-border)' : '1px solid var(--accent-gold-border)')
+                    }}>
+                      {stock.directionCode === 'UP' ? '▲' : (stock.directionCode === 'DOWN' ? '▼' : '')} {potentialGain}%
+                    </div>
                   </div>
-                  <div style={{
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    marginTop: '3px',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    backgroundColor: stock.directionCode === 'UP' ? 'var(--accent-green-bg)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red-bg)' : 'var(--accent-gold-bg)'),
-                    color: stock.directionCode === 'UP' ? 'var(--accent-green)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red)' : 'var(--accent-gold)'),
-                    border: stock.directionCode === 'UP' ? '1px solid var(--accent-green-border)' : (stock.directionCode === 'DOWN' ? '1px solid var(--accent-red-border)' : '1px solid var(--accent-gold-border)')
-                  }}>
-                    {stock.directionCode === 'UP' ? '▲' : (stock.directionCode === 'DOWN' ? '▼' : '')} {potentialGain}%
-                  </div>
+
+                  <button
+                    type="button"
+                    title={isWatchlisted(stock.symbol) ? "Remove from Watchlist" : "Add to Watchlist"}
+                    aria-label={isWatchlisted(stock.symbol) ? "Remove from Watchlist" : "Add to Watchlist"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatchlist(stock.symbol);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: isWatchlisted(stock.symbol) ? 'var(--accent-gold)' : 'var(--text-muted)',
+                      padding: '4px',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: isWatchlisted(stock.symbol) ? 1 : 0.6,
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Star style={{ width: '16px', height: '16px', fill: isWatchlisted(stock.symbol) ? 'currentColor' : 'none' }} />
+                  </button>
                 </div>
               </div>
             );

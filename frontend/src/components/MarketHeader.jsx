@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle } from 'lucide-react';
+import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle, Star } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
+import { useWatchlist } from '../utils/useWatchlist';
 import LogoHexagon from './LogoHexagon';
 
 function MarketHeader({
@@ -17,6 +18,7 @@ function MarketHeader({
 }) {
   const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY';
   const indices = useMemo(() => marketData?.indices || {}, [marketData]);
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState(1.0);
@@ -593,7 +595,32 @@ function MarketHeader({
                         <strong style={{ color: 'var(--accent-blue)' }}>{s.symbol}</strong> • {s.sector || 'Equity'}
                       </div>
                     </div>
-                    <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--accent-blue)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        title={isWatchlisted(s.symbol) ? "Remove from Watchlist" : "Add to Watchlist"}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleWatchlist(s.symbol);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: isWatchlisted(s.symbol) ? 'var(--accent-gold)' : 'var(--text-muted)',
+                          padding: '4px',
+                          cursor: 'pointer',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: isWatchlisted(s.symbol) ? 1 : 0.6
+                        }}
+                      >
+                        <Star style={{ width: '14px', height: '14px', fill: isWatchlisted(s.symbol) ? 'currentColor' : 'none' }} />
+                      </button>
+                      <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--accent-blue)' }} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -825,7 +852,31 @@ function MarketHeader({
                   <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>{s.name}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.symbol} • {s.sector || 'Equities'}</div>
                 </div>
-                <ChevronRight style={{ width: '16px', height: '16px', color: 'var(--accent-blue)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    title={isWatchlisted(s.symbol) ? "Remove from Watchlist" : "Add to Watchlist"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatchlist(s.symbol);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: isWatchlisted(s.symbol) ? 'var(--accent-gold)' : 'var(--text-muted)',
+                      padding: '6px',
+                      cursor: 'pointer',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: isWatchlisted(s.symbol) ? 1 : 0.6
+                    }}
+                  >
+                    <Star style={{ width: '16px', height: '16px', fill: isWatchlisted(s.symbol) ? 'currentColor' : 'none' }} />
+                  </button>
+                  <ChevronRight style={{ width: '16px', height: '16px', color: 'var(--accent-blue)' }} />
+                </div>
               </div>
             ))}
           </div>

@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Target, Copy, Check, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Target, Copy, Check, CheckCircle2, Star } from 'lucide-react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
+import { useWatchlist } from '../utils/useWatchlist';
 import TradingViewCandleChart from './TradingViewCandleChart';
 import { Modal } from './ui/primitives';
 
 export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine, onOpenAIEngine, currentMarket = 'IN' }) {
   const rawSym = typeof symbol === 'string' ? symbol : symbol?.symbol || 'RELIANCE.NS';
   const initialStock = typeof symbol === 'object' ? symbol : null;
+
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
+  const isSaved = isWatchlisted(rawSym);
 
   const [stock, setStock] = useState(initialStock);
   const [loading, setLoading] = useState(!initialStock);
@@ -206,13 +210,36 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
               )}
             </div>
 
+            {/* Watchlist Star Toggle Button */}
+            <button
+              type="button"
+              onClick={() => toggleWatchlist(rawSym)}
+              title={isSaved ? "Remove from Watchlist" : "Add to Watchlist"}
+              aria-label={isSaved ? "Remove from Watchlist" : "Add to Watchlist"}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '8px',
+                backgroundColor: isSaved ? 'rgba(255, 184, 0, 0.15)' : 'var(--bg-card)',
+                border: `1px solid ${isSaved ? 'rgba(255, 184, 0, 0.4)' : 'var(--border-subtle)'}`,
+                color: isSaved ? 'var(--accent-gold)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Star style={{ width: '15px', height: '15px', fill: isSaved ? 'currentColor' : 'none' }} />
+            </button>
+
             <button
               onClick={onClose}
               aria-label="Close modal"
               style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
+                width: '28px',
+                height: '28px',
+                borderRadius: '8px',
                 backgroundColor: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--text-muted)',
@@ -220,7 +247,7 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '12px'
+                fontSize: '13px'
               }}
             >
               ✕
