@@ -4,6 +4,7 @@ import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { useWatchlist } from '../utils/useWatchlist';
 import UserProfileDropdown from './UserProfileDropdown';
 import LogoHexagon from './LogoHexagon';
+import { fuzzySearchUniverse } from '../utils/stockUniverse';
 
 function MarketHeader({
   marketData,
@@ -49,72 +50,6 @@ function MarketHeader({
     }
   }, [indices]);
 
-  const indianUniverse = [
-    { symbol: 'NIFTY50', name: 'Nifty 50 Index', sector: 'Index' },
-    { symbol: 'NIFTYBANK', name: 'Nifty Bank Index', sector: 'Index' },
-    { symbol: 'SENSEX', name: 'BSE Sensex Index', sector: 'Index' },
-    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Energy & Oil' },
-    { symbol: 'TCS.NS', name: 'Tata Consultancy Services', sector: 'IT Services' },
-    { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking & Financials' },
-    { symbol: 'INFY.NS', name: 'Infosys Ltd', sector: 'IT Services' },
-    { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking & Financials' },
-    { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel', sector: 'Telecom' },
-    { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', sector: 'Automotive & EV' },
-    { symbol: 'ITC.NS', name: 'ITC Ltd', sector: 'FMCG' },
-    { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking & Financials' },
-    { symbol: 'LT.NS', name: 'Larsen & Toubro', sector: 'Infrastructure' },
-    { symbol: 'MARUTI.NS', name: 'Maruti Suzuki India', sector: 'Automobile' },
-    { symbol: 'KOTAKBANK.NS', name: 'Kotak Mahindra Bank', sector: 'Banking & Financials' },
-    { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking & Financials' },
-    { symbol: 'BAJFINANCE.NS', name: 'Bajaj Finance', sector: 'Financial Services' },
-    { symbol: 'ASIANPAINT.NS', name: 'Asian Paints', sector: 'Consumer Goods' },
-    { symbol: 'SUNPHARMA.NS', name: 'Sun Pharmaceutical', sector: 'Healthcare & Pharma' },
-    { symbol: 'TITAN.NS', name: 'Titan Company', sector: 'Consumer Goods' },
-    { symbol: 'TATASTEEL.NS', name: 'Tata Steel', sector: 'Metals & Mining' },
-    { symbol: 'NTPC.NS', name: 'NTPC Ltd', sector: 'Power & Utilities' },
-    { symbol: 'ONGC.NS', name: 'Oil and Natural Gas Corp', sector: 'Energy & Oil' },
-    { symbol: 'POWERGRID.NS', name: 'Power Grid Corp', sector: 'Power & Utilities' },
-    { symbol: 'COALINDIA.NS', name: 'Coal India Ltd', sector: 'Mining & Minerals' },
-    { symbol: 'HCLTECH.NS', name: 'HCL Technologies', sector: 'IT Services' },
-    { symbol: 'WIPRO.NS', name: 'Wipro Ltd', sector: 'IT Services' },
-    { symbol: 'ADANIENT.NS', name: 'Adani Enterprises', sector: 'Conglomerate' },
-    { symbol: 'ADANIPORTS.NS', name: 'Adani Ports & SEZ', sector: 'Infrastructure & Ports' },
-    { symbol: 'ZOMATO.NS', name: 'Zomato Ltd', sector: 'Consumer Tech' },
-    { symbol: 'PAYTM.NS', name: 'One97 Communications (Paytm)', sector: 'FinTech' },
-    { symbol: 'IRFC.NS', name: 'Indian Railway Finance Corp', sector: 'Railways & Infra' },
-    { symbol: 'BEL.NS', name: 'Bharat Electronics Ltd', sector: 'Defence & Aerospace' },
-    { symbol: 'HAL.NS', name: 'Hindustan Aeronautics', sector: 'Defence & Aerospace' },
-    { symbol: 'SUZLON.NS', name: 'Suzlon Energy', sector: 'Renewable Energy' },
-    { symbol: 'TATAPOWER.NS', name: 'Tata Power Company', sector: 'Power & Renewable' },
-    { symbol: 'VEDL.NS', name: 'Vedanta Ltd', sector: 'Metals & Mining' },
-    { symbol: 'JIOFIN.NS', name: 'Jio Financial Services', sector: 'Financial Services' }
-  ];
-
-  const usUniverse = [
-    { symbol: 'SP500', name: 'S&P 500 Index', sector: 'US Index' },
-    { symbol: 'NASDAQ', name: 'NASDAQ 100 Index', sector: 'US Index' },
-    { symbol: 'DOW', name: 'Dow Jones Industrial Average', sector: 'US Index' },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Semiconductors & AI' },
-    { symbol: 'AAPL', name: 'Apple Inc', sector: 'Consumer Electronics' },
-    { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Software & Cloud' },
-    { symbol: 'AMZN', name: 'Amazon.com Inc', sector: 'E-Commerce & Cloud' },
-    { symbol: 'GOOGL', name: 'Alphabet Inc (Google)', sector: 'Internet & Search' },
-    { symbol: 'META', name: 'Meta Platforms (Facebook)', sector: 'Social Media & AI' },
-    { symbol: 'TSLA', name: 'Tesla Inc', sector: 'Automotive & EV' },
-    { symbol: 'AMD', name: 'Advanced Micro Devices', sector: 'Semiconductors' },
-    { symbol: 'PLTR', name: 'Palantir Technologies', sector: 'AI & Data Analytics' },
-    { symbol: 'ARM', name: 'Arm Holdings plc', sector: 'Semiconductors' },
-    { symbol: 'COIN', name: 'Coinbase Global Inc', sector: 'Crypto & FinTech' },
-    { symbol: 'SMCI', name: 'Super Micro Computer', sector: 'AI Server Hardware' },
-    { symbol: 'BRK-B', name: 'Berkshire Hathaway Inc', sector: 'Financial Conglomerate' },
-    { symbol: 'JPM', name: 'JPMorgan Chase & Co', sector: 'Banking & Financials' },
-    { symbol: 'LLY', name: 'Eli Lilly and Company', sector: 'Pharma & Biotech' },
-    { symbol: 'NFLX', name: 'Netflix Inc', sector: 'Streaming Media' }
-  ];
-
-  const stockUniverse = currentMarket === 'US' ? usUniverse : indianUniverse;
-  const currPrefix = currentMarket === 'US' ? '$' : '₹';
-
   const [liveSearchResults, setLiveSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -141,7 +76,7 @@ function MarketHeader({
           console.warn("Search fetch error:", err);
           setIsSearching(false);
         });
-    }, 150);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
@@ -149,22 +84,29 @@ function MarketHeader({
     };
   }, [searchQuery, currentMarket]);
 
-  const localFiltered = stockUniverse.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.sector.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // High-accuracy instant local matches
+  const localFiltered = useMemo(() => {
+    return fuzzySearchUniverse(searchQuery, currentMarket);
+  }, [searchQuery, currentMarket]);
 
   // Combine and deduplicate local universe and live search
-  const combinedResults = [...localFiltered];
-  const seenSyms = new Set(localFiltered.map(s => s.symbol.toUpperCase()));
-  liveSearchResults.forEach(item => {
-    const symUpper = item.symbol.toUpperCase();
-    if (!seenSyms.has(symUpper)) {
-      seenSyms.add(symUpper);
-      combinedResults.push(item);
-    }
-  });
+  const combinedResults = useMemo(() => {
+    const map = new Map();
+    // 1. First add API search results if available
+    liveSearchResults.forEach(item => {
+      if (item && item.symbol) {
+        map.set(item.symbol.toUpperCase(), item);
+      }
+    });
+    // 2. Add or backfill with local high-accuracy universe
+    localFiltered.forEach(item => {
+      const key = item.symbol.toUpperCase();
+      if (!map.has(key)) {
+        map.set(key, item);
+      }
+    });
+    return Array.from(map.values()).slice(0, 10);
+  }, [liveSearchResults, localFiltered]);
 
   const selectSymbol = (sym) => {
     if (!sym) return;
