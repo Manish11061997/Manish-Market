@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch, getAuthToken, setAuthToken } from './api';
+import { signInWithRealGoogle } from './firebase';
 
 const USER_STORAGE_KEY = 'manish_market_current_user';
 const AUTH_EVENT = 'manish_market_auth_change';
@@ -116,10 +117,20 @@ export function useAuth() {
     }
   }, []);
 
-  const loginWithGoogle = useCallback(async (name, email, marketPreference = 'IN') => {
+  const loginWithGoogle = useCallback(async (customName, customEmail, marketPreference = 'IN') => {
     setLoading(true);
     setAuthError(null);
     try {
+      let email = customEmail;
+      let name = customName;
+
+      // If no email provided directly, trigger real Google OAuth popup
+      if (!email) {
+        const googleUser = await signInWithRealGoogle();
+        email = googleUser.email;
+        name = googleUser.name;
+      }
+
       const res = await apiFetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
