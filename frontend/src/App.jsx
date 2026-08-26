@@ -27,6 +27,7 @@ const PriceAlertsManager = lazy(() => import('./components/PriceAlertsManager'))
 const LiveDataHealthPanel = lazy(() => import('./components/LiveDataHealthPanel'));
 const LiveDataDebugPanel = lazy(() => import('./components/LiveDataDebugPanel'));
 const BrokerSettingsModal = lazy(() => import('./components/BrokerSettingsModal'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
 
 function LazyFallback() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
   const [showHealthHUD, setShowHealthHUD] = useState(false);
   const [showDebugHUD, setShowDebugHUD] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeToasts, setActiveToasts] = useState([]);
   const [isFailover, setIsFailover] = useState(false);
   const [fetchErrors, setFetchErrors] = useState([]);
@@ -314,6 +316,7 @@ export default function App() {
         onOpenHealthHUD={() => setShowHealthHUD(true)}
         onOpenDebugHUD={() => setShowDebugHUD(true)}
         onOpenBrokerSettings={() => setShowBrokerModal(true)}
+        onOpenAuthModal={() => setShowAuthModal(true)}
       />
 
       {/* Main Trading Terminal Workspace */}
@@ -331,6 +334,7 @@ export default function App() {
           wsStatus={wsStatus}
           sessionInfo={sessionInfo}
           onOpenAlertsModal={() => setShowAlertsModal(true)}
+          onOpenAuthModal={() => setShowAuthModal(true)}
           onOpenHealthHUD={() => setShowHealthHUD(true)}
           onOpenDebugHUD={() => setShowDebugHUD(true)}
           onOpenBrokerSettings={() => setShowBrokerModal(true)}
@@ -557,6 +561,18 @@ export default function App() {
             setEngineSymbol(sym);
             setActiveView('ANALYSIS_ENGINE');
           }}
+          />
+        </Suspense>
+      )}
+
+      {/* User Login & Signup Authentication Modal */}
+      {showAuthModal && (
+        <Suspense fallback={null}>
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            currentMarket={currentMarket}
+            onMarketChange={setCurrentMarket}
           />
         </Suspense>
       )}

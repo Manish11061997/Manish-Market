@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch, getAuthToken } from './api';
 
 const STORAGE_KEY = 'manish_market_watchlists_v1';
 const EVENT_NAME = 'manish_market_watchlist_change';
@@ -60,11 +61,20 @@ function getStoredWatchlists() {
   }
 }
 
-function saveWatchlists(data) {
+function saveWatchlists(data, syncRemote = true, market = 'IN') {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: data }));
+
+    if (syncRemote && getAuthToken()) {
+      const marketLists = data[market] || [];
+      apiFetch('/api/user/watchlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ market, watchlists: marketLists })
+      }).catch(e => console.warn('Remote watchlist sync notice:', e));
+    }
   } catch (err) {
     console.error('Failed to save watchlists to localStorage:', err);
   }
@@ -78,6 +88,27 @@ export function useWatchlist(currentMarket = 'IN') {
     const defaultList = marketLists.find(l => l.isDefault) || marketLists[0];
     return defaultList ? defaultList.id : 'favorites_in';
   });
+
+  // Fetch remote user watchlists if logged in
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    apiFetch(`/api/user/watchlists?market=${currentMarket}`)
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.watchlists && data.watchlists.length > 0) {
+            setAllLists(prev => {
+              const next = { ...prev, [currentMarket]: data.watchlists };
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+              return next;
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, [currentMarket]);
 
   // Sync with storage changes across components and windows
   useEffect(() => {

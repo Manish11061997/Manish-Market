@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle, Star } from 'lucide-react';
+import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle, Star, User } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { useWatchlist } from '../utils/useWatchlist';
+import UserProfileDropdown from './UserProfileDropdown';
 import LogoHexagon from './LogoHexagon';
 
 function MarketHeader({
@@ -13,6 +14,7 @@ function MarketHeader({
   wsStatus = 'LIVE',
   sessionInfo,
   onOpenAlertsModal,
+  onOpenAuthModal,
   onOpenMenu,
   isFailover = false
 }) {
@@ -440,6 +442,12 @@ function MarketHeader({
           >
             <Bell style={{ width: '16px', height: '16px' }} />
           </button>
+
+          {/* User Authentication & Profile Dropdown */}
+          <UserProfileDropdown
+            onOpenAuthModal={onOpenAuthModal}
+            currentMarket={currentMarket}
+          />
 
           {/* Mobile Search Button Trigger */}
           <button

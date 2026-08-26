@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, TrendingUp, Sliders, MessageSquare, BarChart2, Cpu, Globe, ShieldCheck, FileText, Sparkles, Activity, Star } from 'lucide-react';
+import { Zap, TrendingUp, Sliders, MessageSquare, BarChart2, Cpu, Globe, ShieldCheck, FileText, Sparkles, Activity, Star, User, LogOut } from 'lucide-react';
 import LogoHexagon from './LogoHexagon';
+import { useAuth } from '../utils/useAuth';
 
 const MOBILE_QUERY = '(max-width: 1024px)';
 
@@ -14,7 +15,8 @@ export default function SidebarNav({
   onNavigate,
   onOpenHealthHUD,
   onOpenDebugHUD,
-  onOpenBrokerSettings
+  onOpenBrokerSettings,
+  onOpenAuthModal
 }) {
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
@@ -340,6 +342,103 @@ export default function SidebarNav({
           </button>
         </div>
 
+      </div>
+
+      {/* User Account & Session Profile Box */}
+      <div style={{
+        padding: '12px 14px',
+        borderRadius: '16px',
+        backgroundColor: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginBottom: '10px'
+      }}>
+        {isAuthenticated ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--accent-blue)',
+                  color: '#04060a',
+                  fontSize: '11px',
+                  fontWeight: 900,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'MM'}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUser?.name}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUser?.email}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                title="Log Out"
+                onClick={logout}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-red)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <LogOut style={{ width: '15px', height: '15px' }} />
+              </button>
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--accent-green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ShieldCheck style={{ width: '12px', height: '12px' }} />
+              <span>Isolated Private Sandbox</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)' }}>
+                Guest Mode
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                Demo Sandbox
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onClose) onClose();
+                if (onOpenAuthModal) onOpenAuthModal();
+              }}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--accent-blue)',
+                color: '#04060a',
+                fontSize: '11px',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Sign In
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Live System Status Box */}

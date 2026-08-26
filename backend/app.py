@@ -31,6 +31,8 @@ from risk_manager import risk_engine
 from paper_trading_engine import paper_trading_coordinator
 from oms import oms_engine
 from audit_trail import audit_trail
+from user_db import user_db
+from auth_service import create_access_token, get_current_user, get_optional_user
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -133,6 +135,24 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+class SignupRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=150)
+    password: str = Field(min_length=6, max_length=100)
+    marketPreference: Optional[str] = "IN"
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    marketPreference: Optional[str] = None
+
+class SaveWatchlistsRequest(BaseModel):
+    market: str = "IN"
+    watchlists: List[Dict[str, Any]]
+
 class ChatQueryRequest(BaseModel):
     message: str
 
@@ -229,6 +249,104 @@ async def websocket_endpoint(websocket: WebSocket):
         ws_manager.disconnect(websocket)
     except Exception as e:
         ws_manager.disconnect(websocket)
+
+# -------------------------------------------------------------------
+# 0. User Authentication & Per-User Data Management Endpoints
+# -------------------------------------------------------------------
+@app.post("/api/auth/signup")
+def signup_user(req: SignupRequest):
+    """Register a new user account with isolated watchlist and portfolio."""
+    try:
+        user = user_db.create_user(
+            email=req.email,
+            name=req.name,
+            password=req.password,
+            market_preference=req.marketPreference or "IN"
+        )
+        token = create_access_token(user["id"], user["email"], user["name"])
+        return {"status": "success", "token": token, "user": user}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Signup error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create user account.")
+
+@app.post("/api/auth/login")
+def login_user(req: LoginRequest):
+    """Authenticate user with email and password."""
+    user = user_db.authenticate_user(req.email, req.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password. Please check your credentials.")
+    token = create_access_token(user["id"], user["email"], user["name"])
+    return {"status": "success", "token": token, "user": user}
+
+@app.get("/api/auth/me")
+def get_current_user_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Retrieve logged-in user profile."""
+    return {"status": "success", "user": current_user}
+
+@app.put("/api/auth/profile")
+def update_profile(req: ProfileUpdateRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Update user profile preferences."""
+    updated = user_db.update_user_preferences(
+        user_id=current_user["id"],
+        name=req.name,
+        market_preference=req.marketPreference
+    )
+    return {"status": "success", "user": updated}
+
+@app.get("/api/user/watchlists")
+def get_user_watchlists(market: str = "IN", current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Retrieve user-specific private watchlists."""
+    lists = user_db.get_user_watchlists(current_user["id"], market=market)
+    return {"status": "success", "market": market, "watchlists": lists}
+
+@app.post("/api/user/watchlists")
+def save_user_watchlists(req: SaveWatchlistsRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Save user-specific private watchlists."""
+    user_db.save_user_watchlists(current_user["id"], req.market, req.watchlists)
+    return {"status": "success", "message": "Watchlists saved successfully."}
+
+@app.get("/api/user/portfolio")
+def get_user_portfolio_endpoint(market: str = "IN", current_user: Optional[Dict[str, Any]] = Depends(get_optional_user)):
+    """Retrieve user-specific paper portfolio."""
+    if current_user:
+        return user_db.get_user_portfolio(current_user["id"], market=market)
+    return paper_trading_coordinator.get_portfolio()
+
+@app.post("/api/user/order")
+def place_user_order_endpoint(req: PaperOrderRequest, market: str = "IN", current_user: Optional[Dict[str, Any]] = Depends(get_optional_user)):
+    """Place a paper order isolated to the user's private account."""
+    if current_user:
+        order_dict = {
+            "symbol": req.symbol,
+            "side": req.side,
+            "quantity": req.quantity,
+            "price": req.price,
+            "orderType": req.orderType or "MARKET",
+            "filledPrice": req.price,
+            "status": "FILLED"
+        }
+        res = user_db.record_user_order(current_user["id"], order_dict, market=market)
+        return {"status": "FILLED", "portfolio": res, "order": order_dict}
+    return paper_trading_coordinator.place_paper_order(
+        symbol=req.symbol,
+        side=req.side,
+        quantity=req.quantity,
+        price=req.price,
+        stop_loss=req.stopLoss,
+        take_profit=req.takeProfit,
+        order_type=req.orderType or "MARKET"
+    )
+
+@app.post("/api/user/portfolio/reset")
+def reset_user_portfolio_endpoint(market: str = "IN", current_user: Optional[Dict[str, Any]] = Depends(get_optional_user)):
+    """Reset user's paper portfolio cash & positions."""
+    if current_user:
+        user_db.reset_user_portfolio(current_user["id"], market=market)
+        return {"status": "success", "message": "User portfolio reset successfully."}
+    paper_trading_coordinator.reset_paper_account()
+    return {"status": "success", "message": "Guest paper account reset."}
 
 # -------------------------------------------------------------------
 # 1. Instrument Master Endpoints

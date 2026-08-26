@@ -148,6 +148,20 @@ export const CONTROL_HEADERS = {
   ...(controlToken ? { 'X-Control-Token': controlToken } : {})
 };
 
+export function getAuthToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('manish_market_auth_token') || null;
+}
+
+export function setAuthToken(token) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem('manish_market_auth_token', token);
+  } else {
+    localStorage.removeItem('manish_market_auth_token');
+  }
+}
+
 /**
  * Parallel-Racing API Fetcher:
  * 1. Tries activeWorkingBase first (0ms fast path).
@@ -156,8 +170,12 @@ export const CONTROL_HEADERS = {
  */
 export async function apiFetch(endpointPath, options = {}) {
   const path = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+  const token = getAuthToken();
+  const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
   const mergedHeaders = {
     ...CONTROL_HEADERS,
+    ...authHeader,
     ...(options.headers || {})
   };
 
