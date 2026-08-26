@@ -646,6 +646,8 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "totalReturnPercent": 102.22,
         "issueSizeCr": 276.57,
         "subscriptionTotal": "168.3x",
+        "status": "DOUBLED ON LISTING DAY (+102%)"
+    }
 ]
 
 # =====================================================================
