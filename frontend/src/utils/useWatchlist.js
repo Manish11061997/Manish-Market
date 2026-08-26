@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, getAuthToken } from './api';
 
-const STORAGE_KEY = 'manish_market_watchlists_v1';
+const STORAGE_KEY_PREFIX = 'manish_market_watchlists_';
 const EVENT_NAME = 'manish_market_watchlist_change';
 
 const DEFAULT_WATCHLISTS = {
@@ -47,10 +47,29 @@ const DEFAULT_WATCHLISTS = {
   ]
 };
 
+function getCurrentUserId() {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const raw = localStorage.getItem('manish_market_current_user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user?.id) return user.id;
+      if (user?.email) return user.email.replace(/[^a-zA-Z0-9]/g, '_');
+    }
+  } catch {
+    // fallback
+  }
+  return 'guest';
+}
+
+function getStorageKey() {
+  return `${STORAGE_KEY_PREFIX}${getCurrentUserId()}_v1`;
+}
+
 function getStoredWatchlists() {
   if (typeof window === 'undefined') return DEFAULT_WATCHLISTS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     if (!raw) return DEFAULT_WATCHLISTS;
     const parsed = JSON.parse(raw);
     if (!parsed.IN || !parsed.US) return DEFAULT_WATCHLISTS;
@@ -64,7 +83,7 @@ function getStoredWatchlists() {
 function saveWatchlists(data, syncRemote = true, market = 'IN') {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(getStorageKey(), JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: data }));
 
     if (syncRemote && getAuthToken()) {
@@ -89,19 +108,19 @@ export function useWatchlist(currentMarket = 'IN') {
     return defaultList ? defaultList.id : 'favorites_in';
   });
 
-  // Fetch remote user watchlists if logged in
+  // Fetch remote user-specific watchlists from SQLite database on mount / auth change
   useEffect(() => {
     const token = getAuthToken();
     if (!token) return;
 
     apiFetch(`/api/user/watchlists?market=${currentMarket}`)
       .then(async res => {
-        if (res.ok) {
+        if (res && res.ok) {
           const data = await res.json();
           if (data?.watchlists && data.watchlists.length > 0) {
             setAllLists(prev => {
               const next = { ...prev, [currentMarket]: data.watchlists };
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+              localStorage.setItem(getStorageKey(), JSON.stringify(next));
               return next;
             });
           }
@@ -118,16 +137,21 @@ export function useWatchlist(currentMarket = 'IN') {
       }
     };
     const handleStorageChange = (e) => {
-      if (e.key === STORAGE_KEY) {
+      if (e.key === getStorageKey()) {
         setAllLists(getStoredWatchlists());
       }
+    };
+    const handleAuthChange = () => {
+      setAllLists(getStoredWatchlists());
     };
 
     window.addEventListener(EVENT_NAME, handleCustomChange);
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('manish_market_auth_change', handleAuthChange);
     return () => {
       window.removeEventListener(EVENT_NAME, handleCustomChange);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('manish_market_auth_change', handleAuthChange);
     };
   }, []);
 
@@ -183,7 +207,7 @@ export function useWatchlist(currentMarket = 'IN') {
 
       currentMarketLists[listIndex] = list;
       updated[currentMarket] = currentMarketLists;
-      saveWatchlists(updated);
+      saveWatchlists(updated, true, currentMarket);
       setAllLists(updated);
     }
     return isAdded;
@@ -206,7 +230,7 @@ export function useWatchlist(currentMarket = 'IN') {
         list.symbols = [cleanSym, ...symList];
         currentMarketLists[listIndex] = list;
         updated[currentMarket] = currentMarketLists;
-        saveWatchlists(updated);
+        saveWatchlists(updated, true, currentMarket);
         setAllLists(updated);
       }
     }
@@ -228,7 +252,7 @@ export function useWatchlist(currentMarket = 'IN') {
       );
       currentMarketLists[listIndex] = list;
       updated[currentMarket] = currentMarketLists;
-      saveWatchlists(updated);
+      saveWatchlists(updated, true, currentMarket);
       setAllLists(updated);
     }
   }, [allLists, currentMarket, activeListId, marketLists]);
@@ -246,7 +270,7 @@ export function useWatchlist(currentMarket = 'IN') {
     const updated = { ...allLists };
     const currentMarketLists = [...(updated[currentMarket] || []), newList];
     updated[currentMarket] = currentMarketLists;
-    saveWatchlists(updated);
+    saveWatchlists(updated, true, currentMarket);
     setAllLists(updated);
     setActiveListId(newId);
     return newId;
@@ -257,7 +281,7 @@ export function useWatchlist(currentMarket = 'IN') {
     const updated = { ...allLists };
     const currentMarketLists = (updated[currentMarket] || []).filter(l => l.id !== listId && !l.isDefault);
     updated[currentMarket] = currentMarketLists;
-    saveWatchlists(updated);
+    saveWatchlists(updated, true, currentMarket);
     setAllLists(updated);
     if (activeListId === listId && currentMarketLists.length > 0) {
       setActiveListId(currentMarketLists[0].id);
