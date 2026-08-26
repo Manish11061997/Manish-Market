@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://participate-smile-coalition-cheapest.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://new-diary-kijiji-mysterious.trycloudflare.com';
 
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
 let activeWorkingBase = null;
@@ -39,20 +39,21 @@ export function getCandidateBases() {
     list.push(activeWorkingBase);
   }
 
-  // 3. Dynamic tunnel from Firebase CDN
+  // 3. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
+  list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
+
+  // 4. Dynamic tunnel from Firebase CDN
   if (dynamicApiBase) {
     list.push(dynamicApiBase);
   }
 
-  // 4. Default Cloudflare tunnel
+  // 5. Default Cloudflare tunnel
   list.push(LIVE_CLOUDFLARE_URL);
 
-  // 5. Local LAN & localhost fallbacks
-  if (typeof window !== 'undefined' && !isSecureContext()) {
-    list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
-    list.push('http://localhost:8000');
-    list.push('http://127.0.0.1:8000');
-  }
+  // 6. Localhost fallbacks
+  list.push('http://localhost:8000');
+  list.push('http://127.0.0.1:8000');
+  list.push('http://10.0.2.2:8000');
 
   return Array.from(new Set(list.filter(Boolean)));
 }
