@@ -28,6 +28,8 @@ const LiveDataHealthPanel = lazy(() => import('./components/LiveDataHealthPanel'
 const LiveDataDebugPanel = lazy(() => import('./components/LiveDataDebugPanel'));
 const BrokerSettingsModal = lazy(() => import('./components/BrokerSettingsModal'));
 const AuthModal = lazy(() => import('./components/AuthModal'));
+const UnauthenticatedLandingView = lazy(() => import('./components/UnauthenticatedLandingView'));
+import { useAuth } from './utils/useAuth';
 
 function LazyFallback() {
   return (
@@ -40,6 +42,7 @@ function LazyFallback() {
 }
 
 export default function App() {
+  const { currentUser, isAuthenticated } = useAuth();
   const [marketData, setMarketData] = useState(null);
   const [breadthData, setBreadthData] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
@@ -300,6 +303,18 @@ export default function App() {
       window.removeEventListener('popstate', handlePop);
     };
   }, [selectedStock, showAlertsModal, showBrokerModal, drawerOpen, showHealthHUD, showDebugHUD, activeView]);
+
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <UnauthenticatedLandingView
+          marketData={marketData}
+          currentMarket={currentMarket}
+          onMarketChange={setCurrentMarket}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', overflow: 'hidden' }}>
