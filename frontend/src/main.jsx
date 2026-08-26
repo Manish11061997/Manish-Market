@@ -2,6 +2,7 @@ import { StrictMode, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { AuthProvider } from './utils/useAuth.jsx'
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -42,14 +43,13 @@ class ErrorBoundary extends Component {
           }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>📊</div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
-              ManishMarket Terminal Ready
+              Manish Market Workspace
             </h2>
             <p style={{ fontSize: '13px', color: '#90a4ae', lineHeight: 1.5, marginBottom: '20px' }}>
               {this.state.error?.message || 'A temporary display error occurred while rendering the workspace.'}
             </p>
             <button
               onClick={() => {
-                localStorage.clear();
                 window.location.reload();
               }}
               style={{
@@ -63,7 +63,7 @@ class ErrorBoundary extends Component {
                 cursor: 'pointer'
               }}
             >
-              Reload & Clear Cache
+              Reload Workspace
             </button>
           </div>
         </div>
@@ -76,7 +76,9 @@ class ErrorBoundary extends Component {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

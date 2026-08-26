@@ -560,24 +560,26 @@ export default function App() {
 
       {/* Stock Detail Overlay Modal */}
       {selectedStock && (
-        <Suspense fallback={null}>
-          <StockDetailModal
-          key={typeof selectedStock === 'string' ? selectedStock : selectedStock?.symbol}
-          symbol={selectedStock}
-          currentMarket={currentMarket}
-          onClose={() => setSelectedStock(null)}
-          onOpenPatternEngine={(sym) => {
-            setSelectedStock(null);
-            setEngineSymbol(sym);
-            setActiveView('ANALYSIS_ENGINE');
-          }}
-          onOpenAIEngine={(sym) => {
-            setSelectedStock(null);
-            setEngineSymbol(sym);
-            setActiveView('ANALYSIS_ENGINE');
-          }}
-          />
-        </Suspense>
+        <TabErrorBoundary>
+          <Suspense fallback={null}>
+            <StockDetailModal
+              key={typeof selectedStock === 'string' ? selectedStock : selectedStock?.symbol}
+              symbol={selectedStock}
+              currentMarket={currentMarket}
+              onClose={() => setSelectedStock(null)}
+              onOpenPatternEngine={(sym) => {
+                setSelectedStock(null);
+                setEngineSymbol(sym);
+                setActiveView('ANALYSIS_ENGINE');
+              }}
+              onOpenAIEngine={(sym) => {
+                setSelectedStock(null);
+                setEngineSymbol(sym);
+                setActiveView('ANALYSIS_ENGINE');
+              }}
+            />
+          </Suspense>
+        </TabErrorBoundary>
       )}
 
       {/* User Login & Signup Authentication Modal */}

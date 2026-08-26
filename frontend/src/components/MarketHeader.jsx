@@ -23,6 +23,7 @@ function MarketHeader({
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const [replaySpeed, setReplaySpeed] = useState(1.0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(true);
   const [flashes, setFlashes] = useState({});
