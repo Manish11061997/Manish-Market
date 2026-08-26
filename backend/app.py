@@ -603,6 +603,9 @@ def get_recommendations(market: str = "IN"):
     return JSONResponse(content=sanitize_json_data(res_payload))
 
 @app.get("/api/search")
+@app.get("/api/stocks/search")
+@app.get("/api/v1/stocks/search")
+@app.get("/api/v1/search")
 def search_securities(q: str, market: str = "IN"):
     """Search securities across global exchanges by company name, ticker, or sector."""
     try:
