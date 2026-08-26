@@ -152,15 +152,37 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
   const displayPrice = livePrice || stock?.currentPrice;
 
   return (
-    <Modal open onClose={onClose} width="900px">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        backgroundColor: 'rgba(4, 6, 10, 0.85)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px'
+      }}
+    >
       <div
         className="pro-card-glass"
         style={{
-          margin: '-12px',
+          width: '920px',
+          maxWidth: '100%',
+          height: '88vh',
+          maxHeight: '88vh',
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: 'var(--md-sys-color-surface-container)',
-          height: 'calc(85vh - 24px)'
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+          border: '1px solid var(--md-sys-color-outline-variant)'
         }}
       >
         {/* Unified Top Header Bar */}
@@ -320,7 +342,17 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
               </div>
             </div>
 
-            {loading && (
+            {viewTab === 'CHART' && (
+              <TradingViewCandleChart
+                symbol={rawSym}
+                timeframe={timeframe}
+                onTimeframeChange={(tf) => setTimeframe(tf)}
+                currentMarket={currentMarket}
+                isAdjusted={isAdjustedPrice}
+              />
+            )}
+
+            {loading && viewTab !== 'CHART' && (
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -344,20 +376,10 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
                     Loading market data, please wait...
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Fetching detailed technicals, candlestick chart & Level 2 depth for {rawSym}
+                    Fetching detailed technicals & Level 2 depth for {rawSym}
                   </div>
                 </div>
               </div>
-            )}
-
-            {!loading && viewTab === 'CHART' && (
-              <TradingViewCandleChart
-                symbol={rawSym}
-                timeframe={timeframe}
-                onTimeframeChange={(tf) => setTimeframe(tf)}
-                currentMarket={currentMarket}
-                isAdjusted={isAdjustedPrice}
-              />
             )}
 
             {viewTab === 'SETUP' && (
@@ -924,6 +946,6 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
         </div>
 
       </div>
-    </Modal>
+    </div>
   );
 }

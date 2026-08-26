@@ -164,17 +164,17 @@ class UserDatabaseManager:
                 """, (user_id, now, now))
 
                 # Initialize default Indian Watchlist
-                default_in_syms = json.dumps(['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 'SBIN.NS'])
+                default_in_syms = json.dumps([])
                 conn.execute("""
                 INSERT INTO user_watchlists (id, user_id, market, name, is_default, symbols, created_at, updated_at)
-                VALUES (?, ?, 'IN', '⭐ Favorites', 1, ?, ?, ?);
+                VALUES (?, ?, 'IN', '⭐ My Watchlist', 1, ?, ?, ?);
                 """, (f"wl_in_{uuid.uuid4().hex[:8]}", user_id, default_in_syms, now, now))
 
                 # Initialize default US Watchlist
-                default_us_syms = json.dumps(['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA'])
+                default_us_syms = json.dumps([])
                 conn.execute("""
                 INSERT INTO user_watchlists (id, user_id, market, name, is_default, symbols, created_at, updated_at)
-                VALUES (?, ?, 'US', '⭐ Favorites', 1, ?, ?, ?);
+                VALUES (?, ?, 'US', '⭐ My Watchlist', 1, ?, ?, ?);
                 """, (f"wl_us_{uuid.uuid4().hex[:8]}", user_id, default_us_syms, now, now))
 
             return self.get_user_by_id(user_id)

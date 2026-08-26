@@ -2,16 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
-import { Maximize2, Minimize2, RotateCw, X, TrendingUp, RefreshCw } from 'lucide-react';
+import { Maximize2, RotateCw, X } from 'lucide-react';
 
 /**
  * TradingViewCandleChart
  * High-Performance Candlestick Chart powered by TradingView lightweight-charts.
- * Supports:
- * - Real-time incoming WebSocket ticks & wick updates
- * - Multi-timeframe switching (1m, 5m, 15m, 1h, 1D, 1W)
- * - True Full-Screen & Landscape Rotation modes
- * - Resilient fallback rendering
+ * Synchronized with real-time websocket ticks and multi-timeframe feeds.
  */
 export default function TradingViewCandleChart({
   symbol,
@@ -28,6 +24,7 @@ export default function TradingViewCandleChart({
   const fullCandleSeriesRef = useRef(null);
 
   const [candles, setCandles] = useState([]);
+  const candlesRef = useRef([]);
   const [loading, setLoading] = useState(true);
   const [noData, setNoData] = useState(false);
   const [lastCandle, setLastCandle] = useState(null);
@@ -60,6 +57,35 @@ export default function TradingViewCandleChart({
       });
     }
     return formatted.sort((a, b) => a.time - b.time);
+  };
+
+  // Push candles to series whenever candles update
+  const syncCandlesToCharts = (candleList) => {
+    if (!candleList || candleList.length === 0) return;
+    const tvData = formatTVCandles(candleList);
+    if (!tvData.length) return;
+
+    if (candleSeriesRef.current) {
+      try {
+        candleSeriesRef.current.setData(tvData);
+        if (chartInstanceRef.current?.timeScale) {
+          chartInstanceRef.current.timeScale().fitContent();
+        }
+      } catch (e) {
+        console.warn("Primary chart setData notice:", e);
+      }
+    }
+
+    if (fullCandleSeriesRef.current) {
+      try {
+        fullCandleSeriesRef.current.setData(tvData);
+        if (fullChartInstanceRef.current?.timeScale) {
+          fullChartInstanceRef.current.timeScale().fitContent();
+        }
+      } catch (e) {
+        console.warn("Fullscreen chart setData notice:", e);
+      }
+    }
   };
 
   // 1. Fetch Historical OHLCV Series
@@ -124,35 +150,13 @@ export default function TradingViewCandleChart({
           return;
         }
 
+        candlesRef.current = parsed;
         setCandles(parsed);
         const latest = parsed[parsed.length - 1];
         activeCandleRef.current = { ...latest };
         setLastCandle(latest);
 
-        const tvData = formatTVCandles(parsed);
-
-        // Update normal chart
-        if (candleSeriesRef.current) {
-          try {
-            candleSeriesRef.current.setData(tvData);
-            if (chartInstanceRef.current?.timeScale) {
-              chartInstanceRef.current.timeScale().fitContent();
-            }
-          } catch (e) {
-            console.warn("Chart setData fallback:", e);
-          }
-        }
-
-        // Update fullscreen chart if active
-        if (fullCandleSeriesRef.current) {
-          try {
-            fullCandleSeriesRef.current.setData(tvData);
-            if (fullChartInstanceRef.current?.timeScale) {
-              fullChartInstanceRef.current.timeScale().fitContent();
-            }
-          } catch {}
-        }
-
+        syncCandlesToCharts(parsed);
         setLoading(false);
       })
       .catch(err => {
@@ -262,8 +266,8 @@ export default function TradingViewCandleChart({
         chartInstanceRef.current = chart;
         candleSeriesRef.current = candleSeries;
 
-        if (candles.length > 0 && candleSeries) {
-          candleSeries.setData(formatTVCandles(candles));
+        if (candlesRef.current.length > 0 && candleSeries) {
+          candleSeries.setData(formatTVCandles(candlesRef.current));
           chart.timeScale().fitContent();
         }
 
@@ -365,8 +369,8 @@ export default function TradingViewCandleChart({
         fullChartInstanceRef.current = fullChart;
         fullCandleSeriesRef.current = candleSeries;
 
-        if (candles.length > 0 && candleSeries) {
-          candleSeries.setData(formatTVCandles(candles));
+        if (candlesRef.current.length > 0 && candleSeries) {
+          candleSeries.setData(formatTVCandles(candlesRef.current));
           fullChart.timeScale().fitContent();
         }
 

@@ -571,7 +571,7 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     
     for url in urls:
         try:
-            res = _http_session.get(url, headers=headers, timeout=3.5)
+            res = requests.get(url, headers=headers, timeout=1.8)
             if res.status_code == 200:
                 data = res.json()
                 result = data.get("chart", {}).get("result", [])
