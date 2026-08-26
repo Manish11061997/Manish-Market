@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any, Literal
 from contextlib import asynccontextmanager
@@ -885,6 +885,8 @@ def get_performance_tracking(market: str = "IN"):
 @app.get("/api/advisory/today")
 @app.get("/api/advisory/briefing")
 @app.get("/api/v1/advisory/today")
+@app.get("/advisory/today")
+@app.get("/daily-briefing")
 def get_daily_briefing(market: str = "IN", force: bool = False, x_control_token: Optional[str] = Header(default=None)):
     """Return comprehensive Daily Buy/Sell Advisory Briefing for equities and derivatives."""
     if force:
@@ -977,3 +979,127 @@ def get_ipo_details(ipo_id: str):
     except Exception as e:
         logger.error(f"Error in get_ipo_details: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─────────────────────────────────────────────────────────────
+# Local-Network Direct APK Download Gateway
+# ─────────────────────────────────────────────────────────────
+APK_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ManishMarket-debug.apk"))
+
+@app.get("/download")
+@app.head("/download")
+def local_download_landing():
+    """Local network landing page for direct APK installation."""
+    apk_exists = os.path.exists(APK_FILE_PATH)
+    apk_size_mb = round(os.path.getsize(APK_FILE_PATH) / (1024 * 1024), 2) if apk_exists else 0.0
+    
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manish Market APK - Local Wi-Fi Download</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background-color: #0D1117;
+      color: #E6EDF3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }}
+    .card {{
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid rgba(0, 230, 118, 0.35);
+      border-radius: 24px;
+      padding: 36px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(0, 230, 118, 0.2);
+    }}
+    .network-badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 230, 118, 0.15);
+      color: #00E676;
+      border: 1px solid rgba(0, 230, 118, 0.4);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }}
+    .dot {{ width: 8px; height: 8px; border-radius: 50%; background-color: #00E676; }}
+    h1 {{ font-size: 22px; font-weight: 800; color: #FFFFFF; margin-bottom: 8px; }}
+    p {{ font-size: 14px; color: #8B949E; line-height: 1.5; margin-bottom: 24px; }}
+    .btn {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      background: linear-gradient(135deg, #00E676 0%, #00B0FF 100%);
+      color: #0D1117;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 16px;
+      border-radius: 16px;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(0, 230, 118, 0.4);
+    }}
+    .info {{ margin-top: 20px; font-size: 12px; color: #6E7681; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="network-badge">
+      <div class="dot"></div>
+      <span>SAME-NETWORK LOCAL WI-FI ONLY</span>
+    </div>
+    <h1>Manish Market Android App</h1>
+    <p>Connected via Local Network. High-speed direct installation binary.</p>
+    
+    <a id="dlLink" class="btn" href="/download/apk?t={os.urandom(4).hex()}">
+      <span>📥 Download APK ({apk_size_mb} MB)</span>
+    </a>
+    
+    <div class="info">
+      Local Server: <code>192.168.31.184:8000</code> • Direct Zero-Lag Binary
+    </div>
+  </div>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {{
+      setTimeout(() => {{
+        document.getElementById('dlLink').click();
+      }}, 400);
+    }});
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+@app.get("/download/apk")
+@app.head("/download/apk")
+@app.get("/ManishMarket.apk")
+@app.head("/ManishMarket.apk")
+def local_download_apk_binary():
+    """Serve the local APK binary directly from disk."""
+    if not os.path.exists(APK_FILE_PATH):
+        raise HTTPException(status_code=404, detail="APK binary not found on local host.")
+    
+    return FileResponse(
+        path=APK_FILE_PATH,
+        filename="ManishMarket.apk",
+        media_type="application/vnd.android.package-archive",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
