@@ -64,6 +64,15 @@ export default function App() {
   const [isFailover, setIsFailover] = useState(false);
   const [fetchErrors, setFetchErrors] = useState([]);
   const toastTimersRef = useRef({});
+  const mainWorkspaceRef = useRef(null);
+
+  // Scroll to top instantly whenever switching tabs
+  useEffect(() => {
+    if (mainWorkspaceRef.current) {
+      mainWorkspaceRef.current.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [activeView]);
 
   // 1. Initial REST fetch for full state
   useEffect(() => {
@@ -335,7 +344,7 @@ export default function App() {
       />
 
       {/* Main Trading Terminal Workspace */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minWidth: 0, width: '100%' }}>
+      <div ref={mainWorkspaceRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minWidth: 0, width: '100%' }}>
         
         {/* Top Market Bar */}
         <MarketHeader
