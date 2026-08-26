@@ -538,6 +538,7 @@ def evaluate_pre_trade_risk(req: RiskEvaluationRequest):
 # 6. Immutable Audit Trail Endpoints
 # -------------------------------------------------------------------
 @app.get("/api/audit-trail")
+@app.get("/api/audit/trail")
 def get_audit_trail(symbol: Optional[str] = None, eventType: Optional[str] = None, limit: int = 50):
     """Query immutable audit records explaining why AI signals or orders were generated/executed."""
     records = audit_trail.get_records(symbol=symbol, event_type=eventType, limit=limit)

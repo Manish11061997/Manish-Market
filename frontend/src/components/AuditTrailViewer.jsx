@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
-import { API_BASE } from '../utils/api';
+import { apiFetch } from '../utils/api';
 import { ErrorBanner, EmptyState, Spinner } from './ui/primitives';
 
 const PAGE_SIZE = 10;
@@ -16,22 +16,19 @@ export default function AuditTrailViewer() {
 
   const fetchAudit = useCallback(() => {
     setLoading(true);
-    let url = `${API_BASE}/api/audit-trail?limit=100`;
+    let url = `/api/audit-trail?limit=100`;
     if (filterSymbol.trim()) url += `&symbol=${encodeURIComponent(filterSymbol.trim())}`;
     if (filterType !== 'ALL') url += `&eventType=${filterType}`;
 
-    fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(d => {
+    apiFetch(url)
+      .then(async res => {
+        const d = typeof res?.json === 'function' ? await res.json() : res;
         setRecords(d.records || []);
         setFetchError(null);
         setLoading(false);
       })
       .catch(err => {
-        console.error("Audit trail fetch failed:", err);
+        console.warn("Audit trail fetch notice:", err);
         setFetchError(err.message);
         setLoading(false);
       });
