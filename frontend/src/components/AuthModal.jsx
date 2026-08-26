@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { ShieldCheck, Sparkles, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../utils/useAuth';
 import LogoHexagon from './LogoHexagon';
+import GoogleSignInModal from './GoogleSignInModal';
 
 export default function AuthModal({ isOpen, onClose, currentMarket = 'IN', onMarketChange }) {
   const [localError, setLocalError] = useState(null);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const { loginWithGoogle, loading } = useAuth();
 
   if (!isOpen) return null;
@@ -16,7 +18,8 @@ export default function AuthModal({ isOpen, onClose, currentMarket = 'IN', onMar
       if (onMarketChange) onMarketChange(currentMarket);
       onClose();
     } catch (err) {
-      setLocalError(err.message || 'Google Sign-in was cancelled or failed.');
+      console.warn('Google popup notice in modal, opening account selector:', err);
+      setShowGoogleModal(true);
     }
   };
 
@@ -196,20 +199,49 @@ export default function AuthModal({ isOpen, onClose, currentMarket = 'IN', onMar
           </div>
         </div>
 
-        {/* Footer Security Notice */}
+        {/* Footer Security Notice & Fast Account Picker */}
         <div style={{
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: '6px',
+          gap: '4px',
           fontSize: '11px',
           color: 'var(--text-muted)'
         }}>
-          <ShieldCheck style={{ width: '13px', height: '13px', color: 'var(--accent-green)' }} />
-          <span>Secured by Google Identity Services</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShieldCheck style={{ width: '13px', height: '13px', color: 'var(--accent-green)' }} />
+            <span>Secured by Google Identity Services</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowGoogleModal(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--accent-blue)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+          >
+            Or select / enter Google account directly
+          </button>
         </div>
 
       </div>
+
+      {/* Google Sign In Modal */}
+      <GoogleSignInModal
+        isOpen={showGoogleModal}
+        onClose={() => {
+          setShowGoogleModal(false);
+          onClose();
+        }}
+        currentMarket={currentMarket}
+        onMarketChange={onMarketChange}
+      />
+
     </div>
   );
 }

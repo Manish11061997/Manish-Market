@@ -33,30 +33,14 @@ googleProvider.setCustomParameters({
  * Opens genuine Google OAuth popup dialog and returns authenticated user
  */
 export async function signInWithRealGoogle() {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    return {
-      name: user.displayName || user.email.split('@')[0],
-      email: user.email,
-      photoURL: user.photoURL,
-      uid: user.uid
-    };
-  } catch (error) {
-    // If popup is blocked by browser or running in native webview, attempt redirect fallback
-    if (error.code === 'auth/popup-blocked') {
-      console.warn('Popup blocked, attempting redirect sign-in...');
-      await signInWithRedirect(auth, googleProvider);
-      return null;
-    }
-    if (error.code === 'auth/popup-closed-by-user') {
-      throw new Error('Google Sign-in was cancelled.');
-    }
-    if (error.code === 'auth/unauthorized-domain') {
-      throw new Error('Domain not authorized in Firebase Auth.');
-    }
-    throw error;
-  }
+  const result = await signInWithPopup(auth, googleProvider);
+  const user = result.user;
+  return {
+    name: user.displayName || user.email.split('@')[0],
+    email: user.email,
+    photoURL: user.photoURL,
+    uid: user.uid
+  };
 }
 
 /**

@@ -13,10 +13,12 @@ import {
 } from 'lucide-react';
 import LogoHexagon from './LogoHexagon';
 import { useAuth } from '../utils/useAuth';
+import GoogleSignInModal from './GoogleSignInModal';
 
 export default function UnauthenticatedLandingView({ marketData, currentMarket = 'IN', onMarketChange }) {
   const [localError, setLocalError] = useState(null);
-  const { loginWithGoogle, loading } = useAuth();
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const { loginWithGoogle, loginAsGuest, loading } = useAuth();
 
   const handleGoogleSignIn = async () => {
     setLocalError(null);
@@ -24,7 +26,8 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
       await loginWithGoogle(null, null, currentMarket);
       if (onMarketChange) onMarketChange(currentMarket);
     } catch (err) {
-      setLocalError(err.message || 'Google Sign-In was cancelled or failed.');
+      console.warn('Google popup notice, opening account selector modal:', err);
+      setShowGoogleModal(true);
     }
   };
 
@@ -421,23 +424,70 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
               </div>
             </div>
 
-            {/* Security Guarantee */}
+            {/* Security Guarantee & Manual Account Picker Option */}
             <div style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '6px',
               fontSize: '11px',
               color: 'var(--text-muted)'
             }}>
-              <ShieldCheck style={{ width: '14px', height: '14px', color: 'var(--accent-green)' }} />
-              <span>Secured by Google Identity Services</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck style={{ width: '14px', height: '14px', color: 'var(--accent-green)' }} />
+                <span>Secured by Google Identity Services</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-blue)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Select / enter Google Account
+                </button>
+                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loginAsGuest(currentMarket);
+                    if (onMarketChange) onMarketChange(currentMarket);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-main)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '2px 4px'
+                  }}
+                >
+                  Explore Terminal as Guest →
+                </button>
+              </div>
             </div>
 
           </div>
         </div>
 
       </main>
+
+      {/* Interactive Google Sign In Modal */}
+      <GoogleSignInModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        currentMarket={currentMarket}
+        onMarketChange={onMarketChange}
+      />
 
     </div>
   );
