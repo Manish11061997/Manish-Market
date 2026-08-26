@@ -6,6 +6,7 @@ import {
   signInWithRedirect, 
   getRedirectResult 
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   projectId: "manishmarket-web",
@@ -21,6 +22,9 @@ export const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
+
+// Initialize Cloud Firestore Database
+export const db = getFirestore(app);
 
 // Configure Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();

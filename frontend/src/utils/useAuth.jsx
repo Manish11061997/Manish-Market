@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, getAuthToken, setAuthToken } from './api';
 import { signInWithRealGoogle, checkRedirectAuth } from './firebase';
+import { syncUserProfile } from './firebaseStore';
 
 const USER_STORAGE_KEY = 'manish_market_current_user';
 const AUTH_EVENT = 'manish_market_auth_change';
@@ -114,6 +115,7 @@ export function AuthProvider({ children }) {
 
       setAuthToken(userToken);
       saveStoredUser(userData);
+      syncUserProfile(userData);
       setCurrentUser(userData);
       setToken(userToken);
       setLoading(false);
@@ -162,6 +164,7 @@ export function AuthProvider({ children }) {
 
       setAuthToken(userToken);
       saveStoredUser(userData);
+      syncUserProfile(userData);
       setCurrentUser(userData);
       setToken(userToken);
       setLoading(false);
@@ -233,6 +236,7 @@ export function AuthProvider({ children }) {
 
       setAuthToken(userToken);
       saveStoredUser(userData);
+      syncUserProfile(userData);
       setCurrentUser(userData);
       setToken(userToken);
       setLoading(false);

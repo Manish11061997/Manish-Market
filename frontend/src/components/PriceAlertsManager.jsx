@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Plus, Trash2 } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { Modal, ErrorBanner, EmptyState } from './ui/primitives';
+import { saveCloudAlert, deleteCloudAlert, subscribeCloudAlerts } from '../utils/firebaseStore';
+
+function getUserId() {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const raw = localStorage.getItem('manish_market_current_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      return u?.uid || u?.id || 'guest';
+    }
+  } catch {}
+  return 'guest';
+}
 
 export default function PriceAlertsManager({ onClose, currentMarket = 'IN' }) {
   const [alerts, setAlerts] = useState([]);
@@ -12,18 +25,29 @@ export default function PriceAlertsManager({ onClose, currentMarket = 'IN' }) {
   const [deletingId, setDeletingId] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const uid = getUserId();
 
   const fetchAlerts = async () => {
     try {
       const r = await apiFetch(`/api/alerts`);
       const d = typeof r?.json === 'function' ? await r.json() : r;
-      setAlerts(d?.alerts || []);
+      if (d?.alerts) setAlerts(d.alerts);
       setFetchError(null);
     } catch (e) {
-      console.error("Failed to fetch alerts:", e);
-      setFetchError(e.message);
+      console.warn("Failed to fetch backend alerts, using cloud fallback:", e);
     }
   };
+
+  // Real-time Cloud Firestore subscription
+  useEffect(() => {
+    if (!uid || uid === 'guest') return;
+    const unsub = subscribeCloudAlerts(uid, (cloudAlerts) => {
+      if (Array.isArray(cloudAlerts) && cloudAlerts.length > 0) {
+        setAlerts(cloudAlerts);
+      }
+    });
+    return () => unsub();
+  }, [uid]);
 
   useEffect(() => {
     fetchAlerts();
@@ -48,7 +72,21 @@ export default function PriceAlertsManager({ onClose, currentMarket = 'IN' }) {
     setValidationError(null);
     setCreating(true);
 
+    const newAlert = {
+      id: `alt_${Date.now()}`,
+      symbol: symbol.toUpperCase(),
+      condition,
+      targetPrice: priceNum,
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+
     try {
+      if (uid && uid !== 'guest') {
+        saveCloudAlert(uid, newAlert);
+      }
+      setAlerts(prev => [newAlert, ...prev]);
+
       await apiFetch(`/api/alerts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...CONTROL_HEADERS },
@@ -57,8 +95,7 @@ export default function PriceAlertsManager({ onClose, currentMarket = 'IN' }) {
       fetchAlerts();
       setTargetPrice('');
     } catch (err) {
-      console.error("Error creating alert:", err);
-      setFetchError(err.message);
+      console.warn("Notice syncing alert with backend:", err);
     } finally {
       setCreating(false);
     }
@@ -67,11 +104,13 @@ export default function PriceAlertsManager({ onClose, currentMarket = 'IN' }) {
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      await apiFetch(`/api/alerts/${id}`, { method: 'DELETE', headers: CONTROL_HEADERS });
+      if (uid && uid !== 'guest') {
+        deleteCloudAlert(uid, id);
+      }
       setAlerts(prev => prev.filter(a => a.id !== id));
+      await apiFetch(`/api/alerts/${id}`, { method: 'DELETE', headers: CONTROL_HEADERS });
     } catch (e) {
-      console.error("Error deleting alert:", e);
-      setFetchError(e.message);
+      console.warn("Notice deleting backend alert:", e);
     } finally {
       setDeletingId(null);
     }

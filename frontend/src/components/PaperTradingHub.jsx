@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Layers, Clock } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { ErrorBanner } from './ui/primitives';
+import { saveCloudPortfolio, saveCloudOrder, subscribeCloudPortfolio } from '../utils/firebaseStore';
+
+function getUserId() {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const raw = localStorage.getItem('manish_market_current_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      return u?.uid || u?.id || 'guest';
+    }
+  } catch {}
+  return 'guest';
+}
 
 export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock }) {
   const [portfolio, setPortfolio] = useState(null);
@@ -20,6 +33,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
   const [fetchError, setFetchError] = useState(null);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
+  const uid = getUserId();
 
   const fetchPortfolio = () => {
     apiFetch(`/api/paper/portfolio`)
@@ -29,6 +43,9 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
       })
       .then(data => {
         setPortfolio(data);
+        if (uid && uid !== 'guest') {
+          saveCloudPortfolio(uid, data);
+        }
         setFetchError(null);
         setLoading(false);
       })
@@ -39,9 +56,20 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
       });
   };
 
+  // Real-time Cloud Firestore subscription
+  useEffect(() => {
+    if (!uid || uid === 'guest') return;
+    const unsub = subscribeCloudPortfolio(uid, (cloudData) => {
+      if (cloudData && cloudData.summary) {
+        setPortfolio(prev => ({ ...prev, ...cloudData }));
+      }
+    });
+    return () => unsub();
+  }, [uid]);
+
   useEffect(() => {
     fetchPortfolio();
-    const interval = setInterval(fetchPortfolio, 3000);
+    const interval = setInterval(fetchPortfolio, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -164,6 +192,19 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
           type: 'success',
           msg: `✅ PAPER ORDER FILLED: ${data.side} ${data.filledQuantity} ${data.symbol} @ ${currPrefix}${data.filledPrice} (Slippage: ${currPrefix}${data.slippage})`
         });
+        if (uid && uid !== 'guest') {
+          saveCloudOrder(uid, {
+            orderId: data.orderId || `ord_${Date.now()}`,
+            symbol: data.symbol,
+            side: data.side,
+            quantity: data.filledQuantity,
+            filledPrice: data.filledPrice,
+            slippage: data.slippage,
+            status: data.status,
+            market: currentMarket,
+            placedAt: new Date().toISOString()
+          });
+        }
         fetchPortfolio();
       } else if (data.status === 'RISK_REJECTED') {
         setOrderFeedback({

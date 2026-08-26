@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, getAuthToken } from './api';
+import { saveCloudWatchlist, subscribeCloudWatchlist } from './firebaseStore';
 
 const STORAGE_KEY_PREFIX = 'manish_market_watchlists_';
 const EVENT_NAME = 'manish_market_watchlist_change';
@@ -53,6 +54,7 @@ function getCurrentUserId() {
     const raw = localStorage.getItem('manish_market_current_user');
     if (raw) {
       const user = JSON.parse(raw);
+      if (user?.uid) return user.uid;
       if (user?.id) return user.id;
       if (user?.email) return user.email.replace(/[^a-zA-Z0-9]/g, '_');
     }
@@ -86,8 +88,17 @@ function saveWatchlists(data, syncRemote = true, market = 'IN') {
     localStorage.setItem(getStorageKey(), JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: data }));
 
+    const uid = getCurrentUserId();
+    const marketLists = data[market] || [];
+    
+    // 1. Cloud Firestore Multi-Device Sync
+    if (uid && uid !== 'guest') {
+      const allSymbols = Array.from(new Set(marketLists.flatMap(l => l.symbols || [])));
+      saveCloudWatchlist(uid, market, allSymbols);
+    }
+
+    // 2. Local Backend Server Sync
     if (syncRemote && getAuthToken()) {
-      const marketLists = data[market] || [];
       apiFetch('/api/user/watchlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,7 +119,38 @@ export function useWatchlist(currentMarket = 'IN') {
     return defaultList ? defaultList.id : 'favorites_in';
   });
 
-  // Fetch remote user-specific watchlists from SQLite database on mount / auth change
+  // Real-time Cloud Firestore subscription on mount / user change
+  useEffect(() => {
+    const uid = getCurrentUserId();
+    if (!uid || uid === 'guest') return;
+
+    const unsubscribe = subscribeCloudWatchlist(uid, currentMarket, (cloudSymbols) => {
+      if (Array.isArray(cloudSymbols) && cloudSymbols.length > 0) {
+        setAllLists(prev => {
+          const current = prev[currentMarket] || [];
+          if (current.length === 0) return prev;
+          
+          // Sync symbols with default favorites list
+          const updatedCurrent = current.map(l => {
+            if (l.isDefault) {
+              return { ...l, symbols: cloudSymbols };
+            }
+            return l;
+          });
+
+          const next = { ...prev, [currentMarket]: updatedCurrent };
+          localStorage.setItem(getStorageKey(), JSON.stringify(next));
+          return next;
+        });
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [currentMarket]);
+
+  // Fetch remote user-specific watchlists from server database as backup
   useEffect(() => {
     const token = getAuthToken();
     if (!token) return;

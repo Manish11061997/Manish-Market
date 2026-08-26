@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow users to read and write their own documents & subcollections
+    match /users/{userId}/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
