@@ -571,7 +571,7 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     
     for url in urls:
         try:
-            res = requests.get(url, headers=headers, timeout=1.8)
+            res = _http_session.get(url, headers=headers, timeout=5.0)
             if res.status_code == 200:
                 data = res.json()
                 result = data.get("chart", {}).get("result", [])
@@ -587,9 +587,25 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
                     volumes = quote.get("volume", [])
                     
                     rows = []
+                    last_valid_close = None
                     for i, ts in enumerate(timestamps):
-                        if i < len(opens) and i < len(highs) and i < len(lows) and i < len(closes) and i < len(volumes):
-                            o, h, l, c, v = opens[i], highs[i], lows[i], closes[i], volumes[i]
+                        if i < len(opens) and i < len(highs) and i < len(lows) and i < len(closes):
+                            o = opens[i]
+                            h = highs[i]
+                            l = lows[i]
+                            c = closes[i]
+                            v = volumes[i] if i < len(volumes) else 0
+
+                            # Forward-fill if temporary None in intraday feed
+                            if c is not None:
+                                last_valid_close = float(c)
+                            elif last_valid_close is not None:
+                                c = last_valid_close
+                            
+                            if o is None: o = c
+                            if h is None: h = max(o or c, c or 0)
+                            if l is None: l = min(o or c, c or 0)
+
                             if o is not None and h is not None and l is not None and c is not None:
                                 d_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S" if "m" in interval or "h" in interval else "%Y-%m-%d")
                                 rows.append({
@@ -613,6 +629,7 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
                         _ttl_cache_set(cache_key, df, ttl=60)
                         return df
         except Exception as e:
+            logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
             logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
 
     # Resilient fallback: Generate realistic price series so chart never crashes

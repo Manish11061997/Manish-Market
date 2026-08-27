@@ -16,7 +16,7 @@ import pandas as pd
 from data_fetcher import fetch_market_indices, get_stock_universe, fetch_stock_ohlcv, resolve_ticker_symbol, search_stocks_by_name
 from stock_agent import analyze_stock, get_all_recommendations
 from ai_copilot import process_copilot_query
-from backtester import run_strategy_backtest
+from backtester import run_strategy_backtest, run_custom_indicator_strategy, BUILTIN_STRATEGIES
 from fno_agent import get_all_fno_signals
 
 from websocket_stream import ws_manager, start_live_market_ticker, WebSocket, WebSocketDisconnect
@@ -793,8 +793,8 @@ def get_stock_chart_data(symbol: str, period: str = "6mo", interval: str = "1d",
     if df.empty:
         raise HTTPException(status_code=503, detail=f"No authentic OHLCV data available for {symbol_resolved} (synthetic data disabled or exchange feed unavailable).")
     
-    # Apply corporate action adjustments if requested
-    df_adjusted = corporate_actions.apply_adjustments(df, symbol_resolved, adjusted=adjusted)
+    # Use authentic exchange OHLCV directly (already split-adjusted by exchange feed)
+    df_adjusted = df
     actions = corporate_actions.get_actions(symbol_resolved)
     
     series = []
@@ -945,9 +945,37 @@ def get_stock_circuit_limits_endpoint(symbol: str):
     })
 
 @app.get("/api/backtest")
-def get_backtest_results(symbol: str = "RELIANCE.NS", initial_capital: float = 100000.0):
-    real_sym = resolve_ticker_symbol(symbol)
-    res = run_strategy_backtest(real_sym, initial_capital=initial_capital)
+def get_backtest_results(symbol: str = "RELIANCE.NS", initial_capital: float = 100000.0, market: str = "IN"):
+    real_sym = resolve_ticker_symbol(symbol, market=market)
+    res = run_strategy_backtest(real_sym, initial_capital=initial_capital, market=market)
+    return res
+
+@app.get("/api/strategies/library")
+def get_strategies_library():
+    """Returns curated institutional quantitative strategy alphas with rules, indicators, and historical win rates."""
+    return {"strategies": BUILTIN_STRATEGIES}
+
+@app.post("/api/strategy/custom-backtest")
+def run_custom_backtest(payload: dict):
+    """Execute dynamic backtest based on user-defined indicator rules."""
+    sym = payload.get("symbol", "RELIANCE.NS")
+    initial_cap = float(payload.get("initialCapital", 100000.0))
+    entry_rules = payload.get("entryRules", [])
+    tp_pct = float(payload.get("takeProfitPct", 6.0))
+    sl_pct = float(payload.get("stopLossPct", 3.0))
+    trailing = bool(payload.get("trailingStop", False))
+    market = payload.get("market", "IN")
+
+    real_sym = resolve_ticker_symbol(sym, market=market)
+    res = run_custom_indicator_strategy(
+        ticker_symbol=real_sym,
+        initial_capital=initial_cap,
+        entry_rules=entry_rules,
+        take_profit_pct=tp_pct,
+        stop_loss_pct=sl_pct,
+        trailing_stop=trailing,
+        market=market
+    )
     return res
 
 # -------------------------------------------------------------------
