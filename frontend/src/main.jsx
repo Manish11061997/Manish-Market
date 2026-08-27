@@ -4,6 +4,11 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './utils/useAuth.jsx'
 
+// Auto-upgrade any unencrypted HTTP access to secure HTTPS to eliminate "Not Secure" warnings
+if (typeof window !== 'undefined' && window.location.protocol === 'http:' && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+  window.location.replace(window.location.href.replace(/^http:/, 'https:'));
+}
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
