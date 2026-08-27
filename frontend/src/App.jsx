@@ -313,18 +313,6 @@ export default function App() {
     };
   }, [selectedStock, showAlertsModal, showBrokerModal, drawerOpen, showHealthHUD, showDebugHUD, activeView]);
 
-  if (!isAuthenticated) {
-    return (
-      <Suspense fallback={<LazyFallback />}>
-        <UnauthenticatedLandingView
-          marketData={marketData}
-          currentMarket={currentMarket}
-          onMarketChange={setCurrentMarket}
-        />
-      </Suspense>
-    );
-  }
-
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', overflow: 'hidden' }}>
       <a href="#main-content" className="skip-link">Skip to main content</a>

@@ -10,10 +10,22 @@ function getStoredUser() {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(USER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) return JSON.parse(raw);
   } catch {
-    return null;
+    // fallback
   }
+  // Auto-initialize guest trader session so all charts, live tickers and tabs are active instantly
+  const defaultGuest = {
+    id: 'guest_trader_auto',
+    name: 'Guest Trader',
+    email: 'guest@manishmarket.app',
+    marketPreference: 'IN',
+    balanceIn: 1000000.0,
+    balanceUs: 100000.0,
+    createdAt: new Date().toISOString(),
+    isGuest: true
+  };
+  return defaultGuest;
 }
 
 function saveStoredUser(user) {

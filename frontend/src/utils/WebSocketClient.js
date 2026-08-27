@@ -10,14 +10,18 @@
  * - Connection status state machine (LIVE, RECONNECTING, DISCONNECTED, STALE, REPLAY)
  */
 
-import { getApiBase, isCapacitorNative, isSecureContext, probeFastestServer } from './api';
+import { getApiBase, getCandidateBases, isCapacitorNative, isSecureContext, probeFastestServer } from './api';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
 
 function getDynamicWsUrl(attempt = 0) {
+  const candidates = getCandidateBases();
   let base = getApiBase();
-  if (attempt >= 2 && isCapacitorNative()) {
+  if (attempt > 0 && candidates.length > 0) {
+    base = candidates[(attempt - 1) % candidates.length];
+  }
+  if (attempt >= 3 && isCapacitorNative()) {
     base = `http://${DEFAULT_LOCAL_IP}:8000`;
   }
   let wsScheme = base.startsWith('https') ? 'wss' : 'ws';

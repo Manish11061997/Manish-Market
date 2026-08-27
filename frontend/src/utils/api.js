@@ -23,18 +23,36 @@ export function isCapacitorNative() {
   );
 }
 
+// Auto-purge stale or obsolete tunnel URLs from localStorage on initialization
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('manish_market_server_ip');
+    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks'))) {
+      if (!saved.includes('enabled-entity-logan-pipeline')) {
+        localStorage.removeItem('manish_market_server_ip');
+      }
+    }
+  } catch {}
+}
+
 // Candidate base URLs in priority order
 export function getCandidateBases() {
   const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_server_ip') : null;
   const list = [];
 
-  // 1. User manual override (if set in settings)
-  if (customIp && customIp.trim()) {
+  // 1. User manual override (if set in settings and not obsolete)
+  if (customIp && customIp.trim() && !customIp.includes('pure-walks')) {
     const val = customIp.trim();
     list.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
   }
 
-  // 2. Active working base (cached from recent successful call)
+  // 2. Dynamic tunnel from Firebase CDN or LIVE_CLOUDFLARE_URL
+  if (dynamicApiBase) {
+    list.push(dynamicApiBase);
+  }
+  list.push(LIVE_CLOUDFLARE_URL);
+
+  // 3. Active working base (cached from recent successful call)
   if (activeWorkingBase) {
     list.push(activeWorkingBase);
   }
