@@ -548,6 +548,22 @@ def resolve_ticker_symbol(symbol: str, market: str = "IN") -> str:
         return clean_base
     return f"{clean_base}.NS"
 
+_yahoo_cookie_initialized = False
+
+def _ensure_yahoo_session():
+    global _yahoo_cookie_initialized
+    if not _yahoo_cookie_initialized:
+        try:
+            _http_session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.5",
+            })
+            _http_session.get("https://fc.yahoo.com", timeout=3.5)
+            _yahoo_cookie_initialized = True
+        except Exception:
+            pass
+
 def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", market: str = "IN") -> pd.DataFrame:
     """Fetch 100% authentic OHLCV series directly from exchange feed via Yahoo Finance API with query2 fallback."""
     cache_key = f"ohlcv_{symbol}_{period}_{interval}_{market}"
@@ -556,7 +572,8 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
         return cached
 
     clean_sym = resolve_ticker_symbol(symbol, market=market)
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"}
+    _ensure_yahoo_session()
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
     
     range_map = {
         "1d": "1d", "5d": "5d", "1mo": "1mo", "3mo": "3mo", 
@@ -571,7 +588,14 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     
     for url in urls:
         try:
-            res = _http_session.get(url, headers=headers, timeout=5.0)
+            res = _http_session.get(url, headers=headers, timeout=6.0)
+            if res.status_code in (429, 401):
+                try:
+                    _http_session.get("https://fc.yahoo.com", timeout=3.0)
+                    res = _http_session.get(url, headers=headers, timeout=6.0)
+                except Exception:
+                    pass
+
             if res.status_code == 200:
                 data = res.json()
                 result = data.get("chart", {}).get("result", [])
