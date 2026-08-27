@@ -774,6 +774,13 @@ export default function TradingViewCandleChart({
     );
   };
 
+  // Synchronize candles whenever candles state updates
+  useEffect(() => {
+    if (candles && candles.length > 0) {
+      syncCandlesToCharts(candles);
+    }
+  }, [candles]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
       
@@ -921,7 +928,7 @@ export default function TradingViewCandleChart({
               <button
                 type="button"
                 onClick={() => setDrawings(prev => prev.slice(0, -1))}
-                title="Undo Last Drawing"
+                title="Undo Last Drawing (Cmd+Z or U)"
                 style={{
                   padding: '4px 6px',
                   borderRadius: '6px',
@@ -943,7 +950,7 @@ export default function TradingViewCandleChart({
               <button
                 type="button"
                 onClick={() => { setDrawings([]); setDraftDrawing(null); setActiveTool('NONE'); }}
-                title="Clear All Drawings"
+                title="Clear All Drawings (Delete)"
                 style={{
                   padding: '4px 6px',
                   borderRadius: '6px',
@@ -972,7 +979,7 @@ export default function TradingViewCandleChart({
                 setViewportKey(k => k + 1);
               }
             }}
-            title="Reset Zoom / Fit Content"
+            title="Reset Zoom / Fit Content (R)"
             style={{
               padding: '4px 8px',
               borderRadius: '6px',
@@ -994,7 +1001,7 @@ export default function TradingViewCandleChart({
           <button
             type="button"
             onClick={() => setIsFullScreen(true)}
-            title="Maximize Chart Fullscreen"
+            title="Maximize Chart Fullscreen (F)"
             style={{
               padding: '4px 8px',
               borderRadius: '6px',
@@ -1059,34 +1066,28 @@ export default function TradingViewCandleChart({
         style={{ 
           position: 'relative', 
           width: '100%', 
-          height: '340px',
-          minHeight: '280px',
+          height: '360px',
+          minHeight: '320px',
           borderRadius: '12px', 
           overflow: 'hidden', 
           border: '1px solid var(--md-sys-color-outline-variant)', 
           backgroundColor: '#090d16'
         }}
       >
+        <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
+        {renderDrawingsSvg()}
+
         {loading && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 13, 22, 0.85)', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 13, 22, 0.75)', flexDirection: 'column', gap: '8px' }}>
             <div style={{ width: '24px', height: '24px', border: '2px solid var(--accent-blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Rendering Live Candlesticks...</span>
           </div>
         )}
 
-        {useSvgFallback ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Fallback candlestick rendering
+        {noData && !loading && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 13, 22, 0.9)', zIndex: 12 }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No chart data available for {symbol}.</span>
           </div>
-        ) : noData ? (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No chart data available for {symbol}.</span>
-          </div>
-        ) : (
-          <>
-            <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
-            {renderDrawingsSvg()}
-          </>
         )}
       </div>
 
