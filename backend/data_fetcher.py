@@ -37,7 +37,11 @@ import time as _time
 
 _TTL_CACHE: dict = {}
 _TTL_CACHE_LOCK = _threading.Lock()
-_TTL_DEFAULT_SECONDS = 120
+_TTL_DEFAULT_SECONDS = 20
+
+def _ttl_cache_clear():
+    with _TTL_CACHE_LOCK:
+        _TTL_CACHE.clear()
 
 def _ttl_cache_get(key):
     with _TTL_CACHE_LOCK:
