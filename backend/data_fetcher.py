@@ -635,22 +635,29 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
                             if l is None: l = min(o or c, c or 0)
 
                             if o is not None and h is not None and l is not None and c is not None:
-                                d_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S" if "m" in interval or "h" in interval else "%Y-%m-%d")
-                                rows.append({
-                                    "Date": d_str,
-                                    "Open": round(float(o), 2),
-                                    "High": round(float(h), 2),
-                                    "Low": round(float(l), 2),
-                                    "Close": round(float(c), 2),
-                                    "Volume": int(v) if v is not None else 0,
-                                    "date": d_str,
-                                    "open": round(float(o), 2),
-                                    "high": round(float(h), 2),
-                                    "low": round(float(l), 2),
-                                    "close": round(float(c), 2),
-                                    "volume": int(v) if v is not None else 0,
-                                    "timestamp": ts
-                                })
+                                o_val = float(o)
+                                c_val = float(c)
+                                h_val = max(float(h), o_val, c_val)
+                                l_val = min(float(l), o_val, c_val)
+                                
+                                # Filter out any corrupted zero-price or anomalous ticks
+                                if o_val > 0 and h_val > 0 and l_val > 0 and c_val > 0:
+                                    d_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S" if "m" in interval or "h" in interval else "%Y-%m-%d")
+                                    rows.append({
+                                        "Date": d_str,
+                                        "Open": round(o_val, 2),
+                                        "High": round(h_val, 2),
+                                        "Low": round(l_val, 2),
+                                        "Close": round(c_val, 2),
+                                        "Volume": int(v) if v is not None else 0,
+                                        "date": d_str,
+                                        "open": round(o_val, 2),
+                                        "high": round(h_val, 2),
+                                        "low": round(l_val, 2),
+                                        "close": round(c_val, 2),
+                                        "volume": int(v) if v is not None else 0,
+                                        "timestamp": ts
+                                    })
                     
                     if rows:
                         df = pd.DataFrame(rows)

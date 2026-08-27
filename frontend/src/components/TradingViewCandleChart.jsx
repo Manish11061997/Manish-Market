@@ -377,7 +377,7 @@ export default function TradingViewCandleChart({
     return () => controller.abort();
   }, [symbol, timeframe, isAdjusted, currentMarket]);
 
-  // 2. Real-time WebSocket Tick Stream Subscription
+  // 2. Real-time WebSocket Tick Stream Subscription with Strict Outlier Protection
   useEffect(() => {
     if (!symbol) return;
     const cleanSym = symbol.replace('.NS', '').trim();
@@ -389,6 +389,8 @@ export default function TradingViewCandleChart({
         const tick = findTick(payload.ticks, symbol);
         if (tick && tick.price) {
           const livePrice = Number(tick.price);
+          if (!Number.isFinite(livePrice) || livePrice <= 0) return;
+
           const nowSec = Math.floor(Date.now() / 1000);
 
           const getBucketTime = (tsSec, tf) => {
@@ -413,6 +415,17 @@ export default function TradingViewCandleChart({
             if (!prev.length) return prev;
             const updated = [...prev];
             const last = { ...updated[updated.length - 1] };
+            const prevClose = last.close || last.open;
+
+            // Outlier & Aberrant Tick Filter:
+            // If livePrice deviates by > 20% from previous close, reject it to prevent artificial chart spikes/drops!
+            if (prevClose > 0) {
+              const dev = Math.abs(livePrice - prevClose) / prevClose;
+              if (dev > 0.20) {
+                return prev;
+              }
+            }
+
             const bucketTs = getBucketTime(nowSec, timeframe);
             const lastBucketTs = getBucketTime(last.time, timeframe);
 
@@ -423,16 +436,25 @@ export default function TradingViewCandleChart({
               last.close = livePrice;
               updated[updated.length - 1] = last;
             } else {
-              // Discrete interval step
-              const newBar = {
-                time: bucketTs,
-                open: last.close || livePrice,
-                high: Math.max(last.close || livePrice, livePrice),
-                low: Math.min(last.close || livePrice, livePrice),
-                close: livePrice,
-                volume: 0
-              };
-              updated.push(newBar);
+              const tfSec = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : 86400;
+              // If active trading interval, append discrete bar
+              if (nowSec - last.time < tfSec * 2.5) {
+                const newBar = {
+                  time: bucketTs,
+                  open: last.close || livePrice,
+                  high: Math.max(last.close || livePrice, livePrice),
+                  low: Math.min(last.close || livePrice, livePrice),
+                  close: livePrice,
+                  volume: 0
+                };
+                updated.push(newBar);
+              } else {
+                // When market is closed, update last bar's closing level
+                last.high = Math.max(last.high, livePrice);
+                last.low = Math.min(last.low, livePrice);
+                last.close = livePrice;
+                updated[updated.length - 1] = last;
+              }
             }
 
             candlesRef.current = updated;
