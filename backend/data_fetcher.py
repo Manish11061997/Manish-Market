@@ -638,8 +638,8 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
         # Check if known symbol in universe
         full_uni = INDIAN_STOCKS_UNIVERSE + US_STOCKS_UNIVERSE
         found = next((s for s in full_uni if s["symbol"] == clean_sym or s["symbol"] == symbol), None)
-        if found and "basePrice" in found:
-            base_price = float(found["basePrice"])
+        if found:
+            base_price = float(found.get("price") or found.get("basePrice") or 1000.0)
 
         num_days = 200 if rng in ["1y", "2y"] else 60
         now_ts = int(time.time())

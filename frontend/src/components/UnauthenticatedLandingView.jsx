@@ -31,18 +31,31 @@ export default function UnauthenticatedLandingView({ marketData, currentMarket =
     }
   };
 
-  // Preview sample securities for guest preview
-  const sampleStocks = currentMarket === 'US' ? [
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 128.50, change: 4.25, pChange: 3.42, horizon: 'SWING' },
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 224.23, change: 1.85, pChange: 0.83, horizon: 'POSITIONAL' },
+  // Preview sample securities for guest preview with live WebSocket data fallback
+  const baseSample = currentMarket === 'US' ? [
+    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 209.66, change: -3.38, pChange: -1.59, horizon: 'SWING' },
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 313.45, change: 3.56, pChange: 1.15, horizon: 'POSITIONAL' },
     { symbol: 'MSFT', name: 'Microsoft Corp.', price: 448.90, change: -2.10, pChange: -0.46, horizon: 'INTRADAY' },
     { symbol: 'TSLA', name: 'Tesla Inc.', price: 215.60, change: 6.80, pChange: 3.26, horizon: 'SHORT_TERM' },
   ] : [
-    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: 2985.40, change: 32.10, pChange: 1.09, horizon: 'SWING' },
-    { symbol: 'TCS.NS', name: 'Tata Consultancy Services', price: 4210.80, change: 45.20, pChange: 1.08, horizon: 'POSITIONAL' },
+    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: 1282.20, change: -15.80, pChange: -1.22, horizon: 'SWING' },
+    { symbol: 'TCS.NS', name: 'Tata Consultancy Services', price: 2248.40, change: -21.60, pChange: -0.95, horizon: 'POSITIONAL' },
     { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', price: 1642.15, change: -8.30, pChange: -0.50, horizon: 'INTRADAY' },
-    { symbol: 'ZOMATO.NS', name: 'Zomato Ltd.', price: 262.40, change: 8.90, pChange: 3.51, horizon: 'SHORT_TERM' },
+    { symbol: 'TATAMOTORS.NS', name: 'Tata Motors Ltd.', price: 984.60, change: -7.40, pChange: -0.75, horizon: 'SHORT_TERM' },
   ];
+
+  const sampleStocks = baseSample.map(stock => {
+    const live = marketData?.[stock.symbol];
+    if (live && typeof live.price === 'number') {
+      return {
+        ...stock,
+        price: live.price,
+        change: live.change ?? stock.change,
+        pChange: live.changePercent ?? stock.pChange
+      };
+    }
+    return stock;
+  });
 
   return (
     <div style={{

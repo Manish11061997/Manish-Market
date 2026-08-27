@@ -195,7 +195,7 @@ export async function apiFetch(endpointPath, options = {}) {
     ...(options.headers || {})
   };
 
-  const timeoutMs = options.timeout || 3500;
+  const timeoutMs = options.timeout || 12000;
 
   // 1. FAST PATH: If we have an active verified server, try it directly
   if (activeWorkingBase) {
@@ -209,10 +209,10 @@ export async function apiFetch(endpointPath, options = {}) {
       });
       clearTimeout(tid);
 
-      if (res.ok) {
+      if (res.ok || (res.status >= 400 && res.status < 500)) {
         return res;
       }
-      // If server returned 5xx/404, invalidate fast path and fall through to race
+      // If server returned 5xx server failure, invalidate fast path and fall through to race
       activeWorkingBase = null;
     } catch {
       activeWorkingBase = null;
@@ -237,7 +237,7 @@ export async function apiFetch(endpointPath, options = {}) {
         })
         .then(res => {
           clearTimeout(tid);
-          if (res.ok) {
+          if (res.ok || (res.status >= 400 && res.status < 500)) {
             // Cancel remaining slower requests
             controllers.forEach((c, i) => { if (i !== idx) try { c.abort(); } catch {} });
             activeWorkingBase = base;
