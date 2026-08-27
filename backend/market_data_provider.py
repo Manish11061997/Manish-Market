@@ -280,6 +280,9 @@ class YahooFinanceLiveProvider(BaseMarketDataProvider):
             is_trading_active = session.get("isTradingActive", False)
             session_status = session.get("status", "MARKET_CLOSED")
 
+            base_p = cached["price"]
+            prev_c = cached.get("prevClose") or base_p
+
             # Active market tracks real exchange ticks; after-hours pulses subtle micro-trades (±0.03%)
             if is_trading_active:
                 live_price = base_p

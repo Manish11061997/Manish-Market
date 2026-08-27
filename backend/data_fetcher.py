@@ -632,40 +632,57 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
             logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
             logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
 
-    # Resilient fallback: Generate realistic price series so chart never crashes
+    # Resilient fallback: Generate realistic price series anchored directly to base_price
     try:
         base_price = 1000.0
-        # Check if known symbol in universe
-        full_uni = INDIAN_STOCKS_UNIVERSE + US_STOCKS_UNIVERSE
-        found = next((s for s in full_uni if s["symbol"] == clean_sym or s["symbol"] == symbol), None)
-        if found:
-            base_price = float(found.get("price") or found.get("basePrice") or 1000.0)
+        try:
+            from market_state import live_market_state
+            live_st = live_market_state.get(clean_sym) or live_market_state.get(symbol)
+            if live_st and live_st.get("price"):
+                base_price = float(live_st["price"])
+        except Exception:
+            pass
+
+        if base_price == 1000.0:
+            full_uni = INDIAN_STOCKS_UNIVERSE + US_STOCKS_UNIVERSE
+            found = next((s for s in full_uni if s["symbol"] == clean_sym or s["symbol"] == symbol or s["symbol"].replace(".NS", "") == clean_sym), None)
+            if found:
+                base_price = float(found.get("price") or found.get("basePrice") or 1000.0)
 
         num_days = 200 if rng in ["1y", "2y"] else 60
         now_ts = int(time.time())
         day_secs = 86400
-        sim_rows = []
-        curr = base_price * 0.85
         
         import random
         random.seed(hash(clean_sym) % 100000)
-        
-        for i in range(num_days, -1, -1):
-            ts = now_ts - (i * day_secs)
+
+        # Walk backward from base_price so the most recent candle EXACTLY matches base_price
+        prices = [base_price]
+        p_walker = base_price
+        for _ in range(num_days):
+            delta = (random.random() - 0.49) * 0.022
+            p_walker = max(1.0, p_walker / (1.0 + delta))
+            prices.insert(0, p_walker)
+
+        sim_rows = []
+        for i, p in enumerate(prices):
+            ts = now_ts - ((len(prices) - 1 - i) * day_secs)
             d_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-            delta_pct = (random.random() - 0.48) * 0.035
-            curr = max(1.0, curr * (1.0 + delta_pct))
-            daily_high = curr * (1.0 + random.random() * 0.015)
-            daily_low = curr * (1.0 - random.random() * 0.015)
-            open_p = (daily_high + daily_low) / 2.0
-            close_p = curr
+            d_high = round(p * (1.0 + random.random() * 0.012), 2)
+            d_low = round(p * (1.0 - random.random() * 0.012), 2)
+            op = round(random.uniform(d_low, d_high), 2)
+            cl = round(p, 2)
+            if i == len(prices) - 1:
+                cl = base_price
+                d_high = max(d_high, base_price)
+                d_low = min(d_low, base_price)
             vol = int(random.randint(50000, 2000000))
             
             sim_rows.append({
-                "Date": d_str, "Open": round(open_p, 2), "High": round(daily_high, 2),
-                "Low": round(daily_low, 2), "Close": round(close_p, 2), "Volume": vol,
-                "date": d_str, "open": round(open_p, 2), "high": round(daily_high, 2),
-                "low": round(daily_low, 2), "close": round(close_p, 2), "volume": vol,
+                "Date": d_str, "Open": op, "High": d_high,
+                "Low": d_low, "Close": cl, "Volume": vol,
+                "date": d_str, "open": op, "high": d_high,
+                "low": d_low, "close": cl, "volume": vol,
                 "timestamp": ts
             })
             

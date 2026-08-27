@@ -177,23 +177,44 @@ export default function TradingViewCandleChart({
           const livePrice = Number(tick.price);
           const nowSec = Math.floor(Date.now() / 1000);
 
+          const getBucketTime = (tsSec, tf) => {
+            if (tf === '1D') {
+              const d = new Date(tsSec * 1000);
+              d.setUTCHours(0, 0, 0, 0);
+              return Math.floor(d.getTime() / 1000);
+            }
+            if (tf === '1W') {
+              const d = new Date(tsSec * 1000);
+              const day = d.getUTCDay();
+              const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+              d.setUTCDate(diff);
+              d.setUTCHours(0, 0, 0, 0);
+              return Math.floor(d.getTime() / 1000);
+            }
+            const tfSec = tf === '1m' ? 60 : tf === '5m' ? 300 : tf === '15m' ? 900 : tf === '1h' ? 3600 : 86400;
+            return Math.floor(tsSec / tfSec) * tfSec;
+          };
+
           setCandles(prev => {
             if (!prev.length) return prev;
             const updated = [...prev];
             const last = { ...updated[updated.length - 1] };
-            const tfSec = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : 86400;
+            const bucketTs = getBucketTime(nowSec, timeframe);
+            const lastBucketTs = getBucketTime(last.time, timeframe);
 
-            if (nowSec - last.time < tfSec) {
+            if (bucketTs <= lastBucketTs || bucketTs === last.time) {
+              // Smoothly update current forming candle body and wicks
               last.high = Math.max(last.high, livePrice);
               last.low = Math.min(last.low, livePrice);
               last.close = livePrice;
               updated[updated.length - 1] = last;
             } else {
+              // Discrete interval step
               const newBar = {
-                time: nowSec,
-                open: livePrice,
-                high: livePrice,
-                low: livePrice,
+                time: bucketTs,
+                open: last.close || livePrice,
+                high: Math.max(last.close || livePrice, livePrice),
+                low: Math.min(last.close || livePrice, livePrice),
                 close: livePrice,
                 volume: 0
               };
@@ -201,11 +222,11 @@ export default function TradingViewCandleChart({
             }
 
             candlesRef.current = updated;
-            setLastCandle(updated[updated.length - 1]);
+            const cur = updated[updated.length - 1];
+            setLastCandle(cur);
 
             if (candleSeriesRef.current) {
               try {
-                const cur = updated[updated.length - 1];
                 candleSeriesRef.current.update({
                   time: cur.time,
                   open: cur.open,
@@ -218,7 +239,6 @@ export default function TradingViewCandleChart({
 
             if (fullCandleSeriesRef.current) {
               try {
-                const cur = updated[updated.length - 1];
                 fullCandleSeriesRef.current.update({
                   time: cur.time,
                   open: cur.open,
