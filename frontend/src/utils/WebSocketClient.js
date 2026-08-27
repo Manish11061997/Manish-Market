@@ -10,7 +10,7 @@
  * - Connection status state machine (LIVE, RECONNECTING, DISCONNECTED, STALE, REPLAY)
  */
 
-import { getApiBase, isCapacitorNative, probeFastestServer } from './api';
+import { getApiBase, isCapacitorNative, isSecureContext, probeFastestServer } from './api';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
@@ -20,7 +20,10 @@ function getDynamicWsUrl(attempt = 0) {
   if (attempt >= 2 && isCapacitorNative()) {
     base = `http://${DEFAULT_LOCAL_IP}:8000`;
   }
-  const wsScheme = base.startsWith('https') ? 'wss' : 'ws';
+  let wsScheme = base.startsWith('https') ? 'wss' : 'ws';
+  if (isSecureContext() && !isCapacitorNative()) {
+    wsScheme = 'wss';
+  }
   const cleanHost = base.replace(/^https?:\/\//, '');
   return `${wsScheme}://${cleanHost}/ws/market-stream${wsToken ? `?token=${encodeURIComponent(wsToken)}` : ''}`;
 }

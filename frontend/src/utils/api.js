@@ -63,7 +63,15 @@ export function getCandidateBases() {
   list.push('http://localhost:8000');
   list.push('http://127.0.0.1:8000');
 
-  return Array.from(new Set(list.filter(Boolean)));
+  const uniqueList = Array.from(new Set(list.filter(Boolean)));
+
+  // If running in HTTPS Web context, strictly enforce HTTPS to prevent browser "Not Secure" Mixed Content flags
+  if (isSecureContext() && !isCapacitorNative()) {
+    const secureOnly = uniqueList.filter(url => url && url.startsWith('https://'));
+    return secureOnly.length ? secureOnly : [LIVE_CLOUDFLARE_URL];
+  }
+
+  return uniqueList;
 }
 
 // Background auto-discovery from Firebase CDN
