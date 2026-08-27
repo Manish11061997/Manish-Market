@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
-import { Maximize2, RotateCw, X, TrendingUp, Minus, MoveRight, Square, Trash2 } from 'lucide-react';
+import { Maximize2, RotateCw, RotateCcw, X, TrendingUp, Minus, MoveRight, Square, Trash2 } from 'lucide-react';
 
 /**
  * TradingViewCandleChart
@@ -32,6 +32,8 @@ export default function TradingViewCandleChart({
   const [useSvgFallback, setUseSvgFallback] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+
+  const [viewportKey, setViewportKey] = useState(0);
 
   // Drawing Tools State
   const [activeTool, setActiveTool] = useState('NONE'); // NONE, TRENDLINE, HORIZONTAL, RAY, RECTANGLE
@@ -332,6 +334,11 @@ export default function TradingViewCandleChart({
           chart.timeScale().fitContent();
         }
 
+        // Real-time synchronization of drawing overlay with pan, zoom and scroll
+        chart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
+        chart.timeScale().subscribeVisibleTimeRangeChange(() => setViewportKey(k => k + 1));
+        chart.subscribeCrosshairMove(() => setViewportKey(k => k + 1));
+
         resizeObserver = new ResizeObserver((entries) => {
           for (const entry of entries) {
             if (entry.contentRect && chart) {
@@ -339,6 +346,7 @@ export default function TradingViewCandleChart({
               const newH = Math.floor(entry.contentRect.height) || 340;
               if (newW > 0) {
                 chart.applyOptions({ width: newW, height: newH });
+                setViewportKey(k => k + 1);
               }
             }
           }
@@ -443,6 +451,10 @@ export default function TradingViewCandleChart({
           fullChart.timeScale().fitContent();
         }
 
+        fullChart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
+        fullChart.timeScale().subscribeVisibleTimeRangeChange(() => setViewportKey(k => k + 1));
+        fullChart.subscribeCrosshairMove(() => setViewportKey(k => k + 1));
+
         resizeObserver = new ResizeObserver((entries) => {
           for (const entry of entries) {
             if (entry.contentRect && fullChart) {
@@ -450,6 +462,7 @@ export default function TradingViewCandleChart({
               const newH = Math.floor(entry.contentRect.height) || (window.innerHeight - 60);
               if (newW > 0) {
                 fullChart.applyOptions({ width: newW, height: newH });
+                setViewportKey(k => k + 1);
               }
             }
           }
@@ -473,18 +486,29 @@ export default function TradingViewCandleChart({
     };
   }, [isFullScreen, isLandscape]);
 
-  // Drawing Mouse & Touch Handlers
+  // Professional Drawing Coordinate Mouse Handlers
   const handleOverlayMouseDown = (e) => {
     if (activeTool === 'NONE') return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    const activeSeries = isFullScreen ? fullCandleSeriesRef.current : candleSeriesRef.current;
+    if (!activeChart || !activeSeries) return;
+
+    const price = activeSeries.coordinateToPrice(screenY);
+    const time = activeChart.timeScale().coordinateToTime(screenX);
+    if (price == null) return;
+
+    const timeFallback = time || (lastCandle?.time ?? Math.floor(Date.now() / 1000));
 
     if (activeTool === 'HORIZONTAL') {
       const newD = {
         id: Date.now(),
         type: 'HORIZONTAL',
-        y1: y,
+        price1: Number(price.toFixed(2)),
+        time1: timeFallback,
         color: drawingColor
       };
       setDrawings(prev => [...prev, newD]);
@@ -494,18 +518,25 @@ export default function TradingViewCandleChart({
     if (!draftDrawing) {
       setDraftDrawing({
         type: activeTool,
-        x1: x,
-        y1: y,
-        x2: x,
-        y2: y,
+        price1: Number(price.toFixed(2)),
+        time1: timeFallback,
+        price2: Number(price.toFixed(2)),
+        time2: timeFallback,
+        screenX1: screenX,
+        screenY1: screenY,
+        screenX2: screenX,
+        screenY2: screenY,
         color: drawingColor
       });
     } else {
       const newD = {
-        ...draftDrawing,
         id: Date.now(),
-        x2: x,
-        y2: y
+        type: activeTool,
+        price1: draftDrawing.price1,
+        time1: draftDrawing.time1,
+        price2: Number(price.toFixed(2)),
+        time2: timeFallback,
+        color: drawingColor
       };
       setDrawings(prev => [...prev, newD]);
       setDraftDrawing(null);
@@ -515,70 +546,171 @@ export default function TradingViewCandleChart({
   const handleOverlayMouseMove = (e) => {
     if (!draftDrawing || activeTool === 'NONE' || activeTool === 'HORIZONTAL') return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setDraftDrawing(prev => ({ ...prev, x2: x, y2: y }));
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    const activeSeries = isFullScreen ? fullCandleSeriesRef.current : candleSeriesRef.current;
+    if (!activeChart || !activeSeries) return;
+
+    const price = activeSeries.coordinateToPrice(screenY);
+    const time = activeChart.timeScale().coordinateToTime(screenX);
+
+    setDraftDrawing(prev => ({
+      ...prev,
+      price2: price != null ? Number(price.toFixed(2)) : prev.price2,
+      time2: time || prev.time2,
+      screenX2: screenX,
+      screenY2: screenY
+    }));
   };
 
   const renderDrawingsSvg = () => {
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    const activeSeries = isFullScreen ? fullCandleSeriesRef.current : candleSeriesRef.current;
+
     const allDrawings = [...drawings, ...(draftDrawing ? [draftDrawing] : [])];
+
     return (
       <svg
+        key={viewportKey}
         style={{
           position: 'absolute',
           inset: 0,
           width: '100%',
           height: '100%',
           zIndex: 15,
-          cursor: activeTool === 'NONE' ? 'crosshair' : 'crosshair',
+          cursor: activeTool === 'NONE' ? 'default' : 'crosshair',
           pointerEvents: activeTool === 'NONE' ? 'none' : 'auto'
         }}
         onMouseDown={handleOverlayMouseDown}
         onMouseMove={handleOverlayMouseMove}
       >
         {allDrawings.map((d, i) => {
-          if (d.type === 'HORIZONTAL') {
+          let y1 = null, y2 = null, x1 = null, x2 = null;
+          if (activeSeries && activeChart) {
+            if (d.price1 != null) y1 = activeSeries.priceToCoordinate(d.price1);
+            if (d.price2 != null) y2 = activeSeries.priceToCoordinate(d.price2);
+            if (d.time1 != null) x1 = activeChart.timeScale().timeToCoordinate(d.time1);
+            if (d.time2 != null) x2 = activeChart.timeScale().timeToCoordinate(d.time2);
+          }
+
+          // Fallback to screen coordinates during active drafting
+          if (y1 == null && d.screenY1 != null) y1 = d.screenY1;
+          if (y2 == null && d.screenY2 != null) y2 = d.screenY2;
+          if (x1 == null && d.screenX1 != null) x1 = d.screenX1;
+          if (x2 == null && d.screenX2 != null) x2 = d.screenX2;
+
+          if (d.type === 'HORIZONTAL' && y1 != null) {
+            const priceStr = `${currPrefix}${d.price1?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             return (
               <g key={d.id || i}>
-                <line x1="0" y1={d.y1} x2="100%" y2={d.y1} stroke={d.color} strokeWidth="1.5" strokeDasharray="5 3" />
-                <rect x="8" y={d.y1 - 10} width="60" height="18" rx="4" fill="#090d16" stroke={d.color} strokeWidth="1" />
-                <text x="38" y={d.y1 + 3} fill={d.color} fontSize="9" fontWeight="800" textAnchor="middle">LEVEL</text>
+                <line x1="0" y1={y1} x2="100%" y2={y1} stroke={d.color} strokeWidth="1.5" strokeDasharray="5 3" />
+                
+                {/* Center Badge */}
+                <rect x="12" y={y1 - 10} width="115" height="20" rx="5" fill="#0b111e" stroke={d.color} strokeWidth="1.2" />
+                <text x="69" y={y1 + 4} fill={d.color} fontSize="10" fontWeight="800" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                  LEVEL: {priceStr}
+                </text>
+
+                {/* Right Scale Price Badge */}
+                <rect x="calc(100% - 75px)" y={y1 - 9} width="70" height="18" rx="4" fill={d.color} />
+                <text x="calc(100% - 40px)" y={y1 + 4} fill="#090d16" fontSize="10" fontWeight="900" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                  {priceStr}
+                </text>
               </g>
             );
           }
-          if (d.type === 'TRENDLINE') {
+
+          if (d.type === 'TRENDLINE' && x1 != null && y1 != null && x2 != null && y2 != null) {
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const deltaPts = (d.price2 != null && d.price1 != null) ? (d.price2 - d.price1) : 0;
+            const deltaPct = (d.price1) ? ((deltaPts / d.price1) * 100) : 0;
+            const sign = deltaPts >= 0 ? '+' : '';
+            const badgeText = `Δ ${sign}${deltaPts.toFixed(2)} (${sign}${deltaPct.toFixed(2)}%)`;
+
             return (
               <g key={d.id || i}>
-                <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke={d.color} strokeWidth="2" />
-                <circle cx={d.x1} cy={d.y1} r="4" fill={d.color} />
-                <circle cx={d.x2} cy={d.y2} r="4" fill={d.color} />
+                {/* Main Trendline */}
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={d.color} strokeWidth="2.2" strokeLinecap="round" />
+                
+                {/* Start Node */}
+                <circle cx={x1} cy={y1} r="5" fill="#0b111e" stroke={d.color} strokeWidth="2" />
+                <circle cx={x1} cy={y1} r="2.5" fill={d.color} />
+                
+                {/* End Node */}
+                <circle cx={x2} cy={y2} r="5" fill="#0b111e" stroke={d.color} strokeWidth="2" />
+                <circle cx={x2} cy={y2} r="2.5" fill={d.color} />
+
+                {/* Floating Metric Pill */}
+                <rect x={midX - 60} y={midY - 22} width="120" height="18" rx="4" fill="#0b111e" stroke={d.color} strokeWidth="1" />
+                <text x={midX} y={midY - 9} fill={d.color} fontSize="9" fontWeight="800" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                  {badgeText}
+                </text>
               </g>
             );
           }
-          if (d.type === 'RAY') {
-            const dx = d.x2 - d.x1;
-            const dy = d.y2 - d.y1;
-            const extX = d.x1 + dx * 10;
-            const extY = d.y1 + dy * 10;
+
+          if (d.type === 'RAY' && x1 != null && y1 != null && x2 != null && y2 != null) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const extX = x1 + (dx / len) * 2000;
+            const extY = y1 + (dy / len) * 2000;
+
             return (
               <g key={d.id || i}>
-                <line x1={d.x1} y1={d.y1} x2={extX} y2={extY} stroke={d.color} strokeWidth="2" />
-                <circle cx={d.x1} cy={d.y1} r="4" fill={d.color} />
+                <line x1={x1} y1={y1} x2={extX} y2={extY} stroke={d.color} strokeWidth="2" strokeDasharray="6 3" strokeLinecap="round" />
+                <circle cx={x1} cy={y1} r="5" fill="#0b111e" stroke={d.color} strokeWidth="2" />
+                <circle cx={x1} cy={y1} r="2.5" fill={d.color} />
+                <circle cx={x2} cy={y2} r="4" fill={d.color} fillOpacity="0.7" />
+                <rect x={x1 + 8} y={y1 - 18} width="70" height="16" rx="3" fill="#0b111e" stroke={d.color} strokeWidth="1" />
+                <text x={x1 + 43} y={y1 - 6} fill={d.color} fontSize="8" fontWeight="800" textAnchor="middle">RAY ORIGIN</text>
               </g>
             );
           }
-          if (d.type === 'RECTANGLE') {
-            const rx = Math.min(d.x1, d.x2);
-            const ry = Math.min(d.y1, d.y2);
-            const rw = Math.abs(d.x2 - d.x1);
-            const rh = Math.abs(d.y2 - d.y1);
+
+          if (d.type === 'RECTANGLE' && x1 != null && y1 != null && x2 != null && y2 != null) {
+            const rx = Math.min(x1, x2);
+            const ry = Math.min(y1, y2);
+            const rw = Math.max(1, Math.abs(x2 - x1));
+            const rh = Math.max(1, Math.abs(y2 - y1));
+
+            const highP = (d.price1 != null && d.price2 != null) ? Math.max(d.price1, d.price2) : 0;
+            const lowP = (d.price1 != null && d.price2 != null) ? Math.min(d.price1, d.price2) : 0;
+            const delta = highP - lowP;
+            const deltaPct = lowP ? ((delta / lowP) * 100) : 0;
+
             return (
               <g key={d.id || i}>
-                <rect x={rx} y={ry} width={rw} height={rh} fill={d.color} fillOpacity="0.18" stroke={d.color} strokeWidth="1.5" rx="3" />
-                <text x={rx + 6} y={ry + 14} fill={d.color} fontSize="9" fontWeight="700">ZONE</text>
+                <rect x={rx} y={ry} width={rw} height={rh} fill={d.color} fillOpacity="0.2" stroke={d.color} strokeWidth="1.5" rx="4" />
+                
+                {/* Top Resistance Label */}
+                <rect x={rx + 4} y={ry + 4} width="110" height="16" rx="3" fill="#0b111e" stroke={d.color} strokeWidth="0.8" />
+                <text x={rx + 59} y={ry + 15} fill={d.color} fontSize="8" fontWeight="800" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                  RES: {currPrefix}{highP.toFixed(2)}
+                </text>
+
+                {/* Bottom Support Label */}
+                <rect x={rx + 4} y={ry + rh - 20} width="110" height="16" rx="3" fill="#0b111e" stroke={d.color} strokeWidth="0.8" />
+                <text x={rx + 59} y={ry + rh - 8} fill={d.color} fontSize="8" fontWeight="800" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                  SUP: {currPrefix}{lowP.toFixed(2)}
+                </text>
+
+                {/* Center Range Tag */}
+                {rw > 85 && rh > 45 && (
+                  <>
+                    <rect x={rx + rw / 2 - 50} y={ry + rh / 2 - 10} width="100" height="19" rx="4" fill="#0b111e" stroke={d.color} strokeWidth="1" />
+                    <text x={rx + rw / 2} y={ry + rh / 2 + 4} fill={d.color} fontSize="9" fontWeight="800" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
+                      ZONE: {delta.toFixed(2)} ({deltaPct.toFixed(1)}%)
+                    </text>
+                  </>
+                )}
               </g>
             );
           }
+
           return null;
         })}
       </svg>
@@ -617,24 +749,24 @@ export default function TradingViewCandleChart({
             ))}
           </div>
 
-          {/* ✏️ Interactive Chart Drawing Toolbar */}
+          {/* ✏️ Professional Interactive Chart Drawing Toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: 'var(--md-sys-color-surface-container)', padding: '2px 4px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
             <button
               type="button"
               onClick={() => { setActiveTool(activeTool === 'TRENDLINE' ? 'NONE' : 'TRENDLINE'); setDraftDrawing(null); }}
-              title="Draw Trend Line (Click point 1, click point 2)"
+              title="Trendline (Click 1st candle, then 2nd candle)"
               style={{
                 padding: '4px 7px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: activeTool === 'TRENDLINE' ? 'var(--accent-blue-bg)' : 'transparent',
-                color: activeTool === 'TRENDLINE' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                backgroundColor: activeTool === 'TRENDLINE' ? 'var(--accent-blue)' : 'transparent',
+                color: activeTool === 'TRENDLINE' ? '#090d16' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '3px',
                 fontSize: '10px',
-                fontWeight: 700
+                fontWeight: 800
               }}
             >
               <TrendingUp style={{ width: '13px', height: '13px' }} />
@@ -644,19 +776,19 @@ export default function TradingViewCandleChart({
             <button
               type="button"
               onClick={() => { setActiveTool(activeTool === 'HORIZONTAL' ? 'NONE' : 'HORIZONTAL'); setDraftDrawing(null); }}
-              title="Draw Horizontal Support/Resistance Level"
+              title="Horizontal Support/Resistance Level (Click anywhere on chart)"
               style={{
                 padding: '4px 7px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: activeTool === 'HORIZONTAL' ? 'var(--accent-blue-bg)' : 'transparent',
-                color: activeTool === 'HORIZONTAL' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                backgroundColor: activeTool === 'HORIZONTAL' ? 'var(--accent-blue)' : 'transparent',
+                color: activeTool === 'HORIZONTAL' ? '#090d16' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '3px',
                 fontSize: '10px',
-                fontWeight: 700
+                fontWeight: 800
               }}
             >
               <Minus style={{ width: '13px', height: '13px' }} />
@@ -666,19 +798,19 @@ export default function TradingViewCandleChart({
             <button
               type="button"
               onClick={() => { setActiveTool(activeTool === 'RAY' ? 'NONE' : 'RAY'); setDraftDrawing(null); }}
-              title="Draw Extended Ray"
+              title="Extended Trend Ray (Click origin, then direction point)"
               style={{
                 padding: '4px 7px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: activeTool === 'RAY' ? 'var(--accent-blue-bg)' : 'transparent',
-                color: activeTool === 'RAY' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                backgroundColor: activeTool === 'RAY' ? 'var(--accent-blue)' : 'transparent',
+                color: activeTool === 'RAY' ? '#090d16' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '3px',
                 fontSize: '10px',
-                fontWeight: 700
+                fontWeight: 800
               }}
             >
               <MoveRight style={{ width: '13px', height: '13px' }} />
@@ -688,19 +820,19 @@ export default function TradingViewCandleChart({
             <button
               type="button"
               onClick={() => { setActiveTool(activeTool === 'RECTANGLE' ? 'NONE' : 'RECTANGLE'); setDraftDrawing(null); }}
-              title="Draw Support/Demand Box"
+              title="Supply/Demand Zone Box (Click 1st corner, then 2nd corner)"
               style={{
                 padding: '4px 7px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: activeTool === 'RECTANGLE' ? 'var(--accent-blue-bg)' : 'transparent',
-                color: activeTool === 'RECTANGLE' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                backgroundColor: activeTool === 'RECTANGLE' ? 'var(--accent-blue)' : 'transparent',
+                color: activeTool === 'RECTANGLE' ? '#090d16' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '3px',
                 fontSize: '10px',
-                fontWeight: 700
+                fontWeight: 800
               }}
             >
               <Square style={{ width: '12px', height: '12px' }} />
@@ -727,6 +859,28 @@ export default function TradingViewCandleChart({
               ))}
             </div>
 
+            {/* Undo Last Drawing */}
+            {drawings.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDrawings(prev => prev.slice(0, -1))}
+                title="Undo Last Drawing"
+                style={{
+                  padding: '4px 6px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginLeft: '2px'
+                }}
+              >
+                <RotateCcw style={{ width: '11px', height: '11px' }} />
+              </button>
+            )}
+
             {/* Clear All Drawings */}
             {drawings.length > 0 && (
               <button
@@ -742,49 +896,106 @@ export default function TradingViewCandleChart({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  marginLeft: '4px'
+                  marginLeft: '2px'
                 }}
               >
                 <Trash2 style={{ width: '11px', height: '11px' }} />
               </button>
             )}
           </div>
+        </div>
 
-          {/* Full Screen Chart Trigger Button */}
+        {/* Right Side Fullscreen and Reset Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (chartInstanceRef.current?.timeScale) {
+                chartInstanceRef.current.timeScale().fitContent();
+                setViewportKey(k => k + 1);
+              }
+            }}
+            title="Reset Zoom / Fit Content"
+            style={{
+              padding: '4px 8px',
+              borderRadius: '6px',
+              backgroundColor: 'var(--md-sys-color-surface-container)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              fontSize: '10px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}
+          >
+            <RotateCw style={{ width: '11px', height: '11px' }} />
+            <span className="hide-on-mobile">Reset</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsFullScreen(true)}
-            title="Expand Full Screen Chart"
+            title="Maximize Chart Fullscreen"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 10px',
-              borderRadius: '8px',
+              padding: '4px 8px',
+              borderRadius: '6px',
               backgroundColor: 'var(--accent-blue-bg)',
-              border: '1px solid var(--accent-blue-border)',
               color: 'var(--accent-blue)',
-              fontSize: '11px',
+              border: '1px solid var(--accent-blue-border)',
+              fontSize: '10px',
               fontWeight: 800,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
             }}
           >
-            <Maximize2 style={{ width: '12px', height: '12px' }} />
-            <span>Full Screen</span>
+            <Maximize2 style={{ width: '11px', height: '11px' }} />
+            <span className="hide-on-mobile">Expand</span>
           </button>
         </div>
-
-        {/* Real-time OHLC Bar Stats */}
-        {lastCandle && (
-          <div className="mono-num" style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <span>O: <strong style={{ color: 'var(--text-main)' }}>{currPrefix}{lastCandle.open}</strong></span>
-            <span>H: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{lastCandle.high}</strong></span>
-            <span>L: <strong style={{ color: 'var(--accent-red)' }}>{currPrefix}{lastCandle.low}</strong></span>
-            <span>C: <strong style={{ color: lastCandle.close >= lastCandle.open ? 'var(--accent-green)' : 'var(--accent-red)' }}>{currPrefix}{lastCandle.close}</strong></span>
-          </div>
-        )}
-
       </div>
+
+      {/* Active Drawing Tool Instructional Helper Banner */}
+      {activeTool !== 'NONE' && (
+        <div style={{
+          padding: '4px 10px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '11px',
+          color: 'var(--accent-blue)'
+        }}>
+          <span>
+            {activeTool === 'TRENDLINE' && (draftDrawing ? '📍 Click on the 2nd candlestick to lock your Trendline' : '📍 Click on the 1st candlestick to start your Trendline')}
+            {activeTool === 'HORIZONTAL' && '📍 Click anywhere on the chart canvas to place a Support / Resistance Level'}
+            {activeTool === 'RAY' && (draftDrawing ? '📍 Click direction point to project your Trend Ray' : '📍 Click origin candlestick to start your Trend Ray')}
+            {activeTool === 'RECTANGLE' && (draftDrawing ? '📍 Click opposite corner to complete your Supply / Demand Zone Box' : '📍 Click 1st corner to start your Supply / Demand Zone Box')}
+          </span>
+          <button
+            type="button"
+            onClick={() => { setActiveTool('NONE'); setDraftDrawing(null); }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px', fontWeight: 700 }}
+          >
+            Done ✕
+          </button>
+        </div>
+      )}
+
+      {/* Real-time OHLC Bar Stats */}
+      {lastCandle && (
+        <div className="mono-num" style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '0 4px' }}>
+          <span>O: <strong style={{ color: 'var(--text-main)' }}>{currPrefix}{lastCandle.open}</strong></span>
+          <span>H: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{lastCandle.high}</strong></span>
+          <span>L: <strong style={{ color: 'var(--accent-red)' }}>{currPrefix}{lastCandle.low}</strong></span>
+          <span>C: <strong style={{ color: lastCandle.close >= lastCandle.open ? 'var(--accent-green)' : 'var(--accent-red)' }}>{currPrefix}{lastCandle.close}</strong></span>
+        </div>
+      )}
 
       {/* Main Standard Chart Canvas */}
       <div 
@@ -919,6 +1130,27 @@ export default function TradingViewCandleChart({
 
                 <button
                   type="button"
+                  onClick={() => { setActiveTool(activeTool === 'RAY' ? 'NONE' : 'RAY'); setDraftDrawing(null); }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: activeTool === 'RAY' ? '#38bdf8' : 'transparent',
+                    color: activeTool === 'RAY' ? '#000000' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <MoveRight style={{ width: '13px', height: '13px' }} />
+                  <span>Ray</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => { setActiveTool(activeTool === 'RECTANGLE' ? 'NONE' : 'RECTANGLE'); setDraftDrawing(null); }}
                   style={{
                     padding: '4px 8px',
@@ -935,8 +1167,50 @@ export default function TradingViewCandleChart({
                   }}
                 >
                   <Square style={{ width: '12px', height: '12px' }} />
-                  <span>Zone</span>
+                  <span>Box</span>
                 </button>
+
+                {/* Color Palette in Full Screen */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginLeft: '4px', paddingLeft: '4px', borderLeft: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  {colorPalette.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setDrawingColor(c)}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: c,
+                        border: drawingColor === c ? '2px solid #ffffff' : 'none',
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Undo in Full Screen */}
+                {drawings.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setDrawings(prev => prev.slice(0, -1))}
+                    title="Undo Last Drawing"
+                    style={{
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#94a3b8',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginLeft: '2px'
+                    }}
+                  >
+                    <RotateCcw style={{ width: '11px', height: '11px' }} />
+                  </button>
+                )}
 
                 {drawings.length > 0 && (
                   <button
