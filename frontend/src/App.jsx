@@ -28,6 +28,7 @@ const LiveDataHealthPanel = lazy(() => import('./components/LiveDataHealthPanel'
 const LiveDataDebugPanel = lazy(() => import('./components/LiveDataDebugPanel'));
 const BrokerSettingsModal = lazy(() => import('./components/BrokerSettingsModal'));
 const AuthModal = lazy(() => import('./components/AuthModal'));
+const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal'));
 const UnauthenticatedLandingView = lazy(() => import('./components/UnauthenticatedLandingView'));
 import { useAuth } from './utils/useAuth';
 
@@ -60,11 +61,102 @@ export default function App() {
   const [showDebugHUD, setShowDebugHUD] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [activeToasts, setActiveToasts] = useState([]);
   const [isFailover, setIsFailover] = useState(false);
   const [fetchErrors, setFetchErrors] = useState([]);
   const toastTimersRef = useRef({});
   const mainWorkspaceRef = useRef(null);
+
+  // Global Keyboard Shortcuts Engine
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      const target = e.target;
+      const isInput = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.getAttribute('role') === 'textbox'
+      );
+
+      // 1. Escape key: Close any active modal / overlay
+      if (e.key === 'Escape') {
+        if (showShortcutsModal) { setShowShortcutsModal(false); return; }
+        if (selectedStock) { setSelectedStock(null); return; }
+        if (showAlertsModal) { setShowAlertsModal(false); return; }
+        if (showHealthHUD) { setShowHealthHUD(false); return; }
+        if (showDebugHUD) { setShowDebugHUD(false); return; }
+        if (showBrokerModal) { setShowBrokerModal(false); return; }
+        if (showAuthModal) { setShowAuthModal(false); return; }
+        if (drawerOpen) { setDrawerOpen(false); return; }
+        if (isInput) {
+          target.blur();
+          return;
+        }
+      }
+
+      // 2. Cmd+K / Ctrl+K / '/' (when not typing in an input): Focus global search
+      if ((e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isInput)) {
+        e.preventDefault();
+        const searchInput = document.getElementById('global-market-search-input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
+
+      // 3. '?' or Cmd+/ / Ctrl+/: Open Keyboard Shortcuts Guide
+      if ((e.key === '?' && !isInput) || (e.key === '/' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
+        return;
+      }
+
+      // 4. Cmd+M / Ctrl+M or Alt+M: Toggle Market between India (IN) and US (US)
+      if ((e.key.toLowerCase() === 'm' && (e.metaKey || e.ctrlKey || e.altKey))) {
+        e.preventDefault();
+        setCurrentMarket(prev => prev === 'IN' ? 'US' : 'IN');
+        return;
+      }
+
+      // If user is currently typing in an input/textarea, do not intercept single-key navigation
+      if (isInput) return;
+
+      // 5. Alt+1 .. Alt+6 (or 1..6 when not in inputs): Tab Switching
+      if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        setActiveView('RECOMMENDATIONS');
+      } else if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        setActiveView('SCREENER');
+      } else if (e.altKey && e.key === '3') {
+        e.preventDefault();
+        setActiveView('ANALYSIS_ENGINE');
+      } else if (e.altKey && e.key === '4') {
+        e.preventDefault();
+        setActiveView('PAPER_TRADING');
+      } else if (e.altKey && e.key === '5') {
+        e.preventDefault();
+        setActiveView('DAILY_ADVISORY');
+      } else if (e.altKey && e.key === '6') {
+        e.preventDefault();
+        setActiveView('COPILOT');
+      } else if (e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setShowAlertsModal(prev => !prev);
+      } else if (e.altKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setShowBrokerModal(prev => !prev);
+      } else if (e.altKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setShowHealthHUD(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [showShortcutsModal, selectedStock, showAlertsModal, showHealthHUD, showDebugHUD, showBrokerModal, showAuthModal, drawerOpen]);
 
   // Scroll to top instantly whenever switching tabs
   useEffect(() => {
@@ -346,6 +438,7 @@ export default function App() {
           wsStatus={wsStatus}
           sessionInfo={sessionInfo}
           onOpenAlertsModal={() => setShowAlertsModal(true)}
+          onOpenShortcutsModal={() => setShowShortcutsModal(true)}
           onOpenAuthModal={() => setShowAuthModal(true)}
           onOpenHealthHUD={() => setShowHealthHUD(true)}
           onOpenDebugHUD={() => setShowDebugHUD(true)}
@@ -587,6 +680,16 @@ export default function App() {
             onClose={() => setShowAuthModal(false)}
             currentMarket={currentMarket}
             onMarketChange={setCurrentMarket}
+          />
+        </Suspense>
+      )}
+
+      {/* Professional Keyboard Shortcuts Cheat Sheet Modal */}
+      {showShortcutsModal && (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsModal
+            isOpen={showShortcutsModal}
+            onClose={() => setShowShortcutsModal(false)}
           />
         </Suspense>
       )}

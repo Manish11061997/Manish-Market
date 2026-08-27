@@ -486,6 +486,63 @@ export default function TradingViewCandleChart({
     };
   }, [isFullScreen, isLandscape]);
 
+  // Chart Drawing Keyboard Shortcuts
+  useEffect(() => {
+    const handleChartKeyDown = (e) => {
+      const target = e.target;
+      const isInput = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+      if (isInput) return;
+
+      // Undo drawing: Cmd+Z, Ctrl+Z, or U
+      if ((e.key.toLowerCase() === 'z' && (e.metaKey || e.ctrlKey)) || e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        setDrawings(prev => prev.slice(0, -1));
+        return;
+      }
+
+      // Clear drawings: Delete or Backspace (only when tool is active or drawings exist)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeTool !== 'NONE') {
+        e.preventDefault();
+        setDrawings([]);
+        setDraftDrawing(null);
+        setActiveTool('NONE');
+        return;
+      }
+
+      // Cancel current drawing tool: Escape
+      if (e.key === 'Escape' && activeTool !== 'NONE') {
+        e.preventDefault();
+        setActiveTool('NONE');
+        setDraftDrawing(null);
+        return;
+      }
+
+      // Drawing Tool Activations
+      if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.key.toLowerCase() === 't') {
+          setActiveTool(prev => prev === 'TRENDLINE' ? 'NONE' : 'TRENDLINE');
+          setDraftDrawing(null);
+        } else if (e.key.toLowerCase() === 'l' || e.key.toLowerCase() === 'h') {
+          setActiveTool(prev => prev === 'HORIZONTAL' ? 'NONE' : 'HORIZONTAL');
+          setDraftDrawing(null);
+        } else if (e.key.toLowerCase() === 'y') {
+          setActiveTool(prev => prev === 'RAY' ? 'NONE' : 'RAY');
+          setDraftDrawing(null);
+        } else if (e.key.toLowerCase() === 'b') {
+          setActiveTool(prev => prev === 'RECTANGLE' ? 'NONE' : 'RECTANGLE');
+          setDraftDrawing(null);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleChartKeyDown);
+    return () => window.removeEventListener('keydown', handleChartKeyDown);
+  }, [activeTool]);
+
   // Professional Drawing Coordinate Mouse Handlers
   const handleOverlayMouseDown = (e) => {
     if (activeTool === 'NONE') return;

@@ -111,6 +111,42 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
     };
   }, [rawSym]);
 
+  // Stock Detail Modal Keyboard Controls
+  useEffect(() => {
+    const handleModalKeyDown = (e) => {
+      const target = e.target;
+      const isInput = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+      if (isInput) return;
+
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === '1') {
+        setTimeframe('1m');
+      } else if (e.key === '2') {
+        setTimeframe('5m');
+      } else if (e.key === '3') {
+        setTimeframe('15m');
+      } else if (e.key === '4') {
+        setTimeframe('1h');
+      } else if (e.key === '5' || e.key.toLowerCase() === 'd') {
+        setTimeframe('1D');
+      } else if (e.key.toLowerCase() === 'w') {
+        setTimeframe('1W');
+      } else if (e.key.toLowerCase() === 's') {
+        toggleWatchlist(rawSym);
+      }
+    };
+
+    window.addEventListener('keydown', handleModalKeyDown);
+    return () => window.removeEventListener('keydown', handleModalKeyDown);
+  }, [rawSym, onClose, toggleWatchlist]);
+
   if (!symbol) return null;
 
   const isUS = currentMarket === 'US' || stock?.currency === 'USD' || (rawSym && !rawSym.endsWith('.NS') && !rawSym.endsWith('.BO') && !rawSym.startsWith('^NSE') && !rawSym.startsWith('^BSE') && currentMarket === 'US');

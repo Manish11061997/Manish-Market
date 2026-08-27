@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle, Star, User } from 'lucide-react';
+import { Search, ChevronRight, Zap, Bell, Play, Pause, AlertTriangle, Star, User, Command } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { useWatchlist } from '../utils/useWatchlist';
 import UserProfileDropdown from './UserProfileDropdown';
@@ -15,6 +15,7 @@ function MarketHeader({
   wsStatus = 'LIVE',
   sessionInfo,
   onOpenAlertsModal,
+  onOpenShortcutsModal,
   onOpenAuthModal,
   onOpenMenu,
   isFailover = false
@@ -387,6 +388,29 @@ function MarketHeader({
             <Bell style={{ width: '16px', height: '16px' }} />
           </button>
 
+          {/* Keyboard Shortcuts Trigger Button */}
+          <button
+            onClick={onOpenShortcutsModal}
+            title="Keyboard Shortcuts (?)"
+            aria-label="Keyboard Shortcuts"
+            className="m3-icon-button hide-on-mobile"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '18px',
+              backgroundColor: 'var(--md-sys-color-surface-container-high)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              color: 'var(--accent-blue)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+          >
+            <Command style={{ width: '15px', height: '15px' }} />
+          </button>
+
           {/* User Authentication & Profile Dropdown */}
           <UserProfileDropdown
             onOpenAuthModal={onOpenAuthModal}
@@ -419,6 +443,7 @@ function MarketHeader({
           <div className="hide-on-mobile" style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
             <Search style={{ width: '14px', height: '14px', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
+              id="global-market-search-input"
               type="text"
               role="combobox"
               aria-expanded={showSearchDropdown && !!searchQuery.trim()}
@@ -436,8 +461,11 @@ function MarketHeader({
                 setShowSearchDropdown(true);
               }}
               className="pro-input-field"
-              style={{ width: '100%', paddingLeft: '36px', paddingRight: '14px', fontSize: '12px', borderRadius: '24px', backgroundColor: 'var(--md-sys-color-surface-container)', border: '1px solid var(--md-sys-color-outline-variant)' }}
+              style={{ width: '100%', paddingLeft: '36px', paddingRight: '46px', fontSize: '12px', borderRadius: '24px', backgroundColor: 'var(--md-sys-color-surface-container)', border: '1px solid var(--md-sys-color-outline-variant)' }}
             />
+            <kbd className="hide-on-mobile" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', pointerEvents: 'none' }}>
+              ⌘K
+            </kbd>
 
             {showSearchDropdown && searchQuery.trim() && (
               <div
