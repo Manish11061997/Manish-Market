@@ -39,8 +39,13 @@ export function getCandidateBases() {
     list.push(activeWorkingBase);
   }
 
-  // 3. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
-  list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // 3. If running on localhost browser, prioritize localhost directly
+  if (isLocalHost) {
+    list.push('http://localhost:8000');
+    list.push('http://127.0.0.1:8000');
+  }
 
   // 4. Dynamic tunnel from Firebase CDN
   if (dynamicApiBase) {
@@ -50,21 +55,24 @@ export function getCandidateBases() {
   // 5. Default Cloudflare tunnel
   list.push(LIVE_CLOUDFLARE_URL);
 
-  // 6. Localhost fallbacks
+  // 6. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
+  list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
+
+  // 7. Android emulator fallback
+  list.push('http://10.0.2.2:8000');
   list.push('http://localhost:8000');
   list.push('http://127.0.0.1:8000');
-  list.push('http://10.0.2.2:8000');
 
   return Array.from(new Set(list.filter(Boolean)));
 }
 
 // Background auto-discovery from Firebase CDN
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
   fetch('https://manishmarket.web.app/config.json?t=' + Date.now(), { cache: 'no-store' })
-    .then(r => r.json())
+    .then(r => r.ok ? r.json() : null)
     .then(cfg => {
-      if (cfg && cfg.apiUrl && cfg.apiUrl.startsWith('http')) {
-        dynamicApiBase = cfg.apiUrl;
+      if (cfg && (cfg.tunnelUrl || cfg.apiUrl)) {
+        dynamicApiBase = cfg.tunnelUrl || cfg.apiUrl;
         probeFastestServer();
       }
     })

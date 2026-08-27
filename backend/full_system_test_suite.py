@@ -106,9 +106,9 @@ def run_suite():
     test_rest_endpoint("GET /api/ipo/closed (Indian Closed Bidding)", f"{BASE_URL}/api/ipo/closed?market=IN", expected_keys=["ipos"])
     test_rest_endpoint("GET /api/ipo/upcoming (Indian Pipeline)", f"{BASE_URL}/api/ipo/upcoming?market=IN", expected_keys=["ipos"])
     test_rest_endpoint("GET /api/ipo/listed (Indian Track Record)", f"{BASE_URL}/api/ipo/listed?market=IN", expected_keys=["ipos"])
-    test_rest_endpoint("GET /api/ipo/IPO-SUNSHINE/details", f"{BASE_URL}/api/ipo/IPO-SUNSHINE/details", expected_keys=["companyName", "subscription", "financials", "peers"])
-    test_rest_endpoint("GET /api/ipo/IPO-TEMPSENS/details", f"{BASE_URL}/api/ipo/IPO-TEMPSENS/details", expected_keys=["companyName", "subscription", "businessOverview"])
-    test_rest_endpoint("GET /api/ipo/CLOSED-INTERARCH/details", f"{BASE_URL}/api/ipo/CLOSED-INTERARCH/details", expected_keys=["companyName", "subscription", "financials"])
+    test_rest_endpoint("GET /api/ipo/IPO-SYMBIOTEC/details", f"{BASE_URL}/api/ipo/IPO-SYMBIOTEC/details", expected_keys=["companyName", "subscription", "recommendation"])
+    test_rest_endpoint("GET /api/ipo/IPO-SKYWAYS/details", f"{BASE_URL}/api/ipo/IPO-SKYWAYS/details", expected_keys=["companyName", "subscription", "recommendation"])
+    test_rest_endpoint("GET /api/ipo/CLOSED-GAJA/details", f"{BASE_URL}/api/ipo/CLOSED-GAJA/details", expected_keys=["companyName", "subscription", "recommendation"])
 
     # 6. DAILY ADVISORY, F&O DERIVATIVES & OMS
     print("\n--- 6. DAILY ADVISORY, F&O DERIVATIVES & OMS ---")

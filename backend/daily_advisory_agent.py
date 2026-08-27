@@ -244,6 +244,7 @@ def generate_daily_advisory_briefing(market: str = "IN", force_refresh: bool = F
             "label": session_label,
             "notice": f"🌴 Today is a Market Holiday / Closed ({session_reason}). Displaying last verified market session data." if is_holiday else None
         },
+        "marketStatus": session.get("status", "LIVE_ACTIVE"),
         "marketBias": market_bias,
         "indexHeadline": {
             "name": main_idx_name,

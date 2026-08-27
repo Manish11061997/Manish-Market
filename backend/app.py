@@ -1072,6 +1072,7 @@ def get_performance_tracking(market: str = "IN"):
 @app.get("/api/v1/advisory/today")
 @app.get("/api/v1/advisory")
 @app.get("/advisory/today")
+@app.get("/api/daily-briefing")
 @app.get("/daily-briefing")
 def get_daily_briefing(market: str = "IN", force: bool = False):
     """Return comprehensive Daily Buy/Sell Advisory Briefing for equities and derivatives."""
