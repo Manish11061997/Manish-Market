@@ -292,7 +292,14 @@ export default function TradingViewCandleChart({
       try {
         candleSeriesRef.current.setData(tvData);
         if (shouldFit && chartInstanceRef.current?.timeScale) {
-          chartInstanceRef.current.timeScale().fitContent();
+          if (tvData.length > 90) {
+            chartInstanceRef.current.timeScale().setVisibleLogicalRange({
+              from: tvData.length - 85,
+              to: tvData.length + 5
+            });
+          } else {
+            chartInstanceRef.current.timeScale().fitContent();
+          }
         }
       } catch (e) {
         console.warn("Primary chart setData notice:", e);
@@ -303,7 +310,14 @@ export default function TradingViewCandleChart({
       try {
         fullCandleSeriesRef.current.setData(tvData);
         if (shouldFit && fullChartInstanceRef.current?.timeScale) {
-          fullChartInstanceRef.current.timeScale().fitContent();
+          if (tvData.length > 120) {
+            fullChartInstanceRef.current.timeScale().setVisibleLogicalRange({
+              from: tvData.length - 110,
+              to: tvData.length + 6
+            });
+          } else {
+            fullChartInstanceRef.current.timeScale().fitContent();
+          }
         }
       } catch (e) {
         console.warn("Fullscreen chart setData notice:", e);
@@ -311,21 +325,21 @@ export default function TradingViewCandleChart({
     }
   };
 
-  // 1. Fetch Historical OHLCV Series
+  // 1. Fetch Historical OHLCV Series (Deep History Going Back Years)
   useEffect(() => {
     if (!symbol) return;
     const controller = new AbortController();
     setLoading(true);
     setNoData(false);
 
-    let period = '6mo';
+    let period = '5y';
     let interval = '1d';
-    if (timeframe === '1m') { period = '1d'; interval = '1m'; }
-    else if (timeframe === '5m') { period = '5d'; interval = '5m'; }
-    else if (timeframe === '15m') { period = '1mo'; interval = '15m'; }
-    else if (timeframe === '1h') { period = '3mo'; interval = '60m'; }
-    else if (timeframe === '1D') { period = '1y'; interval = '1d'; }
-    else if (timeframe === '1W') { period = '2y'; interval = '1wk'; }
+    if (timeframe === '1m') { period = '5d'; interval = '1m'; }
+    else if (timeframe === '5m') { period = '1mo'; interval = '5m'; }
+    else if (timeframe === '15m') { period = '3mo'; interval = '15m'; }
+    else if (timeframe === '1h') { period = '1y'; interval = '60m'; }
+    else if (timeframe === '1D') { period = '5y'; interval = '1d'; }
+    else if (timeframe === '1W') { period = 'max'; interval = '1wk'; }
 
     const targetSym = encodeURIComponent(symbol);
 

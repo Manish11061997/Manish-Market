@@ -789,7 +789,7 @@ def get_stock_chart_data(symbol: str, period: str = "6mo", interval: str = "1d",
     """OHLCV series with corporate actions adjustment toggle and event markers."""
     symbol_resolved = resolve_ticker_symbol(symbol, market=market)
     market_gateway.subscribe_symbols([symbol_resolved])
-    df = fetch_stock_ohlcv(symbol_resolved, period=period, interval=interval)
+    df = fetch_stock_ohlcv(symbol_resolved, period=period, interval=interval, market=market)
     if df.empty:
         raise HTTPException(status_code=503, detail=f"No authentic OHLCV data available for {symbol_resolved} (synthetic data disabled or exchange feed unavailable).")
     
