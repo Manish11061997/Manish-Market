@@ -306,7 +306,20 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
 
       {/* Featured Stock Banner Card — Ultra-Compact Bot Suggestion Strip */}
       {topFeatured && !searchQuery && activeTab === 'ALL' && selectedSector === 'ALL' && (
-        <div className="pro-card-glass" style={{ padding: '6px 10px', borderColor: 'var(--accent-blue-border)', background: 'linear-gradient(135deg, var(--indigo-info-bg-soft) 0%, var(--emerald-pos-bg-soft) 100%)' }}>
+        <div 
+          role="button"
+          tabIndex={0}
+          onClick={() => { if (onSelectStock) onSelectStock(topFeatured); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (onSelectStock) onSelectStock(topFeatured); } }}
+          className="pro-card-glass" 
+          style={{ 
+            padding: '8px 12px', 
+            borderColor: 'var(--accent-blue-border)', 
+            background: 'linear-gradient(135deg, var(--indigo-info-bg-soft) 0%, var(--emerald-pos-bg-soft) 100%)',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+          }}
+        >
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
@@ -314,14 +327,14 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                 ⭐ TOP PICK
               </span>
               <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: '12px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <strong style={{ fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {topFeatured.name}
                 </strong>
                 <span className="mono-num" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({topFeatured.symbol})</span>
-                <span className="mono-num" style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-green)' }}>
+                <span className="mono-num" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-green)' }}>
                   {currPrefix}{topFeatured.currentPrice?.toLocaleString('en-US')}
                 </span>
-                <span className="mono-num hide-on-mobile" style={{ fontSize: '10px', color: 'var(--accent-blue)' }}>
+                <span className="mono-num hide-on-mobile" style={{ fontSize: '11px', color: 'var(--accent-blue)' }}>
                   Target: <strong>{currPrefix}{topFeatured.tradePlan?.target1}</strong>
                 </span>
                 <span className="mono-num hide-on-mobile" style={{ fontSize: '10px', color: 'var(--accent-gold)', backgroundColor: 'var(--hover-white-2)', padding: '1px 4px', borderRadius: '4px' }}>
@@ -331,9 +344,13 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
             </div>
 
             <button
-              onClick={() => { if (onSelectStock) onSelectStock(topFeatured.symbol); }}
+              type="button"
+              onClick={(e) => { 
+                e.stopPropagation();
+                if (onSelectStock) onSelectStock(topFeatured); 
+              }}
               style={{
-                padding: '4px 10px',
+                padding: '5px 12px',
                 borderRadius: '6px',
                 backgroundColor: 'var(--accent-blue)',
                 color: 'var(--bg-dark)',
@@ -348,7 +365,7 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
               }}
             >
               <span>Open Top Pick</span>
-              <ArrowUpRight style={{ width: '12px', height: '12px' }} />
+              <ArrowUpRight style={{ width: '13px', height: '13px' }} />
             </button>
 
           </div>
