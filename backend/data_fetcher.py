@@ -580,10 +580,27 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
     
     range_map = {
-        "1d": "1d", "5d": "5d", "1mo": "1mo", "3mo": "3mo", 
-        "6mo": "6mo", "1y": "1y", "2y": "2y", "5y": "5y", "max": "max"
+        "1d": "1d", "5d": "5d", "7d": "7d", "1mo": "1mo", "60d": "60d", "3mo": "3mo", 
+        "6mo": "6mo", "1y": "1y", "2y": "2y", "5y": "5y", "10y": "10y", "730d": "730d", "max": "10y"
     }
-    rng = range_map.get(period, "1y")
+    rng = range_map.get(period, "10y")
+
+    # Auto-adjust requested range to the absolute maximum supported by Yahoo Finance per interval
+    if interval == "1m":
+        if rng not in ["1d", "5d", "7d"]:
+            rng = "7d"
+    elif interval in ["2m", "5m"]:
+        if rng not in ["1d", "5d", "1mo", "60d"]:
+            rng = "60d"
+    elif interval in ["15m", "30m"]:
+        if rng not in ["1mo", "60d"]:
+            rng = "60d"
+    elif interval in ["60m", "1h"]:
+        if rng not in ["1mo", "3mo", "6mo", "1y", "2y", "730d"]:
+            rng = "730d"
+    elif interval in ["1d", "1wk", "1mo"]:
+        if rng in ["max", "10y", "5y"]:
+            rng = "10y"
 
     urls = [
         f"https://query2.finance.yahoo.com/v8/finance/chart/{clean_sym}?range={rng}&interval={interval}&includePrePost=false",

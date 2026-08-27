@@ -4,7 +4,8 @@ import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
 import {
   Maximize2, RotateCw, RotateCcw, X, TrendingUp, Minus, MoveRight, Square,
-  Trash2, Zap, Sparkles, Plus, Play, Save, Check, CheckCircle2, ChevronDown, Sliders
+  Trash2, Zap, Sparkles, Plus, Play, Save, Check, CheckCircle2, ChevronDown, Sliders,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut
 } from 'lucide-react';
 
 /**
@@ -282,6 +283,52 @@ export default function TradingViewCandleChart({
     try { localStorage.setItem('mm_user_strategies', JSON.stringify(updated)); } catch {}
   };
 
+  // 🧭 Chart Viewport Navigation & Historical Pan/Zoom Helpers
+  const handlePan = (direction) => {
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    if (!activeChart) return;
+    const ts = activeChart.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (!range) return;
+    const span = range.to - range.from;
+    const shift = direction === 'LEFT' ? -Math.max(15, Math.floor(span * 0.35)) : Math.max(15, Math.floor(span * 0.35));
+    ts.setVisibleLogicalRange({
+      from: range.from + shift,
+      to: range.to + shift
+    });
+    setViewportKey(k => k + 1);
+  };
+
+  const handleJumpTo = (pos) => {
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    if (!activeChart || !candlesRef.current?.length) return;
+    const total = candlesRef.current.length;
+    const ts = activeChart.timeScale();
+    if (pos === 'OLDEST') {
+      ts.setVisibleLogicalRange({ from: -5, to: Math.min(total - 1, 75) });
+    } else if (pos === 'LATEST') {
+      ts.setVisibleLogicalRange({ from: Math.max(0, total - 80), to: total + 10 });
+    }
+    setViewportKey(k => k + 1);
+  };
+
+  const handleZoom = (zoomIn) => {
+    const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    if (!activeChart) return;
+    const ts = activeChart.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (!range) return;
+    const span = range.to - range.from;
+    const factor = zoomIn ? 0.7 : 1.4;
+    const newSpan = Math.max(10, Math.floor(span * factor));
+    const center = (range.from + range.to) / 2;
+    ts.setVisibleLogicalRange({
+      from: Math.floor(center - newSpan / 2),
+      to: Math.floor(center + newSpan / 2)
+    });
+    setViewportKey(k => k + 1);
+  };
+
   // Push candles to series: shouldFit is TRUE ONLY on initial REST fetch or symbol/timeframe switch
   const syncCandlesToCharts = (candleList, shouldFit = false) => {
     if (!candleList || candleList.length === 0) return;
@@ -554,7 +601,13 @@ export default function TradingViewCandleChart({
             borderColor: 'rgba(255, 255, 255, 0.08)',
             timeVisible: true,
             shiftVisibleRangeOnNewBar: false,
-            allowBoldLabels: true
+            allowBoldLabels: true,
+            minBarSpacing: 0.1,
+            maxBarSpacing: 80,
+            rightOffset: 12,
+            barSpacing: 8,
+            fixLeftEdge: false,
+            fixRightEdge: false
           },
           handleScroll: {
             mouseWheel: true,
@@ -592,8 +645,16 @@ export default function TradingViewCandleChart({
         candleSeriesRef.current = candleSeries;
 
         if (candlesRef.current && candlesRef.current.length > 0 && candleSeries) {
-          candleSeries.setData(formatTVCandles(candlesRef.current));
-          chart.timeScale().fitContent();
+          const tvData = formatTVCandles(candlesRef.current);
+          candleSeries.setData(tvData);
+          if (tvData.length > 80) {
+            chart.timeScale().setVisibleLogicalRange({
+              from: tvData.length - 75,
+              to: tvData.length + 10
+            });
+          } else {
+            chart.timeScale().fitContent();
+          }
         }
 
         // Real-time synchronization of drawing overlay with pan, zoom and scroll
@@ -684,7 +745,13 @@ export default function TradingViewCandleChart({
             borderColor: 'rgba(255, 255, 255, 0.1)',
             timeVisible: true,
             shiftVisibleRangeOnNewBar: false,
-            allowBoldLabels: true
+            allowBoldLabels: true,
+            minBarSpacing: 0.1,
+            maxBarSpacing: 80,
+            rightOffset: 15,
+            barSpacing: 9,
+            fixLeftEdge: false,
+            fixRightEdge: false
           },
           handleScroll: {
             mouseWheel: true,
@@ -722,8 +789,16 @@ export default function TradingViewCandleChart({
         fullCandleSeriesRef.current = candleSeries;
 
         if (candlesRef.current && candlesRef.current.length > 0 && candleSeries) {
-          candleSeries.setData(formatTVCandles(candlesRef.current));
-          fullChart.timeScale().fitContent();
+          const tvData = formatTVCandles(candlesRef.current);
+          candleSeries.setData(tvData);
+          if (tvData.length > 100) {
+            fullChart.timeScale().setVisibleLogicalRange({
+              from: tvData.length - 95,
+              to: tvData.length + 12
+            });
+          } else {
+            fullChart.timeScale().fitContent();
+          }
         }
 
         fullChart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
@@ -1261,13 +1336,135 @@ export default function TradingViewCandleChart({
           </div>
         </div>
 
-        {/* Right Side Fullscreen and Reset Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {/* Right Side Fullscreen, Navigation & Reset Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+          {/* 🧭 Historical Navigation Cluster */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', backgroundColor: 'var(--md-sys-color-surface-container)', padding: '2px 4px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+            <button
+              type="button"
+              onClick={() => handleJumpTo('OLDEST')}
+              title="Jump to Earliest Historical Data (⏮)"
+              style={{
+                padding: '4px 6px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+                fontSize: '10px',
+                fontWeight: 700
+              }}
+            >
+              <ChevronsLeft style={{ width: '12px', height: '12px' }} />
+              <span className="hide-on-mobile">Oldest</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handlePan('LEFT')}
+              title="Pan Left / Past Data (◀)"
+              style={{
+                padding: '4px 5px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <ChevronLeft style={{ width: '13px', height: '13px' }} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handlePan('RIGHT')}
+              title="Pan Right / Newer Data (▶)"
+              style={{
+                padding: '4px 5px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <ChevronRight style={{ width: '13px', height: '13px' }} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleJumpTo('LATEST')}
+              title="Jump to Current / Live Candle (⏭)"
+              style={{
+                padding: '4px 6px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+                fontSize: '10px',
+                fontWeight: 700
+              }}
+            >
+              <span className="hide-on-mobile">Live</span>
+              <ChevronsRight style={{ width: '12px', height: '12px' }} />
+            </button>
+
+            <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--md-sys-color-outline-variant)', margin: '0 2px' }} />
+
+            <button
+              type="button"
+              onClick={() => handleZoom(true)}
+              title="Zoom In (+)"
+              style={{
+                padding: '4px 5px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <ZoomIn style={{ width: '12px', height: '12px' }} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleZoom(false)}
+              title="Zoom Out (-)"
+              style={{
+                padding: '4px 5px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <ZoomOut style={{ width: '12px', height: '12px' }} />
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => {
-              if (chartInstanceRef.current?.timeScale) {
-                chartInstanceRef.current.timeScale().fitContent();
+              const activeChart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+              if (activeChart?.timeScale) {
+                activeChart.timeScale().fitContent();
                 setViewportKey(k => k + 1);
               }
             }}
