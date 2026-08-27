@@ -5,13 +5,19 @@ import { findTick } from '../utils/symbolMatcher';
 import {
   Maximize2, RotateCw, RotateCcw, X, TrendingUp, Minus, MoveRight, Square,
   Trash2, Zap, Sparkles, Plus, Play, Save, Check, CheckCircle2, ChevronDown, Sliders,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut,
+  Activity, BarChart2, Layers
 } from 'lucide-react';
+import {
+  calculateEMA, calculateSMA, calculateBollingerBands, calculateVWAP,
+  formatVolumeSeries, calculateRSI, calculateMACD
+} from '../utils/indicators';
 
 /**
  * TradingViewCandleChart
  * High-Performance Candlestick Chart powered by TradingView lightweight-charts.
  * Synchronized with real-time websocket ticks, multi-timeframe feeds,
+ * technical indicators (EMA, SMA, BB, VWAP, Vol, RSI, MACD),
  * interactive Line & Shape Drawing Tools, and Custom Strategy Studio.
  */
 export default function TradingViewCandleChart({
@@ -21,6 +27,8 @@ export default function TradingViewCandleChart({
   isAdjusted = true,
   currentMarket = 'IN'
 }) {
+  const cleanSymbol = typeof symbol === 'string' ? symbol : (symbol?.symbol || 'RELIANCE.NS');
+
   const chartContainerRef = useRef(null);
   const fullChartContainerRef = useRef(null);
   const chartInstanceRef = useRef(null);
@@ -38,6 +46,32 @@ export default function TradingViewCandleChart({
   const [isLandscape, setIsLandscape] = useState(false);
 
   const [viewportKey, setViewportKey] = useState(0);
+
+  // 📊 Technical Indicators State & Refs
+  const [activeIndicators, setActiveIndicators] = useState({
+    EMA_20: true,
+    EMA_50: true,
+    EMA_200: false,
+    SMA_20: false,
+    BB_20_2: false,
+    VWAP: false,
+    VOLUME: true,
+    RSI_14: false,
+    MACD: false
+  });
+  const [showIndicatorModal, setShowIndicatorModal] = useState(false);
+  const [indicatorValues, setIndicatorValues] = useState({});
+
+  const indicatorSeriesRef = useRef({});
+  const fullIndicatorSeriesRef = useRef({});
+  const rsiChartContainerRef = useRef(null);
+  const rsiChartInstanceRef = useRef(null);
+  const rsiSeriesRef = useRef(null);
+  const macdChartContainerRef = useRef(null);
+  const macdChartInstanceRef = useRef(null);
+  const macdSeriesRef = useRef(null);
+  const macdSignalSeriesRef = useRef(null);
+  const macdHistSeriesRef = useRef(null);
 
   // Strategy Studio & Custom Strategy Creator State
   const [showStrategyModal, setShowStrategyModal] = useState(false);
@@ -135,7 +169,8 @@ export default function TradingViewCandleChart({
           open: openVal,
           high: highVal,
           low: lowVal,
-          close: closeVal
+          close: closeVal,
+          volume: Number(c.volume || 0)
         });
       }
     }
@@ -329,10 +364,161 @@ export default function TradingViewCandleChart({
     setViewportKey(k => k + 1);
   };
 
-  // Push candles to series: shouldFit is TRUE ONLY on initial REST fetch or symbol/timeframe switch
+  const lcRef = useRef(null);
+
+  // 📈 Dynamic Indicator Series Factory
+  const setupIndicatorSeries = (chart, isFull = false) => {
+    if (!chart) return;
+    const lc = lcRef.current;
+    const seriesStore = isFull ? fullIndicatorSeriesRef.current : indicatorSeriesRef.current;
+
+    // Clean up old series
+    Object.values(seriesStore).forEach(s => {
+      try { if (s) chart.removeSeries(s); } catch {}
+    });
+    const newStore = {};
+
+    const addLine = (opts) => {
+      try {
+        if (lc && lc.LineSeries && typeof chart.addSeries === 'function') {
+          return chart.addSeries(lc.LineSeries, opts);
+        } else if (typeof chart.addLineSeries === 'function') {
+          return chart.addLineSeries(opts);
+        }
+      } catch (e) {
+        console.warn("addLine error:", e);
+      }
+      return null;
+    };
+
+    const addHistogram = (opts) => {
+      try {
+        if (lc && lc.HistogramSeries && typeof chart.addSeries === 'function') {
+          return chart.addSeries(lc.HistogramSeries, opts);
+        } else if (typeof chart.addHistogramSeries === 'function') {
+          return chart.addHistogramSeries(opts);
+        }
+      } catch (e) {
+        console.warn("addHistogram error:", e);
+      }
+      return null;
+    };
+
+    try {
+      // 1. Volume Histogram (attached to bottom overlay scale)
+      if (activeIndicators.VOLUME) {
+        newStore.volume = addHistogram({
+          priceFormat: { type: 'volume' },
+          priceScaleId: 'vol_scale',
+          lastValueVisible: false,
+          priceLineVisible: false
+        });
+        if (newStore.volume && typeof chart.priceScale === 'function') {
+          try {
+            chart.priceScale('vol_scale').applyOptions({
+              scaleMargins: { top: 0.82, bottom: 0 }
+            });
+          } catch {}
+        }
+      }
+
+      // 2. EMA 20 (Cyan)
+      if (activeIndicators.EMA_20) {
+        newStore.ema20 = addLine({
+          color: '#00e5ff',
+          lineWidth: 1.5,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'EMA 20'
+        });
+      }
+
+      // 3. EMA 50 (Yellow)
+      if (activeIndicators.EMA_50) {
+        newStore.ema50 = addLine({
+          color: '#ffd600',
+          lineWidth: 1.5,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'EMA 50'
+        });
+      }
+
+      // 4. EMA 200 (Purple)
+      if (activeIndicators.EMA_200) {
+        newStore.ema200 = addLine({
+          color: '#d500f9',
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'EMA 200'
+        });
+      }
+
+      // 5. SMA 20 (Orange)
+      if (activeIndicators.SMA_20) {
+        newStore.sma20 = addLine({
+          color: '#ff9100',
+          lineWidth: 1.5,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'SMA 20'
+        });
+      }
+
+      // 6. VWAP (Green)
+      if (activeIndicators.VWAP) {
+        newStore.vwap = addLine({
+          color: '#00e676',
+          lineWidth: 1.5,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'VWAP'
+        });
+      }
+
+      // 7. Bollinger Bands (20, 2)
+      if (activeIndicators.BB_20_2) {
+        newStore.bbUpper = addLine({
+          color: '#29b6f6',
+          lineWidth: 1,
+          lineStyle: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: 'BB Upper'
+        });
+        newStore.bbMiddle = addLine({
+          color: '#ff9100',
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: 'BB Basis'
+        });
+        newStore.bbLower = addLine({
+          color: '#29b6f6',
+          lineWidth: 1,
+          lineStyle: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: 'BB Lower'
+        });
+      }
+    } catch (e) {
+      console.warn("Indicator series initialization notice:", e);
+    }
+
+    if (isFull) {
+      fullIndicatorSeriesRef.current = newStore;
+    } else {
+      indicatorSeriesRef.current = newStore;
+    }
+  };
+
+  // Push candles and technical indicators to series
   const syncCandlesToCharts = (candleList, shouldFit = false) => {
     if (!candleList || candleList.length === 0) return;
     const tvData = formatTVCandles(candleList);
+    console.log("[SYNC] syncCandlesToCharts called with tvData count:", tvData.length, "has primary series:", Boolean(candleSeriesRef.current), "has chartInstance:", Boolean(chartInstanceRef.current));
     if (!tvData.length) return;
 
     if (candleSeriesRef.current) {
@@ -370,12 +556,93 @@ export default function TradingViewCandleChart({
         console.warn("Fullscreen chart setData notice:", e);
       }
     }
+
+    // Compute Technical Indicators Data
+    const ema20Data = activeIndicators.EMA_20 ? calculateEMA(tvData, 20) : [];
+    const ema50Data = activeIndicators.EMA_50 ? calculateEMA(tvData, 50) : [];
+    const ema200Data = activeIndicators.EMA_200 ? calculateEMA(tvData, 200) : [];
+    const sma20Data = activeIndicators.SMA_20 ? calculateSMA(tvData, 20) : [];
+    const vwapData = activeIndicators.VWAP ? calculateVWAP(tvData) : [];
+    const bbData = activeIndicators.BB_20_2 ? calculateBollingerBands(tvData, 20, 2) : null;
+    const volData = activeIndicators.VOLUME ? formatVolumeSeries(tvData) : [];
+    const rsiData = activeIndicators.RSI_14 ? calculateRSI(tvData, 14) : [];
+    const macdData = activeIndicators.MACD ? calculateMACD(tvData, 12, 26, 9) : null;
+
+    // Snapshot latest values for HUD display
+    const latestValues = {};
+    if (ema20Data.length) latestValues.ema20 = ema20Data[ema20Data.length - 1].value;
+    if (ema50Data.length) latestValues.ema50 = ema50Data[ema50Data.length - 1].value;
+    if (ema200Data.length) latestValues.ema200 = ema200Data[ema200Data.length - 1].value;
+    if (sma20Data.length) latestValues.sma20 = sma20Data[sma20Data.length - 1].value;
+    if (vwapData.length) latestValues.vwap = vwapData[vwapData.length - 1].value;
+    if (bbData && bbData.upper.length) {
+      latestValues.bbUpper = bbData.upper[bbData.upper.length - 1].value;
+      latestValues.bbMiddle = bbData.middle[bbData.middle.length - 1].value;
+      latestValues.bbLower = bbData.lower[bbData.lower.length - 1].value;
+    }
+    if (rsiData.length) latestValues.rsi = rsiData[rsiData.length - 1].value;
+    if (macdData && macdData.macd.length) {
+      latestValues.macd = macdData.macd[macdData.macd.length - 1].value;
+      latestValues.macdSignal = macdData.signal[macdData.signal.length - 1]?.value;
+      latestValues.macdHist = macdData.hist[macdData.hist.length - 1]?.value;
+    }
+    setIndicatorValues(latestValues);
+
+    // Apply to primary series
+    const pStore = indicatorSeriesRef.current;
+    try {
+      if (pStore.volume && volData.length) pStore.volume.setData(volData);
+      if (pStore.ema20 && ema20Data.length) pStore.ema20.setData(ema20Data);
+      if (pStore.ema50 && ema50Data.length) pStore.ema50.setData(ema50Data);
+      if (pStore.ema200 && ema200Data.length) pStore.ema200.setData(ema200Data);
+      if (pStore.sma20 && sma20Data.length) pStore.sma20.setData(sma20Data);
+      if (pStore.vwap && vwapData.length) pStore.vwap.setData(vwapData);
+      if (bbData) {
+        if (pStore.bbUpper && bbData.upper.length) pStore.bbUpper.setData(bbData.upper);
+        if (pStore.bbMiddle && bbData.middle.length) pStore.bbMiddle.setData(bbData.middle);
+        if (pStore.bbLower && bbData.lower.length) pStore.bbLower.setData(bbData.lower);
+      }
+    } catch (e) {
+      console.warn("Primary indicator setData notice:", e);
+    }
+
+    // Apply to fullscreen series
+    const fStore = fullIndicatorSeriesRef.current;
+    try {
+      if (fStore.volume && volData.length) fStore.volume.setData(volData);
+      if (fStore.ema20 && ema20Data.length) fStore.ema20.setData(ema20Data);
+      if (fStore.ema50 && ema50Data.length) fStore.ema50.setData(ema50Data);
+      if (fStore.ema200 && ema200Data.length) fStore.ema200.setData(ema200Data);
+      if (fStore.sma20 && sma20Data.length) fStore.sma20.setData(sma20Data);
+      if (fStore.vwap && vwapData.length) fStore.vwap.setData(vwapData);
+      if (bbData) {
+        if (fStore.bbUpper && bbData.upper.length) fStore.bbUpper.setData(bbData.upper);
+        if (fStore.bbMiddle && bbData.middle.length) fStore.bbMiddle.setData(bbData.middle);
+        if (fStore.bbLower && bbData.lower.length) fStore.bbLower.setData(bbData.lower);
+      }
+    } catch (e) {
+      console.warn("Fullscreen indicator setData notice:", e);
+    }
+
+    // Apply to RSI sub-chart
+    if (rsiSeriesRef.current && rsiData.length) {
+      try { rsiSeriesRef.current.setData(rsiData); } catch {}
+    }
+
+    // Apply to MACD sub-chart
+    if (macdData) {
+      try {
+        if (macdHistSeriesRef.current && macdData.hist.length) macdHistSeriesRef.current.setData(macdData.hist);
+        if (macdSeriesRef.current && macdData.macd.length) macdSeriesRef.current.setData(macdData.macd);
+        if (macdSignalSeriesRef.current && macdData.signal.length) macdSignalSeriesRef.current.setData(macdData.signal);
+      } catch {}
+    }
   };
 
   // 1. Fetch Historical OHLCV Series (Deep History Going Back Years)
   useEffect(() => {
-    if (!symbol) return;
-    const controller = new AbortController();
+    if (!cleanSymbol) return;
+    console.log("[CHART EFFECT] Starting fetch for:", cleanSymbol, "timeframe:", timeframe);
     setLoading(true);
     setNoData(false);
 
@@ -388,13 +655,19 @@ export default function TradingViewCandleChart({
     else if (timeframe === '1D') { period = '5y'; interval = '1d'; }
     else if (timeframe === '1W') { period = 'max'; interval = '1wk'; }
 
-    const targetSym = encodeURIComponent(symbol);
+    const targetSym = encodeURIComponent(cleanSymbol);
 
     apiFetch(`/api/stock/${targetSym}/chart?period=${period}&interval=${interval}&adjusted=${isAdjusted}&market=${currentMarket}`)
-      .then(r => r.ok ? r.json() : { data: [] })
+      .then(async (r) => {
+        if (!r) return { data: [] };
+        if (typeof r.json === 'function') {
+          return r.ok ? await r.json() : { data: [] };
+        }
+        return r;
+      })
       .then(res => {
-        if (controller.signal.aborted) return;
-        const raw = res?.data || [];
+        const raw = res?.data || (Array.isArray(res) ? res : []);
+        console.log("[CHART EFFECT] Received raw bars count:", raw.length);
         if (!raw.length) {
           setNoData(true);
           setLoading(false);
@@ -424,31 +697,28 @@ export default function TradingViewCandleChart({
           setLastCandle(parsed[parsed.length - 1]);
         }
         setLoading(false);
+        console.log("[CHART EFFECT] Set loading to false, parsed bars:", parsed.length);
 
         // Fit content ONLY on initial data fetch so user can pan/scroll freely afterwards
         syncCandlesToCharts(parsed, true);
       })
       .catch(err => {
-        if (!controller.signal.aborted) {
-          console.warn("OHLCV chart fetch notice:", err);
-          setLoading(false);
-          setUseSvgFallback(true);
-        }
+        console.warn("OHLCV chart fetch notice:", err);
+        setLoading(false);
+        setUseSvgFallback(true);
       });
-
-    return () => controller.abort();
-  }, [symbol, timeframe, isAdjusted, currentMarket]);
+  }, [cleanSymbol, timeframe, isAdjusted, currentMarket]);
 
   // 2. Real-time WebSocket Tick Stream Subscription with Strict Outlier Protection
   useEffect(() => {
-    if (!symbol) return;
-    const cleanSym = symbol.replace('.NS', '').trim();
-    const subscribedList = [symbol, cleanSym, `${cleanSym}.NS`];
+    if (!cleanSymbol) return;
+    const baseSym = cleanSymbol.replace('.NS', '').trim();
+    const subscribedList = [cleanSymbol, baseSym, `${baseSym}.NS`];
     wsClient.subscribe(subscribedList);
 
     const unsubscribe = wsClient.onTick((payload) => {
       if (payload.type === 'TICK_STREAM' && payload.ticks) {
-        const tick = findTick(payload.ticks, symbol);
+        const tick = findTick(payload.ticks, cleanSymbol);
         if (tick && tick.price) {
           const livePrice = Number(tick.price);
           if (!Number.isFinite(livePrice) || livePrice <= 0) return;
@@ -569,6 +839,7 @@ export default function TradingViewCandleChart({
       if (!chartContainerRef.current) return;
       try {
         const lc = await import('lightweight-charts');
+        lcRef.current = lc;
         if (!isMounted || !chartContainerRef.current) return;
 
         const container = chartContainerRef.current;
@@ -643,18 +914,10 @@ export default function TradingViewCandleChart({
 
         chartInstanceRef.current = chart;
         candleSeriesRef.current = candleSeries;
+        setupIndicatorSeries(chart, false);
 
         if (candlesRef.current && candlesRef.current.length > 0 && candleSeries) {
-          const tvData = formatTVCandles(candlesRef.current);
-          candleSeries.setData(tvData);
-          if (tvData.length > 80) {
-            chart.timeScale().setVisibleLogicalRange({
-              from: tvData.length - 75,
-              to: tvData.length + 10
-            });
-          } else {
-            chart.timeScale().fitContent();
-          }
+          syncCandlesToCharts(candlesRef.current, true);
         }
 
         // Real-time synchronization of drawing overlay with pan, zoom and scroll
@@ -713,6 +976,7 @@ export default function TradingViewCandleChart({
       if (!fullChartContainerRef.current) return;
       try {
         const lc = await import('lightweight-charts');
+        lcRef.current = lc;
         if (!isMounted || !fullChartContainerRef.current) return;
 
         const container = fullChartContainerRef.current;
@@ -787,18 +1051,10 @@ export default function TradingViewCandleChart({
 
         fullChartInstanceRef.current = fullChart;
         fullCandleSeriesRef.current = candleSeries;
+        setupIndicatorSeries(fullChart, true);
 
         if (candlesRef.current && candlesRef.current.length > 0 && candleSeries) {
-          const tvData = formatTVCandles(candlesRef.current);
-          candleSeries.setData(tvData);
-          if (tvData.length > 100) {
-            fullChart.timeScale().setVisibleLogicalRange({
-              from: tvData.length - 95,
-              to: tvData.length + 12
-            });
-          } else {
-            fullChart.timeScale().fitContent();
-          }
+          syncCandlesToCharts(candlesRef.current, true);
         }
 
         fullChart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
@@ -835,6 +1091,240 @@ export default function TradingViewCandleChart({
       fullCandleSeriesRef.current = null;
     };
   }, [isFullScreen, isLandscape]);
+
+  // Reactive updates when activeIndicators are toggled by user
+  useEffect(() => {
+    if (chartInstanceRef.current) {
+      setupIndicatorSeries(chartInstanceRef.current, false);
+      if (candlesRef.current.length) syncCandlesToCharts(candlesRef.current, false);
+    }
+    if (fullChartInstanceRef.current) {
+      setupIndicatorSeries(fullChartInstanceRef.current, true);
+      if (candlesRef.current.length) syncCandlesToCharts(candlesRef.current, false);
+    }
+  }, [activeIndicators]);
+
+  // 4. Mount Synchronized RSI (14) Oscillator Sub-Pane
+  useEffect(() => {
+    let rsiChart = null;
+    let isMounted = true;
+    if (!activeIndicators.RSI_14 || !rsiChartContainerRef.current) return;
+
+    async function initRsi() {
+      try {
+        const lc = await import('lightweight-charts');
+        if (!isMounted || !rsiChartContainerRef.current) return;
+        const container = rsiChartContainerRef.current;
+        container.innerHTML = '';
+        rsiChart = lc.createChart(container, {
+          width: container.clientWidth || 600,
+          height: 85,
+          layout: {
+            background: { type: lc.ColorType.Solid, color: '#090d16' },
+            textColor: '#94a3b8',
+            fontSize: 10,
+            fontFamily: 'JetBrains Mono, monospace'
+          },
+          grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.03)' }
+          },
+          rightPriceScale: {
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            scaleMargins: { top: 0.1, bottom: 0.1 }
+          },
+          timeScale: {
+            visible: false,
+            borderColor: 'rgba(255, 255, 255, 0.08)'
+          }
+        });
+
+        let rsiSeries = null;
+        if (lc.LineSeries && typeof rsiChart.addSeries === 'function') {
+          rsiSeries = rsiChart.addSeries(lc.LineSeries, {
+            color: '#ab47bc',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'RSI 14'
+          });
+        } else if (typeof rsiChart.addLineSeries === 'function') {
+          rsiSeries = rsiChart.addLineSeries({
+            color: '#ab47bc',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'RSI 14'
+          });
+        }
+
+        try {
+          if (rsiSeries?.createPriceLine) {
+            rsiSeries.createPriceLine({ price: 70, color: 'rgba(255, 82, 82, 0.5)', lineWidth: 1, lineStyle: 2, title: 'OB 70' });
+            rsiSeries.createPriceLine({ price: 30, color: 'rgba(0, 230, 118, 0.5)', lineWidth: 1, lineStyle: 2, title: 'OS 30' });
+          }
+        } catch {}
+
+        rsiChartInstanceRef.current = rsiChart;
+        rsiSeriesRef.current = rsiSeries;
+
+        if (candlesRef.current.length > 0 && rsiSeries) {
+          const rsiData = calculateRSI(formatTVCandles(candlesRef.current), 14);
+          rsiSeries.setData(rsiData);
+        }
+
+        if (chartInstanceRef.current) {
+          const mainTs = chartInstanceRef.current.timeScale();
+          const rsiTs = rsiChart.timeScale();
+          mainTs.subscribeVisibleLogicalRangeChange(range => {
+            if (range && rsiTs) {
+              try { rsiTs.setVisibleLogicalRange(range); } catch {}
+            }
+          });
+          const currRange = mainTs.getVisibleLogicalRange();
+          if (currRange && rsiTs) {
+            try { rsiTs.setVisibleLogicalRange(currRange); } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn("RSI chart init error:", e);
+      }
+    }
+    initRsi();
+
+    return () => {
+      isMounted = false;
+      if (rsiChart) {
+        try { rsiChart.remove(); } catch {}
+      }
+      rsiChartInstanceRef.current = null;
+      rsiSeriesRef.current = null;
+    };
+  }, [activeIndicators.RSI_14]);
+
+  // 5. Mount Synchronized MACD Oscillator Sub-Pane
+  useEffect(() => {
+    let macdChart = null;
+    let isMounted = true;
+    if (!activeIndicators.MACD || !macdChartContainerRef.current) return;
+
+    async function initMacd() {
+      try {
+        const lc = await import('lightweight-charts');
+        if (!isMounted || !macdChartContainerRef.current) return;
+        const container = macdChartContainerRef.current;
+        container.innerHTML = '';
+        macdChart = lc.createChart(container, {
+          width: container.clientWidth || 600,
+          height: 90,
+          layout: {
+            background: { type: lc.ColorType.Solid, color: '#090d16' },
+            textColor: '#94a3b8',
+            fontSize: 10,
+            fontFamily: 'JetBrains Mono, monospace'
+          },
+          grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.03)' }
+          },
+          rightPriceScale: {
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            scaleMargins: { top: 0.1, bottom: 0.1 }
+          },
+          timeScale: {
+            visible: false,
+            borderColor: 'rgba(255, 255, 255, 0.08)'
+          }
+        });
+
+        let histSeries = null;
+        let macdLineSeries = null;
+        let signalLineSeries = null;
+
+        if (lc.HistogramSeries && typeof macdChart.addSeries === 'function') {
+          histSeries = macdChart.addSeries(lc.HistogramSeries, {
+            priceFormat: { type: 'volume' },
+            lastValueVisible: false,
+            priceLineVisible: false
+          });
+          macdLineSeries = macdChart.addSeries(lc.LineSeries, {
+            color: '#2979ff',
+            lineWidth: 1.5,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'MACD'
+          });
+          signalLineSeries = macdChart.addSeries(lc.LineSeries, {
+            color: '#ff6d00',
+            lineWidth: 1.5,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'Signal'
+          });
+        } else if (typeof macdChart.addHistogramSeries === 'function') {
+          histSeries = macdChart.addHistogramSeries({
+            priceFormat: { type: 'volume' },
+            lastValueVisible: false,
+            priceLineVisible: false
+          });
+          macdLineSeries = macdChart.addLineSeries({
+            color: '#2979ff',
+            lineWidth: 1.5,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'MACD'
+          });
+          signalLineSeries = macdChart.addLineSeries({
+            color: '#ff6d00',
+            lineWidth: 1.5,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: 'Signal'
+          });
+        }
+
+        macdChartInstanceRef.current = macdChart;
+        macdHistSeriesRef.current = histSeries;
+        macdSeriesRef.current = macdLineSeries;
+        macdSignalSeriesRef.current = signalLineSeries;
+
+        if (candlesRef.current.length > 0) {
+          const res = calculateMACD(formatTVCandles(candlesRef.current), 12, 26, 9);
+          if (res.hist.length && histSeries) histSeries.setData(res.hist);
+          if (res.macd.length && macdLineSeries) macdLineSeries.setData(res.macd);
+          if (res.signal.length && signalLineSeries) signalLineSeries.setData(res.signal);
+        }
+
+        if (chartInstanceRef.current) {
+          const mainTs = chartInstanceRef.current.timeScale();
+          const macdTs = macdChart.timeScale();
+          mainTs.subscribeVisibleLogicalRangeChange(range => {
+            if (range && macdTs) {
+              try { macdTs.setVisibleLogicalRange(range); } catch {}
+            }
+          });
+          const currRange = mainTs.getVisibleLogicalRange();
+          if (currRange && macdTs) {
+            try { macdTs.setVisibleLogicalRange(currRange); } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn("MACD chart init error:", e);
+      }
+    }
+    initMacd();
+
+    return () => {
+      isMounted = false;
+      if (macdChart) {
+        try { macdChart.remove(); } catch {}
+      }
+      macdChartInstanceRef.current = null;
+      macdSeriesRef.current = null;
+      macdSignalSeriesRef.current = null;
+      macdHistSeriesRef.current = null;
+    };
+  }, [activeIndicators.MACD]);
 
   // Chart Drawing Keyboard Shortcuts
   useEffect(() => {
@@ -1333,6 +1823,30 @@ export default function TradingViewCandleChart({
               <Zap style={{ width: '12px', height: '12px' }} />
               <span>{activeStrategy ? activeStrategy.name.slice(0, 15) : 'Strategy Studio'}</span>
             </button>
+
+            {/* 📊 Technical Indicators Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setShowIndicatorModal(true)}
+              title="Technical Indicators (EMA, SMA, Bollinger, VWAP, Volume, RSI, MACD)"
+              style={{
+                padding: '4px 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--accent-blue-border)',
+                backgroundColor: Object.values(activeIndicators).some(Boolean) ? 'var(--accent-blue-bg)' : 'transparent',
+                color: 'var(--accent-blue)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '10px',
+                fontWeight: 800,
+                marginLeft: '4px'
+              }}
+            >
+              <Activity style={{ width: '12px', height: '12px' }} />
+              <span>Indicators ({Object.values(activeIndicators).filter(Boolean).length})</span>
+            </button>
           </div>
         </div>
 
@@ -1643,6 +2157,56 @@ export default function TradingViewCandleChart({
           </div>
         )}
 
+        {/* 📊 Floating Active Indicators Legend Tags */}
+        <div style={{
+          position: 'absolute',
+          top: (activeStrategy && strategyResult) ? '52px' : '8px',
+          left: '8px',
+          zIndex: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          flexWrap: 'wrap',
+          pointerEvents: 'auto'
+        }}>
+          {activeIndicators.EMA_20 && indicatorValues.ema20 && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', border: '1px solid rgba(0,229,255,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              EMA 20: {currPrefix}{indicatorValues.ema20}
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_20: false }))} style={{ background: 'none', border: 'none', color: '#00e5ff', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+          {activeIndicators.EMA_50 && indicatorValues.ema50 && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#ffd600', backgroundColor: 'rgba(255,214,0,0.12)', border: '1px solid rgba(255,214,0,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              EMA 50: {currPrefix}{indicatorValues.ema50}
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_50: false }))} style={{ background: 'none', border: 'none', color: '#ffd600', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+          {activeIndicators.EMA_200 && indicatorValues.ema200 && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#d500f9', backgroundColor: 'rgba(213,0,249,0.12)', border: '1px solid rgba(213,0,249,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              EMA 200: {currPrefix}{indicatorValues.ema200}
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_200: false }))} style={{ background: 'none', border: 'none', color: '#d500f9', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+          {activeIndicators.SMA_20 && indicatorValues.sma20 && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#ff9100', backgroundColor: 'rgba(255,145,0,0.12)', border: '1px solid rgba(255,145,0,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              SMA 20: {currPrefix}{indicatorValues.sma20}
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, SMA_20: false }))} style={{ background: 'none', border: 'none', color: '#ff9100', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+          {activeIndicators.VWAP && indicatorValues.vwap && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#00e676', backgroundColor: 'rgba(0,230,118,0.12)', border: '1px solid rgba(0,230,118,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              VWAP: {currPrefix}{indicatorValues.vwap}
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, VWAP: false }))} style={{ background: 'none', border: 'none', color: '#00e676', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+          {activeIndicators.BB_20_2 && indicatorValues.bbUpper && (
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#29b6f6', backgroundColor: 'rgba(41,182,246,0.12)', border: '1px solid rgba(41,182,246,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              BB: [{indicatorValues.bbLower} - {indicatorValues.bbUpper}]
+              <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, BB_20_2: false }))} style={{ background: 'none', border: 'none', color: '#29b6f6', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
+            </span>
+          )}
+        </div>
+
         <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
         {renderDrawingsSvg()}
 
@@ -1659,6 +2223,40 @@ export default function TradingViewCandleChart({
           </div>
         )}
       </div>
+
+      {/* 🌊 RSI (14) Synchronized Oscillator Sub-Pane */}
+      {activeIndicators.RSI_14 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#ab47bc', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              RSI (14): <strong style={{ color: indicatorValues.rsi > 70 ? 'var(--accent-red)' : indicatorValues.rsi < 30 ? 'var(--accent-green)' : 'var(--text-primary)' }}>{indicatorValues.rsi || '-'}</strong>
+            </span>
+            <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, RSI_14: false }))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '9px' }}>✕ Remove</button>
+          </div>
+          <div 
+            ref={rsiChartContainerRef} 
+            style={{ width: '100%', height: '85px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--md-sys-color-outline-variant)', backgroundColor: '#090d16' }} 
+          />
+        </div>
+      )}
+
+      {/* 🎯 MACD (12, 26, 9) Synchronized Oscillator Sub-Pane */}
+      {activeIndicators.MACD && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#2979ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              MACD: <strong style={{ color: '#2979ff' }}>{indicatorValues.macd || '-'}</strong>
+              <span style={{ color: '#ff6d00' }}>Sig: {indicatorValues.macdSignal || '-'}</span>
+              <span style={{ color: (indicatorValues.macdHist || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>Hist: {indicatorValues.macdHist || '-'}</span>
+            </span>
+            <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, MACD: false }))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '9px' }}>✕ Remove</button>
+          </div>
+          <div 
+            ref={macdChartContainerRef} 
+            style={{ width: '100%', height: '90px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--md-sys-color-outline-variant)', backgroundColor: '#090d16' }} 
+          />
+        </div>
+      )}
 
       {/* 🚀 STRATEGY STUDIO & CUSTOM STRATEGY CREATOR MODAL */}
       {showStrategyModal && (
@@ -2486,6 +3084,221 @@ export default function TradingViewCandleChart({
           >
             <div ref={fullChartContainerRef} style={{ width: '100%', height: '100%' }} />
             {renderDrawingsSvg()}
+          </div>
+        </div>
+      )}
+
+      {/* 📊 Technical Indicators Selection Studio Modal */}
+      {showIndicatorModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999999,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowIndicatorModal(false); }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8)',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity style={{ width: '20px', height: '20px', color: 'var(--accent-blue)' }} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>Technical Indicators Studio</h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>Toggle overlays, moving averages, and oscillators</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowIndicatorModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X style={{ width: '18px', height: '18px' }} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* ⚡ Quick Pro Bundles */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  Quick Bundles
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndicators({ EMA_20: true, EMA_50: true, EMA_200: true, SMA_20: false, BB_20_2: false, VWAP: false, VOLUME: true, RSI_14: false, MACD: false })}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(0, 229, 255, 0.3)', backgroundColor: 'rgba(0, 229, 255, 0.08)', color: '#00e5ff', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    🚀 Trend Hunter<br/>
+                    <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 500 }}>EMA 20+50+200</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndicators({ EMA_20: true, EMA_50: false, EMA_200: false, SMA_20: false, BB_20_2: false, VWAP: true, VOLUME: true, RSI_14: false, MACD: false })}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(0, 230, 118, 0.3)', backgroundColor: 'rgba(0, 230, 118, 0.08)', color: '#00e676', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    ⚡ Scalper Alpha<br/>
+                    <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 500 }}>EMA 20 + VWAP</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndicators({ EMA_20: false, EMA_50: false, EMA_200: false, SMA_20: false, BB_20_2: true, VWAP: false, VOLUME: true, RSI_14: true, MACD: false })}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(171, 71, 188, 0.3)', backgroundColor: 'rgba(171, 71, 188, 0.08)', color: '#ab47bc', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    🌊 Mean Reversion<br/>
+                    <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 500 }}>Bollinger + RSI</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndicators({ EMA_20: true, EMA_50: false, EMA_200: false, SMA_20: false, BB_20_2: false, VWAP: false, VOLUME: true, RSI_14: true, MACD: true })}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255, 214, 0, 0.3)', backgroundColor: 'rgba(255, 214, 0, 0.08)', color: '#ffd600', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    🎯 Full Momentum<br/>
+                    <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 500 }}>EMA + RSI + MACD</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Indicator Toggles */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  Overlay Indicators (Price Canvas)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[
+                    { key: 'EMA_20', label: 'EMA 20 (Exponential Moving Average)', color: '#00e5ff', desc: 'Short-term trend momentum line' },
+                    { key: 'EMA_50', label: 'EMA 50 (Exponential Moving Average)', color: '#ffd600', desc: 'Medium-term institutional baseline' },
+                    { key: 'EMA_200', label: 'EMA 200 (Exponential Moving Average)', color: '#d500f9', desc: 'Major long-term bull/bear regime filter' },
+                    { key: 'SMA_20', label: 'SMA 20 (Simple Moving Average)', color: '#ff9100', desc: 'Classic 20-period arithmetic mean' },
+                    { key: 'VWAP', label: 'VWAP (Volume Weighted Avg Price)', color: '#00e676', desc: 'Intraday volume-weighted benchmark' },
+                    { key: 'BB_20_2', label: 'Bollinger Bands (20, 2)', color: '#29b6f6', desc: 'Volatility bands with 2-std deviation envelope' },
+                    { key: 'VOLUME', label: 'Volume Histogram', color: '#ffffff', desc: 'Bottom volume bars colored by candle direction' }
+                  ].map(item => (
+                    <label
+                      key={item.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: activeIndicators[item.key] ? 'rgba(255,255,255,0.06)' : 'var(--md-sys-color-surface-container)',
+                        border: activeIndicators[item.key] ? `1px solid ${item.color}60` : '1px solid var(--md-sys-color-outline-variant)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: item.color }} />
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{item.label}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{item.desc}</div>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={!!activeIndicators[item.key]}
+                        onChange={(e) => setActiveIndicators(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: item.color }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sub-Pane Oscillators */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  Oscillator Sub-Panes
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[
+                    { key: 'RSI_14', label: 'RSI (14) - Relative Strength Index', color: '#ab47bc', desc: 'Momentum oscillator with 70/30 overbought & oversold baseline guides' },
+                    { key: 'MACD', label: 'MACD (12, 26, 9) - Moving Average Convergence Divergence', color: '#2979ff', desc: 'Trend-following momentum oscillator with signal line & histogram' }
+                  ].map(item => (
+                    <label
+                      key={item.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: activeIndicators[item.key] ? 'rgba(255,255,255,0.06)' : 'var(--md-sys-color-surface-container)',
+                        border: activeIndicators[item.key] ? `1px solid ${item.color}60` : '1px solid var(--md-sys-color-outline-variant)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: item.color }} />
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{item.label}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{item.desc}</div>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={!!activeIndicators[item.key]}
+                        onChange={(e) => setActiveIndicators(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: item.color }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--md-sys-color-outline-variant)', backgroundColor: 'var(--md-sys-color-surface-container)' }}>
+              <button
+                type="button"
+                onClick={() => setActiveIndicators({ EMA_20: false, EMA_50: false, EMA_200: false, SMA_20: false, BB_20_2: false, VWAP: false, VOLUME: false, RSI_14: false, MACD: false })}
+                style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Clear All
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowIndicatorModal(false)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--accent-blue)',
+                  color: '#090d16',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                Apply Indicators ✓
+              </button>
+            </div>
           </div>
         </div>
       )}

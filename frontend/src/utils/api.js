@@ -6,8 +6,9 @@
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 export const LIVE_CLOUDFLARE_URL = 'https://enabled-entity-logan-pipeline.trycloudflare.com';
 
+const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
-let activeWorkingBase = null;
+let activeWorkingBase = isLocalHost ? 'http://127.0.0.1:8000' : null;
 let probePromise = null;
 
 export function isSecureContext() {
@@ -40,29 +41,29 @@ export function getCandidateBases() {
   const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_server_ip') : null;
   const list = [];
 
-  // 1. User manual override (if set in settings and not obsolete)
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // 1. If running on localhost browser, prioritize local fast backend directly
+  if (isLocalHost) {
+    list.push('http://localhost:8000');
+    list.push('http://127.0.0.1:8000');
+  }
+
+  // 2. User manual override (if set in settings and not obsolete)
   if (customIp && customIp.trim() && !customIp.includes('pure-walks')) {
     const val = customIp.trim();
     list.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
   }
 
-  // 2. Dynamic tunnel from Firebase CDN or LIVE_CLOUDFLARE_URL
+  // 3. Dynamic tunnel from Firebase CDN or LIVE_CLOUDFLARE_URL
   if (dynamicApiBase) {
     list.push(dynamicApiBase);
   }
   list.push(LIVE_CLOUDFLARE_URL);
 
-  // 3. Active working base (cached from recent successful call)
+  // 4. Active working base (cached from recent successful call)
   if (activeWorkingBase) {
     list.push(activeWorkingBase);
-  }
-
-  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  // 3. If running on localhost browser, prioritize localhost directly
-  if (isLocalHost) {
-    list.push('http://localhost:8000');
-    list.push('http://127.0.0.1:8000');
   }
 
   // 4. Dynamic tunnel from Firebase CDN
@@ -230,10 +231,16 @@ export async function apiFetch(endpointPath, options = {}) {
       if (res.ok || (res.status >= 400 && res.status < 500)) {
         return res;
       }
-      // If server returned 5xx server failure, invalidate fast path and fall through to race
-      activeWorkingBase = null;
-    } catch {
-      activeWorkingBase = null;
+      if (res.status >= 500) {
+        activeWorkingBase = null;
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        activeWorkingBase = null;
+      }
+      if (options.signal?.aborted) {
+        throw err;
+      }
     }
   }
 
