@@ -282,8 +282,8 @@ export default function TradingViewCandleChart({
     try { localStorage.setItem('mm_user_strategies', JSON.stringify(updated)); } catch {}
   };
 
-  // Push candles to series whenever candles update
-  const syncCandlesToCharts = (candleList) => {
+  // Push candles to series: shouldFit is TRUE ONLY on initial REST fetch or symbol/timeframe switch
+  const syncCandlesToCharts = (candleList, shouldFit = false) => {
     if (!candleList || candleList.length === 0) return;
     const tvData = formatTVCandles(candleList);
     if (!tvData.length) return;
@@ -291,7 +291,7 @@ export default function TradingViewCandleChart({
     if (candleSeriesRef.current) {
       try {
         candleSeriesRef.current.setData(tvData);
-        if (chartInstanceRef.current?.timeScale) {
+        if (shouldFit && chartInstanceRef.current?.timeScale) {
           chartInstanceRef.current.timeScale().fitContent();
         }
       } catch (e) {
@@ -302,7 +302,7 @@ export default function TradingViewCandleChart({
     if (fullCandleSeriesRef.current) {
       try {
         fullCandleSeriesRef.current.setData(tvData);
-        if (fullChartInstanceRef.current?.timeScale) {
+        if (shouldFit && fullChartInstanceRef.current?.timeScale) {
           fullChartInstanceRef.current.timeScale().fitContent();
         }
       } catch (e) {
@@ -364,7 +364,8 @@ export default function TradingViewCandleChart({
         }
         setLoading(false);
 
-        syncCandlesToCharts(parsed);
+        // Fit content ONLY on initial data fetch so user can pan/scroll freely afterwards
+        syncCandlesToCharts(parsed, true);
       })
       .catch(err => {
         if (!controller.signal.aborted) {
@@ -537,7 +538,20 @@ export default function TradingViewCandleChart({
           },
           timeScale: { 
             borderColor: 'rgba(255, 255, 255, 0.08)',
-            timeVisible: true
+            timeVisible: true,
+            shiftVisibleRangeOnNewBar: false,
+            allowBoldLabels: true
+          },
+          handleScroll: {
+            mouseWheel: true,
+            pressedMouseMove: true,
+            horzTouchDrag: true,
+            vertTouchDrag: false
+          },
+          handleScale: {
+            axisPressedMouseMove: true,
+            mouseWheel: true,
+            pinch: true
           }
         });
 
@@ -654,7 +668,20 @@ export default function TradingViewCandleChart({
           },
           timeScale: { 
             borderColor: 'rgba(255, 255, 255, 0.1)',
-            timeVisible: true
+            timeVisible: true,
+            shiftVisibleRangeOnNewBar: false,
+            allowBoldLabels: true
+          },
+          handleScroll: {
+            mouseWheel: true,
+            pressedMouseMove: true,
+            horzTouchDrag: true,
+            vertTouchDrag: false
+          },
+          handleScale: {
+            axisPressedMouseMove: true,
+            mouseWheel: true,
+            pinch: true
           }
         });
 
@@ -1007,13 +1034,6 @@ export default function TradingViewCandleChart({
       </svg>
     );
   };
-
-  // Synchronize candles whenever candles state updates
-  useEffect(() => {
-    if (candles && candles.length > 0) {
-      syncCandlesToCharts(candles);
-    }
-  }, [candles]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
