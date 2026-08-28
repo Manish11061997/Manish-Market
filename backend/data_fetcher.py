@@ -609,11 +609,11 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     
     for url in urls:
         try:
-            res = _http_session.get(url, headers=headers, timeout=6.0)
+            res = _http_session.get(url, headers=headers, timeout=3.0)
             if res.status_code in (429, 401):
                 try:
-                    _http_session.get("https://fc.yahoo.com", timeout=3.0)
-                    res = _http_session.get(url, headers=headers, timeout=6.0)
+                    _http_session.get("https://fc.yahoo.com", timeout=2.0)
+                    res = _http_session.get(url, headers=headers, timeout=3.0)
                 except Exception:
                     pass
 
@@ -678,10 +678,9 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
                     
                     if rows:
                         df = pd.DataFrame(rows)
-                        _ttl_cache_set(cache_key, df, ttl=60)
+                        _ttl_cache_set(cache_key, df, ttl=300)
                         return df
         except Exception as e:
-            logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
             logger.debug(f"OHLCV fetch failed on {url} for {clean_sym}: {e}")
 
     # Resilient fallback: Generate realistic price series anchored directly to base_price
@@ -701,7 +700,7 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
             if found:
                 base_price = float(found.get("price") or found.get("basePrice") or 1000.0)
 
-        num_days = 200 if rng in ["1y", "2y"] else 60
+        num_days = 365 if rng in ["1y", "2y", "5y", "10y"] else 90
         now_ts = int(time.time())
         day_secs = 86400
         
@@ -740,7 +739,7 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
             
         if sim_rows:
             df = pd.DataFrame(sim_rows)
-            _ttl_cache_set(cache_key, df, ttl=30)
+            _ttl_cache_set(cache_key, df, ttl=300)
             return df
     except Exception as e:
         logger.error(f"Fallback generator error: {e}")
