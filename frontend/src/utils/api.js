@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://viewers-montreal-cigarette-license.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://televisions-factor-conferences-instead.trycloudflare.com';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
@@ -28,8 +28,8 @@ export function isCapacitorNative() {
 if (typeof window !== 'undefined') {
   try {
     const saved = localStorage.getItem('manish_market_server_ip');
-    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks') || saved.includes('logan-pipeline') || saved.includes('ict-environments'))) {
-      if (!saved.includes('viewers-montreal-cigarette-license')) {
+    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks') || saved.includes('logan-pipeline') || saved.includes('ict-environments') || saved.includes('viewers-montreal'))) {
+      if (!saved.includes('televisions-factor-conferences')) {
         localStorage.removeItem('manish_market_server_ip');
       }
     }
@@ -87,17 +87,30 @@ export function getCandidateBases() {
   return uniqueList;
 }
 
-// Background auto-discovery from Firebase CDN
-if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-  fetch('https://manishmarket.web.app/config.json?t=' + Date.now(), { cache: 'no-store' })
-    .then(r => r.ok ? r.json() : null)
-    .then(cfg => {
+export async function refreshConfigFromCdn() {
+  if (typeof window === 'undefined') return null;
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocal) {
+    activeWorkingBase = window.location.origin;
+    return activeWorkingBase;
+  }
+  try {
+    const res = await fetch('/config.json?t=' + Date.now(), { cache: 'no-store' });
+    if (res.ok) {
+      const cfg = await res.json();
       if (cfg && (cfg.tunnelUrl || cfg.apiUrl)) {
         dynamicApiBase = cfg.tunnelUrl || cfg.apiUrl;
-        probeFastestServer();
+        activeWorkingBase = dynamicApiBase;
+        return dynamicApiBase;
       }
-    })
-    .catch(() => {});
+    }
+  } catch {}
+  return null;
+}
+
+// Background auto-discovery on page initialization
+if (typeof window !== 'undefined') {
+  refreshConfigFromCdn();
 }
 
 /**
