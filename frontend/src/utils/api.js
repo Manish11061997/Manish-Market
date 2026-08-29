@@ -4,11 +4,11 @@
  */
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://enabled-entity-logan-pipeline.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://viewers-montreal-cigarette-license.trycloudflare.com';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = LIVE_CLOUDFLARE_URL;
-let activeWorkingBase = isLocalHost ? 'http://127.0.0.1:8000' : null;
+let activeWorkingBase = isLocalHost ? (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000') : null;
 let probePromise = null;
 
 export function isSecureContext() {
@@ -28,8 +28,8 @@ export function isCapacitorNative() {
 if (typeof window !== 'undefined') {
   try {
     const saved = localStorage.getItem('manish_market_server_ip');
-    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks'))) {
-      if (!saved.includes('enabled-entity-logan-pipeline')) {
+    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks') || saved.includes('logan-pipeline') || saved.includes('ict-environments'))) {
+      if (!saved.includes('viewers-montreal-cigarette-license')) {
         localStorage.removeItem('manish_market_server_ip');
       }
     }
@@ -43,8 +43,9 @@ export function getCandidateBases() {
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // 1. If running on localhost browser, prioritize local fast backend directly
-  if (isLocalHost) {
+  // 1. If running on localhost browser, prioritize local origin via Vite proxy or direct backend
+  if (isLocalHost && typeof window !== 'undefined') {
+    list.push(window.location.origin);
     list.push('http://localhost:8000');
     list.push('http://127.0.0.1:8000');
   }
@@ -66,26 +67,19 @@ export function getCandidateBases() {
     list.push(activeWorkingBase);
   }
 
-  // 4. Dynamic tunnel from Firebase CDN
-  if (dynamicApiBase) {
-    list.push(dynamicApiBase);
-  }
-
-  // 5. Default Cloudflare tunnel
-  list.push(LIVE_CLOUDFLARE_URL);
-
-  // 6. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
+  // 5. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
   list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
 
-  // 7. Android emulator fallback
+  // 6. Android emulator fallback
   list.push('http://10.0.2.2:8000');
-  list.push('http://localhost:8000');
-  list.push('http://127.0.0.1:8000');
 
   const uniqueList = Array.from(new Set(list.filter(Boolean)));
 
-  // If running in HTTPS Web context, strictly enforce HTTPS to prevent browser "Not Secure" Mixed Content flags
+  // If running in HTTPS Web context, prioritize HTTPS endpoints
   if (isSecureContext() && !isCapacitorNative()) {
+    if (isLocalHost) {
+      return [window.location.origin, LIVE_CLOUDFLARE_URL];
+    }
     const secureOnly = uniqueList.filter(url => url && url.startsWith('https://'));
     return secureOnly.length ? secureOnly : [LIVE_CLOUDFLARE_URL];
   }

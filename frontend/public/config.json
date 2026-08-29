@@ -1,7 +1,5 @@
 {
-  "apiUrl": "https://enabled-entity-logan-pipeline.trycloudflare.com",
-  "tunnelUrl": "https://enabled-entity-logan-pipeline.trycloudflare.com",
-  "lanUrl": "http://192.168.31.184:8000",
-  "version": "1.8.0",
-  "updatedAt": "2026-08-27T19:01:00Z"
+  "apiUrl": "https://viewers-montreal-cigarette-license.trycloudflare.com",
+  "tunnelUrl": "https://viewers-montreal-cigarette-license.trycloudflare.com",
+  "buildTime": "2026-08-29T09:14:00Z"
 }

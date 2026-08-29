@@ -10,7 +10,19 @@ export default defineConfig({
     port: 3005,
     host: true,
     strictPort: false,
-    https: true
+    https: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/ws': {
+        target: 'ws://127.0.0.1:8000',
+        ws: true,
+        changeOrigin: true
+      }
+    }
   },
   build: {
     target: 'esnext'
