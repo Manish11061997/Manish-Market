@@ -1175,15 +1175,14 @@ export default function TradingViewCandleChart({
 
         if (chartInstanceRef.current) {
           const mainTs = chartInstanceRef.current.timeScale();
-          const rsiTs = rsiChart.timeScale();
           mainTs.subscribeVisibleLogicalRangeChange(range => {
-            if (range && rsiTs) {
-              try { rsiTs.setVisibleLogicalRange(range); } catch {}
+            if (isMounted && range && rsiChartInstanceRef.current === rsiChart) {
+              try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch {}
             }
           });
           const currRange = mainTs.getVisibleLogicalRange();
-          if (currRange && rsiTs) {
-            try { rsiTs.setVisibleLogicalRange(currRange); } catch {}
+          if (currRange && isMounted && rsiChartInstanceRef.current === rsiChart) {
+            try { rsiChart.timeScale().setVisibleLogicalRange(currRange); } catch {}
           }
         }
       } catch (e) {
@@ -1194,11 +1193,11 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
+      rsiChartInstanceRef.current = null;
+      rsiSeriesRef.current = null;
       if (rsiChart) {
         try { rsiChart.remove(); } catch {}
       }
-      rsiChartInstanceRef.current = null;
-      rsiSeriesRef.current = null;
     };
   }, [activeIndicators.RSI_14]);
 
@@ -1297,15 +1296,14 @@ export default function TradingViewCandleChart({
 
         if (chartInstanceRef.current) {
           const mainTs = chartInstanceRef.current.timeScale();
-          const macdTs = macdChart.timeScale();
           mainTs.subscribeVisibleLogicalRangeChange(range => {
-            if (range && macdTs) {
-              try { macdTs.setVisibleLogicalRange(range); } catch {}
+            if (isMounted && range && macdChartInstanceRef.current === macdChart) {
+              try { macdChart.timeScale().setVisibleLogicalRange(range); } catch {}
             }
           });
           const currRange = mainTs.getVisibleLogicalRange();
-          if (currRange && macdTs) {
-            try { macdTs.setVisibleLogicalRange(currRange); } catch {}
+          if (currRange && isMounted && macdChartInstanceRef.current === macdChart) {
+            try { macdChart.timeScale().setVisibleLogicalRange(currRange); } catch {}
           }
         }
       } catch (e) {
@@ -1316,13 +1314,13 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
-      if (macdChart) {
-        try { macdChart.remove(); } catch {}
-      }
       macdChartInstanceRef.current = null;
       macdSeriesRef.current = null;
       macdSignalSeriesRef.current = null;
       macdHistSeriesRef.current = null;
+      if (macdChart) {
+        try { macdChart.remove(); } catch {}
+      }
     };
   }, [activeIndicators.MACD]);
 
