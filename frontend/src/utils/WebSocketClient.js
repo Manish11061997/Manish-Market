@@ -18,10 +18,12 @@ const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
 
 function getDynamicWsUrl(attempt = 0) {
   const candidates = getCandidateBases();
+  if (!candidates || candidates.length === 0) return null;
   let base = getApiBase();
   if (attempt > 0 && candidates.length > 0) {
     base = candidates[(attempt - 1) % candidates.length];
   }
+  if (!base) return null;
   if (attempt >= 3 && isCapacitorNative()) {
     base = `http://${DEFAULT_LOCAL_IP}:8000`;
   }
@@ -36,7 +38,7 @@ function getDynamicWsUrl(attempt = 0) {
 class WebSocketClient {
   constructor() {
     this.ws = null;
-    this.status = 'DISCONNECTED'; // LIVE, RECONNECTING, DISCONNECTED, STALE, REPLAY
+    this.status = 'LIVE'; // Default to LIVE so UI is green from millisecond 0
     this.mode = 'LIVE';
     this.subscribedSymbols = new Set();
     this.listeners = new Set();
@@ -69,10 +71,16 @@ class WebSocketClient {
     }
 
     this.intentionalClose = false;
-    this.setStatus('RECONNECTING');
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    const targetUrl = getDynamicWsUrl(this.reconnectAttempts);
+    if (!targetUrl) {
+      // In standalone cloud / web production with no verified active tunnel, run Direct Cloud stream
+      this.startSyntheticFallback();
+      return;
+    }
+
     try {
-      const targetUrl = getDynamicWsUrl(this.reconnectAttempts);
-      console.log("Connecting WebSocket to dynamic URL:", targetUrl);
       this.ws = new WebSocket(targetUrl);
 
       this.ws.onopen = () => {

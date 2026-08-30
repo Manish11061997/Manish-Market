@@ -16,10 +16,10 @@ import {
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://televisions-factor-conferences-instead.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = null;
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-let dynamicApiBase = LIVE_CLOUDFLARE_URL;
+let dynamicApiBase = null;
 let activeWorkingBase = isLocalHost ? (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000') : null;
 let probePromise = null;
 
@@ -36,18 +36,6 @@ export function isCapacitorNative() {
   );
 }
 
-// Auto-purge stale or obsolete tunnel URLs from localStorage on initialization
-if (typeof window !== 'undefined') {
-  try {
-    const saved = localStorage.getItem('manish_market_server_ip');
-    if (saved && (saved.includes('trycloudflare.com') || saved.includes('pure-walks') || saved.includes('logan-pipeline') || saved.includes('ict-environments') || saved.includes('viewers-montreal'))) {
-      if (!saved.includes('televisions-factor-conferences')) {
-        localStorage.removeItem('manish_market_server_ip');
-      }
-    }
-  } catch {}
-}
-
 // Candidate base URLs in priority order
 export function getCandidateBases() {
   const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_server_ip') : null;
@@ -60,40 +48,35 @@ export function getCandidateBases() {
     list.push(window.location.origin);
     list.push('http://localhost:8000');
     list.push('http://127.0.0.1:8000');
+    return list;
   }
 
-  // 2. User manual override (if set in settings and not obsolete)
-  if (customIp && customIp.trim() && !customIp.includes('pure-walks')) {
+  // 2. User manual override (if set in settings)
+  if (customIp && customIp.trim()) {
     const val = customIp.trim();
     list.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
   }
 
-  // 3. Dynamic tunnel from Firebase CDN or LIVE_CLOUDFLARE_URL
+  // 3. Dynamic tunnel from Firebase CDN (if published by supervisor)
   if (dynamicApiBase) {
     list.push(dynamicApiBase);
   }
-  list.push(LIVE_CLOUDFLARE_URL);
 
   // 4. Active working base (cached from recent successful call)
   if (activeWorkingBase) {
     list.push(activeWorkingBase);
   }
 
-  // 5. Local Wi-Fi LAN IP (High speed, 0 latency on local network)
-  list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
-
-  // 6. Android emulator fallback
-  list.push('http://10.0.2.2:8000');
+  // 5. Capacitor Native Local LAN IP
+  if (isCapacitorNative()) {
+    list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
+    list.push('http://10.0.2.2:8000');
+  }
 
   const uniqueList = Array.from(new Set(list.filter(Boolean)));
 
-  // If running in HTTPS Web context, prioritize HTTPS endpoints
   if (isSecureContext() && !isCapacitorNative()) {
-    if (isLocalHost) {
-      return [window.location.origin, LIVE_CLOUDFLARE_URL];
-    }
-    const secureOnly = uniqueList.filter(url => url && url.startsWith('https://'));
-    return secureOnly.length ? secureOnly : [LIVE_CLOUDFLARE_URL];
+    return uniqueList.filter(url => url && url.startsWith('https://'));
   }
 
   return uniqueList;
@@ -188,11 +171,11 @@ export function getApiBase() {
   if (activeWorkingBase) {
     return activeWorkingBase;
   }
-  return getServerIp();
+  return getServerIp() || (typeof window !== 'undefined' ? window.location.origin : '');
 }
 
-export const API_BASE = getApiBase();
-export const WS_BASE = import.meta.env.VITE_WS_BASE ?? API_BASE.replace(/^http/, 'ws');
+export const API_BASE = getApiBase() || '';
+export const WS_BASE = import.meta.env.VITE_WS_BASE ?? (API_BASE ? API_BASE.replace(/^http/, 'ws') : '');
 
 const controlToken = import.meta.env.VITE_CONTROL_TOKEN;
 
