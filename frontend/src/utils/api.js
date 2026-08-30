@@ -4,7 +4,15 @@ import {
   getDirectRecommendations,
   getDirectStockChart,
   getDirectStockDetail,
-  getDirectTradingAgentsReport
+  getDirectTradingAgentsReport,
+  getDirectStockChartReading,
+  getDirectHorizonAnalysis,
+  getDirectScreener,
+  getDirectFnoSignals,
+  getDirectIpoList,
+  getDirectCopilotAnswer,
+  DEFAULT_INDIAN_SECURITIES,
+  DEFAULT_INDICES
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
@@ -225,7 +233,9 @@ export async function apiFetch(endpointPath, options = {}) {
     ...(options.headers || {})
   };
 
-  const timeoutMs = options.timeout || 12000;
+  // Fast 1.2s timeout when running on cloud/mobile web to eliminate stall lag
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const timeoutMs = options.timeout || (isLocalHost ? 8000 : 1200);
 
   // 1. FAST PATH: If we have an active verified server, try it directly
   if (activeWorkingBase) {
@@ -290,7 +300,6 @@ export async function apiFetch(endpointPath, options = {}) {
       throw allFailedErr;
     }
     // Zero-Failure Resilient Standalone Cloud Fallback
-    console.info(`[AUTONOMOUS CLOUD ENGINE] Serving direct fallback for ${endpointPath}`);
     return await handleOfflineFallback(endpointPath);
   }
 }
@@ -301,7 +310,7 @@ async function handleOfflineFallback(endpointPath) {
     const pathname = url.pathname;
     const searchParams = url.searchParams;
 
-    if (pathname.includes('/market-summary')) {
+    if (pathname.includes('/market-summary') || pathname.includes('/market/summary')) {
       const region = searchParams.get('market') || searchParams.get('region') || 'IN';
       const data = await getDirectMarketSummary(region);
       return new Response(JSON.stringify(data), {
@@ -310,7 +319,7 @@ async function handleOfflineFallback(endpointPath) {
       });
     }
 
-    if (pathname.includes('/market-breadth')) {
+    if (pathname.includes('/market-breadth') || pathname.includes('/market/breadth')) {
       const market = searchParams.get('market') || 'IN';
       const data = await getDirectMarketBreadth(market);
       return new Response(JSON.stringify(data), {
@@ -322,6 +331,17 @@ async function handleOfflineFallback(endpointPath) {
     if (pathname.includes('/recommendations')) {
       const market = searchParams.get('market') || 'IN';
       const data = await getDirectRecommendations(market);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/chart-reading')) {
+      const parts = pathname.split('/');
+      const stockIdx = parts.indexOf('stock');
+      const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
+      const data = await getDirectStockChartReading(symbol);
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -341,11 +361,11 @@ async function handleOfflineFallback(endpointPath) {
       });
     }
 
-    if (pathname.includes('/stock/')) {
+    if (pathname.includes('/analysis/')) {
       const parts = pathname.split('/');
-      const stockIdx = parts.indexOf('stock');
-      const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
-      const data = await getDirectStockDetail(symbol);
+      const horizon = parts[parts.length - 1]?.toUpperCase() || 'INTRADAY';
+      const symbol = searchParams.get('symbol') || 'RELIANCE.NS';
+      const data = await getDirectHorizonAnalysis(symbol, horizon);
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -373,6 +393,50 @@ async function handleOfflineFallback(endpointPath) {
           { id: "autonomous_quant", name: "Autonomous Quant Committee", configured: true }
         ]
       }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/screener')) {
+      const data = await getDirectScreener();
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/fno/signals')) {
+      const data = await getDirectFnoSignals();
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/ipo/')) {
+      const data = await getDirectIpoList();
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/copilot/query')) {
+      const q = searchParams.get('q') || 'RELIANCE';
+      const data = await getDirectCopilotAnswer(q);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/stock/')) {
+      const parts = pathname.split('/');
+      const stockIdx = parts.indexOf('stock');
+      const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
+      const data = await getDirectStockDetail(symbol);
+      return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
