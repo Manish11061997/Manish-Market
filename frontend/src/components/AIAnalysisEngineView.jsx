@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Zap, TrendingUp, Landmark, Search, ShieldAlert, CheckCircle2, 
-  AlertTriangle, Info, ArrowUpRight, BarChart3, Sliders, Target
+  AlertTriangle, Info, ArrowUpRight, BarChart3, Sliders, Target, Bot
 } from 'lucide-react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import LiveTickChart from './LiveTickChart';
+import TradingAgentsCommitteeView from './TradingAgentsCommitteeView';
 import { findTick } from '../utils/symbolMatcher';
 
 export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) {
@@ -178,59 +179,82 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
       />
 
       {/* Horizon Tabs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           onClick={() => setActiveHorizon('INTRADAY')}
-          className={`p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${
+          className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
             activeHorizon === 'INTRADAY'
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/10'
               : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
           }`}
         >
-          <div className={`p-2.5 rounded-lg ${activeHorizon === 'INTRADAY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
-            <Zap className="w-5 h-5" />
+          <div className={`p-2 rounded-lg ${activeHorizon === 'INTRADAY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+            <Zap className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-sm text-slate-200">1. Intraday Horizon</div>
-            <div className="text-xs text-slate-400">VWAP, ORB, Volume & Support/Resistance</div>
+            <div className="font-semibold text-xs text-slate-200">1. Intraday Horizon</div>
+            <div className="text-[10px] text-slate-400">VWAP, ORB & S/R Pivots</div>
           </div>
         </button>
 
         <button
           onClick={() => setActiveHorizon('SWING')}
-          className={`p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${
+          className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
             activeHorizon === 'SWING'
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/10'
               : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
           }`}
         >
-          <div className={`p-2.5 rounded-lg ${activeHorizon === 'SWING' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
-            <TrendingUp className="w-5 h-5" />
+          <div className={`p-2 rounded-lg ${activeHorizon === 'SWING' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+            <TrendingUp className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-sm text-slate-200">2. Swing Trading Horizon</div>
-            <div className="text-xs text-slate-400">DMA Alignment, VCP Base & Rel Strength</div>
+            <div className="font-semibold text-xs text-slate-200">2. Swing Horizon</div>
+            <div className="text-[10px] text-slate-400">DMA Alignment & VCP Base</div>
           </div>
         </button>
 
         <button
           onClick={() => setActiveHorizon('LONG_TERM')}
-          className={`p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${
+          className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
             activeHorizon === 'LONG_TERM'
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/10'
               : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
           }`}
         >
-          <div className={`p-2.5 rounded-lg ${activeHorizon === 'LONG_TERM' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
-            <Landmark className="w-5 h-5" />
+          <div className={`p-2 rounded-lg ${activeHorizon === 'LONG_TERM' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+            <Landmark className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-sm text-slate-200">3. Long-Term Investment</div>
-            <div className="text-xs text-slate-400">Growth CAGR, Margins, Valuation & Moats</div>
+            <div className="font-semibold text-xs text-slate-200">3. Long-Term Moat</div>
+            <div className="text-[10px] text-slate-400">CAGR & Valuation Model</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveHorizon('TRADING_AGENTS')}
+          className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
+            activeHorizon === 'TRADING_AGENTS'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30'
+              : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+          }`}
+        >
+          <div className={`p-2 rounded-lg ${activeHorizon === 'TRADING_AGENTS' ? 'bg-emerald-500/30 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+            <Bot className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-xs text-slate-200 flex items-center gap-1">
+              4. TradingAgents <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 py-0.2 rounded font-mono">NEW</span>
+            </div>
+            <div className="text-[10px] text-slate-400">Multi-Agent Committee</div>
           </div>
         </button>
       </div>
 
+      {activeHorizon === 'TRADING_AGENTS' ? (
+        <TradingAgentsCommitteeView symbol={symbol} currentMarket={currentMarket} />
+      ) : (
+        <>
       {/* Intraday Config Bar */}
       {activeHorizon === 'INTRADAY' && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/40 border border-slate-800/80 text-xs">
@@ -491,6 +515,8 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );

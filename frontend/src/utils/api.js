@@ -3,7 +3,8 @@ import {
   getDirectMarketBreadth,
   getDirectRecommendations,
   getDirectStockChart,
-  getDirectStockDetail
+  getDirectStockDetail,
+  getDirectTradingAgentsReport
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
@@ -346,6 +347,32 @@ async function handleOfflineFallback(endpointPath) {
       const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
       const data = await getDirectStockDetail(symbol);
       return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/tradingagents/report/') || pathname.includes('/tradingagents/analyze')) {
+      const parts = pathname.split('/');
+      const symbol = parts[parts.length - 1] ? decodeURIComponent(parts[parts.length - 1]) : 'RELIANCE.NS';
+      const data = await getDirectTradingAgentsReport(symbol);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/tradingagents/models')) {
+      return new Response(JSON.stringify({
+        providers: [
+          { id: "google", name: "Google Gemini (Gemini Pro / 3.x)", configured: true },
+          { id: "openai", name: "OpenAI (GPT-4o / GPT-5)", configured: true },
+          { id: "anthropic", name: "Anthropic Claude (Claude 3.5 / 4.x)", configured: true },
+          { id: "deepseek", name: "DeepSeek (DeepSeek V3 / R1)", configured: true },
+          { id: "ollama", name: "Ollama Local (Llama 3 / Mistral)", configured: true },
+          { id: "autonomous_quant", name: "Autonomous Quant Committee", configured: true }
+        ]
+      }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });

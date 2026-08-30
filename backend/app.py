@@ -18,6 +18,7 @@ from stock_agent import analyze_stock, get_all_recommendations
 from ai_copilot import process_copilot_query
 from backtester import run_strategy_backtest, run_custom_indicator_strategy, BUILTIN_STRATEGIES
 from fno_agent import get_all_fno_signals
+from tradingagents_engine import run_tradingagents_analysis, get_available_llm_providers
 
 from websocket_stream import ws_manager, start_live_market_ticker, WebSocket, WebSocketDisconnect
 from alerts_engine import alerts_engine
@@ -853,6 +854,38 @@ def get_stock_chart_reading(symbol: str, market: str = "IN"):
     df = fetch_stock_ohlcv(symbol_resolved, period="6mo", interval="1d", market=market)
     reading = chart_reading_engine.analyze_chart(symbol=symbol_resolved, df=df, market=market)
     return JSONResponse(content=sanitize_json_data(reading))
+
+class TradingAgentsAnalyzeRequest(BaseModel):
+    symbol: str
+    date: Optional[str] = None
+    llmProvider: Optional[str] = "google"
+    researchDepth: Optional[str] = "standard"
+
+@app.get("/api/tradingagents/models")
+def get_tradingagents_models():
+    """Returns available LLM providers for the TradingAgents multi-agent committee."""
+    return JSONResponse(content={"providers": get_available_llm_providers()})
+
+@app.post("/api/tradingagents/analyze")
+def analyze_with_tradingagents_endpoint(req: TradingAgentsAnalyzeRequest):
+    """Executes multi-agent TradingAgents committee analysis on a security."""
+    report = run_tradingagents_analysis(
+        symbol=req.symbol,
+        analysis_date=req.date,
+        llm_provider=req.llmProvider or "google",
+        research_depth=req.researchDepth or "standard"
+    )
+    return JSONResponse(content=sanitize_json_data(report))
+
+@app.get("/api/tradingagents/report/{symbol}")
+def get_tradingagents_report_endpoint(symbol: str, date: Optional[str] = None, provider: str = "google"):
+    """Fetches or generates a TradingAgents multi-agent report for a symbol."""
+    report = run_tradingagents_analysis(
+        symbol=symbol,
+        analysis_date=date,
+        llm_provider=provider
+    )
+    return JSONResponse(content=sanitize_json_data(report))
 
 @app.get("/api/screener")
 def run_stock_screener(
