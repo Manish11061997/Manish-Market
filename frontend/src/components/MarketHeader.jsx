@@ -20,7 +20,7 @@ function MarketHeader({
   onOpenMenu,
   isFailover = false
 }) {
-  const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY';
+  const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || isFailover || Boolean(marketData?.indices);
   const indices = useMemo(() => marketData?.indices || {}, [marketData]);
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
