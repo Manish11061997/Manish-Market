@@ -835,6 +835,7 @@ export default function TradingViewCandleChart({
             const cur = updated[updated.length - 1];
             setLastCandle(cur);
 
+            // 1. Update primary chart candle series
             if (candleSeriesRef.current) {
               try {
                 candleSeriesRef.current.update({
@@ -844,9 +845,33 @@ export default function TradingViewCandleChart({
                   low: cur.low,
                   close: cur.close
                 });
-              } catch {}
+              } catch (e) {
+                console.warn("Candle update notice:", e);
+              }
             }
 
+            // 2. Update primary chart indicators
+            const iStore = indicatorSeriesRef.current;
+            if (iStore) {
+              try {
+                if (iStore.volume) {
+                  iStore.volume.update({
+                    time: cur.time,
+                    value: cur.volume || 1000,
+                    color: cur.close >= cur.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)'
+                  });
+                }
+                if (iStore.ema20) iStore.ema20.update({ time: cur.time, value: cur.close });
+                if (iStore.ema50) iStore.ema50.update({ time: cur.time, value: cur.close });
+                if (iStore.ema200) iStore.ema200.update({ time: cur.time, value: cur.close });
+                if (iStore.sma20) iStore.sma20.update({ time: cur.time, value: cur.close });
+                if (iStore.vwap) iStore.vwap.update({ time: cur.time, value: cur.close });
+              } catch (e) {
+                console.warn("Indicator update notice:", e);
+              }
+            }
+
+            // 3. Update fullscreen candle series
             if (fullCandleSeriesRef.current) {
               try {
                 fullCandleSeriesRef.current.update({
@@ -856,7 +881,9 @@ export default function TradingViewCandleChart({
                   low: cur.low,
                   close: cur.close
                 });
-              } catch {}
+              } catch (e) {
+                console.warn("Full candle update notice:", e);
+              }
             }
 
             return updated;
