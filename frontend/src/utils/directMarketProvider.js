@@ -827,15 +827,79 @@ export async function getDirectScreener() {
  * Direct F&O Derivatives Signals Provider
  */
 export async function getDirectFnoSignals() {
+  const setups = [
+    {
+      symbol: "NIFTY50",
+      name: "Nifty 50 Index",
+      type: "INDEX OPTION",
+      lotSize: 25,
+      spotPrice: 24065.25,
+      fnoDirection: "NEUTRAL",
+      strategyName: "IRON CONDOR",
+      winProbability: "82.4%",
+      profitFactor: "2.85x",
+      strike: "24100 CE / 24000 PE",
+      iv: "13.8%",
+      pcr: "1.12",
+      greeks: { delta: "0.50", theta: "-0.12" },
+      optionSetup: { strike: "24100 CE", estimatedPremium: "₹125.00", targetPremium1: "₹190.00", targetPremium2: "₹250.00", stopLossPremium: "₹75.00" }
+    },
+    {
+      symbol: "NIFTYBANK",
+      name: "Bank Nifty Index",
+      type: "INDEX OPTION",
+      lotSize: 15,
+      spotPrice: 57417.10,
+      fnoDirection: "BULLISH",
+      strategyName: "BULL CALL SPREAD",
+      winProbability: "79.1%",
+      profitFactor: "2.40x",
+      strike: "57500 CE",
+      iv: "16.4%",
+      pcr: "1.25",
+      greeks: { delta: "0.48", theta: "-0.22" },
+      optionSetup: { strike: "57500 CE", estimatedPremium: "₹360.00", targetPremium1: "₹520.00", targetPremium2: "₹680.00", stopLossPremium: "₹220.00" }
+    },
+    {
+      symbol: "RELIANCE.NS",
+      name: "Reliance Industries",
+      type: "STOCK OPTION",
+      lotSize: 250,
+      spotPrice: 1296.10,
+      fnoDirection: "BULLISH",
+      strategyName: "BULL CALL SPREAD",
+      winProbability: "84.0%",
+      profitFactor: "3.10x",
+      strike: "1300 CE",
+      iv: "18.2%",
+      pcr: "1.08",
+      greeks: { delta: "0.52", theta: "-0.08" },
+      optionSetup: { strike: "1300 CE", estimatedPremium: "₹21.50", targetPremium1: "₹34.00", targetPremium2: "₹46.00", stopLossPremium: "₹13.00" }
+    },
+    {
+      symbol: "HDFCBANK.NS",
+      name: "HDFC Bank Ltd",
+      type: "STOCK OPTION",
+      lotSize: 550,
+      spotPrice: 710.30,
+      fnoDirection: "BEARISH",
+      strategyName: "BEAR PUT SPREAD",
+      winProbability: "76.5%",
+      profitFactor: "2.20x",
+      strike: "700 PE",
+      iv: "15.9%",
+      pcr: "0.85",
+      greeks: { delta: "-0.45", theta: "-0.06" },
+      optionSetup: { strike: "700 PE", estimatedPremium: "₹12.80", targetPremium1: "₹22.00", targetPremium2: "₹30.00", stopLossPremium: "₹7.50" }
+    }
+  ];
+
   return {
     pcrRatio: 1.18,
     maxPainStrike: 24050,
     overallSentiment: 'BULLISH_BIAS',
-    signals: [
-      { symbol: 'NIFTY', expiry: 'Weekly', strike: 24100, type: 'CE', action: 'LONG_BUILDUP', oiChange: '+14.2%', iv: 13.8 },
-      { symbol: 'BANKNIFTY', expiry: 'Weekly', strike: 57500, type: 'PE', action: 'SHORT_COVERING', oiChange: '-8.5%', iv: 15.2 },
-      { symbol: 'RELIANCE', expiry: 'Monthly', strike: 1300, type: 'CE', action: 'CALL_UNWINDING', oiChange: '+22.4%', iv: 18.5 }
-    ]
+    signals: setups,
+    setups: setups
   };
 }
 
