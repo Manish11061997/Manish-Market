@@ -290,15 +290,47 @@ class WebSocketClient {
     this.initLiveTickStore();
     const ticks = {};
 
-    // 1. Tick indices (tick active indices every pulse so the ribbon actively moves)
+    // ── Market Session Guard ──────────────────────────────────────────────────
+    // Indian market: NSE/BSE open Mon–Fri 09:15–15:30 IST (UTC+5:30)
+    // US market:     NYSE/NASDAQ open Mon–Fri 09:30–16:00 EST (UTC-5)
+    // Outside these windows: emit static closing prices — NO random movement.
+    const nowUtcMs   = Date.now();
+    const nowIST     = new Date(nowUtcMs + 5.5 * 3600_000); // IST = UTC+5:30
+    const istDay     = nowIST.getUTCDay();   // 0=Sun, 6=Sat
+    const istH       = nowIST.getUTCHours();
+    const istM       = nowIST.getUTCMinutes();
+    const istMinutes = istH * 60 + istM;     // minutes since midnight IST
+
+    // NSE open: 09:15–15:30 IST on Mon(1)–Fri(5)
+    const isINOpen = istDay >= 1 && istDay <= 5
+      && istMinutes >= 9 * 60 + 15          // 09:15
+      && istMinutes <  15 * 60 + 30;        // 15:30
+
+    // US market: NYSE/NASDAQ 09:30–16:00 EST (UTC-5) = 14:30–21:00 UTC on Mon–Fri
+    const nowUTC     = new Date(nowUtcMs);
+    const utcDay     = nowUTC.getUTCDay();
+    const utcMinutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
+    const isUSOpen   = utcDay >= 1 && utcDay <= 5
+      && utcMinutes >= 14 * 60 + 30         // 14:30 UTC = 09:30 EST
+      && utcMinutes <  21 * 60;             // 21:00 UTC = 16:00 EST
+
+    // If market is closed, emit static ticks (prices don't move)
+    const generateMovement = isINOpen || isUSOpen;
+
+    // Update global market status for UI badges
+    this.marketStatus = isINOpen ? 'OPEN' : (isUSOpen ? 'OPEN' : 'CLOSED');
+    const sessionLabel = isINOpen ? 'LIVE — NSE/BSE OPEN' : (isUSOpen ? 'LIVE — NYSE OPEN' : 'MARKET CLOSED');
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // 1. Tick indices
     const indexKeys = ['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT'];
 
     indexKeys.forEach(key => {
       const item = this.liveTickStore.get(key);
       if (!item) return;
 
-      // 75% chance of micro-movement on each tick pulse
-      if (Math.random() < 0.75) {
+      // Only generate random movement during live market hours
+      if (generateMovement && Math.random() < 0.75) {
         const delta = (Math.random() - 0.49) * (item.basePrice * 0.0003);
         item.price = parseFloat((item.price + delta).toFixed(2));
         // Keep within ±0.75% of anchor
@@ -317,9 +349,10 @@ class WebSocketClient {
         changePercent: item.changePercent,
         pChange: item.changePercent,
         timestamp: new Date().toLocaleTimeString(),
-        ms: Date.now(),
+        ms: nowUtcMs,
         volume: 50000000,
-        latencyMs: 12
+        latencyMs: 12,
+        marketClosed: !isINOpen
       };
 
       ticks[key] = tickObj;
@@ -332,14 +365,13 @@ class WebSocketClient {
       }
     });
 
-    // 2. Tick subscribed & top securities (select 4 to 8 symbols per pulse)
+    // 2. Tick subscribed & top securities (select 6 symbols per pulse)
     const candidates = Array.from(new Set([
       ...Array.from(this.subscribedSymbols),
       'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
       'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS'
     ]));
 
-    // Shuffle and pick 6 symbols to tick this second
     const shuffled = candidates.sort(() => 0.5 - Math.random()).slice(0, 6);
 
     shuffled.forEach(sym => {
@@ -347,22 +379,21 @@ class WebSocketClient {
       const item = this.liveTickStore.get(sym) || this.liveTickStore.get(cleanSym);
       if (!item) return;
 
-      // Realistic tick size based on price:
-      // Sub-500: ±0.05 to ±0.20
-      // 500-2000: ±0.25 to ±0.85
-      // 2000+: ±1.00 to ±3.50
-      const tickSpread = item.basePrice > 2000 ? 1.50 : item.basePrice > 500 ? 0.45 : 0.15;
-      const delta = (Math.random() - 0.49) * tickSpread;
-      item.price = parseFloat((item.price + delta).toFixed(2));
+      // Only generate random movement during live market hours
+      if (generateMovement) {
+        const tickSpread = item.basePrice > 2000 ? 1.50 : item.basePrice > 500 ? 0.45 : 0.15;
+        const delta = (Math.random() - 0.49) * tickSpread;
+        item.price = parseFloat((item.price + delta).toFixed(2));
 
-      // Guard drift within ±1.5% of anchor
-      if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
-        item.price = item.basePrice;
+        // Guard drift within ±1.5% of anchor
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
+          item.price = item.basePrice;
+        }
+
+        item.change = parseFloat((item.price - item.prevClose).toFixed(2));
+        item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
+        item.volume += Math.floor(100 + Math.random() * 800);
       }
-
-      item.change = parseFloat((item.price - item.prevClose).toFixed(2));
-      item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
-      item.volume += Math.floor(100 + Math.random() * 800);
 
       const stockTick = {
         symbol: sym,
@@ -371,9 +402,10 @@ class WebSocketClient {
         change: item.change,
         changePercent: item.changePercent,
         timestamp: new Date().toLocaleTimeString(),
-        ms: Date.now(),
+        ms: nowUtcMs,
         volume: item.volume,
-        latencyMs: 12
+        latencyMs: 12,
+        marketClosed: !isINOpen
       };
 
       ticks[cleanSym] = stockTick;
@@ -381,22 +413,38 @@ class WebSocketClient {
       ticks[`${cleanSym}.NS`] = stockTick;
     });
 
-    this.lastTickTime = Date.now();
-    this.setStatus('LIVE');
+    this.lastTickTime = nowUtcMs;
+
+    // Show LIVE only when market is actually open; CLOSED when it's not
+    if (generateMovement) {
+      this.setStatus('LIVE');
+    } else {
+      // Use a distinct CLOSED status only if we're not already connected to a real WebSocket
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        this.setStatus('CLOSED');
+      }
+    }
+
     this.notifyListeners({
       type: 'TICK_STREAM',
       ticks,
       breadth: {
         IN: {
-          advances: 24 + Math.floor(Math.random() * 4),
-          declines: 18 + Math.floor(Math.random() * 4),
+          advances: generateMovement ? 24 + Math.floor(Math.random() * 4) : 22,
+          declines: generateMovement ? 18 + Math.floor(Math.random() * 4) : 26,
           unchanged: 2,
-          advanceDeclineRatio: 1.35,
-          indiaVix: 14.15,
+          advanceDeclineRatio: generateMovement ? 1.35 : 0.85,
+          indiaVix: 13.85,
           indiaVixChange: -0.80
         }
       },
-      session: { IN: { status: 'LIVE', label: 'LIVE MARKET DATA' } },
+      session: {
+        IN: {
+          status: isINOpen ? 'LIVE' : 'CLOSED',
+          label: sessionLabel,
+          marketOpen: isINOpen
+        }
+      },
       isFailover: true
     });
   }

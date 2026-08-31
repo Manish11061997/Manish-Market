@@ -22,7 +22,7 @@ function MarketHeader({
   onOpenMenu,
   isFailover = false
 }) {
-  const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || isFailover || Boolean(marketData?.indices);
+  const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || wsStatus === 'CLOSED' || isFailover || Boolean(marketData?.indices);
 
   // Direct live reactive indices state
   const [liveIndices, setLiveIndices] = useState(() => {
@@ -57,10 +57,17 @@ function MarketHeader({
     }
   }, [marketData]);
 
+  const [liveSession, setLiveSession] = useState(null);
+
   // Direct WebSocket tick listener for instant index pill updates & flash animations
   useEffect(() => {
     const unsub = wsClient.onTick((payload) => {
       if (payload.type !== 'TICK_STREAM' || !payload.ticks) return;
+
+      // Track live session status from tick payload
+      if (payload.session?.[currentMarket]) {
+        setLiveSession(payload.session[currentMarket]);
+      }
 
       setLiveIndices(prev => {
         const updated = { ...prev };
@@ -106,7 +113,8 @@ function MarketHeader({
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [replaySpeed, setReplaySpeed] = useState(1.0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(true);
-  const currentSession = sessionInfo?.[currentMarket] || { status: 'LIVE', label: 'LIVE MARKET DATA' };
+  // liveSession from tick payload takes priority — it's computed from real IST clock
+  const currentSession = liveSession || sessionInfo?.[currentMarket] || { status: 'CLOSED', label: 'MARKET CLOSED', marketOpen: false };
 
 
   const [liveSearchResults, setLiveSearchResults] = useState([]);
@@ -306,19 +314,21 @@ function MarketHeader({
               gap: '4px',
               padding: '2px 7px',
               borderRadius: '10px',
-              backgroundColor: wsConnected ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 171, 0, 0.15)',
-              border: `1px solid ${wsConnected ? 'rgba(0, 230, 118, 0.4)' : 'rgba(255, 171, 0, 0.4)'}`,
-              color: wsConnected ? 'var(--accent-green)' : 'var(--accent-gold)',
+              backgroundColor: currentSession.status === 'LIVE'
+                ? 'rgba(0, 230, 118, 0.15)'
+                : wsConnected ? 'rgba(255, 171, 0, 0.15)' : 'rgba(255, 171, 0, 0.15)',
+              border: `1px solid ${currentSession.status === 'LIVE' ? 'rgba(0, 230, 118, 0.4)' : 'rgba(255, 171, 0, 0.4)'}`,
+              color: currentSession.status === 'LIVE' ? 'var(--accent-green)' : 'var(--accent-gold)',
               fontSize: '10px',
               fontWeight: 800
             }}>
-              <span className="live-dot-pulse" style={{
+              <span className={currentSession.status === 'LIVE' ? 'live-dot-pulse' : ''} style={{
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: wsConnected ? 'var(--accent-green)' : 'var(--accent-gold)'
+                backgroundColor: currentSession.status === 'LIVE' ? 'var(--accent-green)' : 'var(--accent-gold)'
               }}></span>
-              <span>{wsConnected ? 'LIVE' : 'CONNECTING...'}</span>
+              <span>{!wsConnected ? 'CONNECTING...' : (currentSession.status === 'LIVE' ? 'LIVE' : 'CLOSED')}</span>
             </div>
 
             {/* Market Session Status / Holiday Badge */}
