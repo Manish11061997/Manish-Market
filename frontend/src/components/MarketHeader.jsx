@@ -74,39 +74,28 @@ function MarketHeader({
   });
 
   const [flashes, setFlashes] = useState({});
-  const prevPrices = useRef({});  // Sync when marketData or currentMarket prop changes
+  const prevPrices = useRef({});  // Sync when marketData or currentMarket prop change
   useEffect(() => {
-    if (Array.isArray(marketData?.indices)) {
-      const obj = {};
-      const keyMap = { 
-        '^NSEI': 'NIFTY50', '^BSESN': 'SENSEX', '^NSEBANK': 'NIFTYBANK', '^CNXIT': 'CNXIT',
-        '^GSPC': 'SP500', '^IXIC': 'NASDAQ', '^DJI': 'DOW', '^RUT': 'RUSSELL'
-      };
-      marketData.indices.forEach((idx, i) => {
-        const k = idx.symbol || idx.name || `idx_${i}`;
-        const cleanK = keyMap[idx.symbol] || k;
-        obj[cleanK] = { ...idx, pChange: idx.changePercent ?? idx.pChange ?? 0 };
-      });
-      setLiveIndices(obj);
-    } else if (marketData?.indices && typeof marketData.indices === 'object') {
-      setLiveIndices(marketData.indices);
+    if (currentMarket === 'US') {
+      const usIdx = (marketData?.indices && typeof marketData.indices === 'object' && marketData.market === 'US' && Object.keys(marketData.indices).length > 0)
+        ? marketData.indices
+        : {
+            SP500:   { name: 'S&P 500',    price: 5980.25, change: 18.40,  pChange: 0.31 },
+            NASDAQ:  { name: 'NASDAQ 100', price: 19250.80, change: 95.60, pChange: 0.50 },
+            DOW:     { name: 'DOW JONES',  price: 43810.50, change: -45.20, pChange: -0.10 },
+            RUSSELL: { name: 'RUSSELL 2000', price: 2245.10, change: 12.30, pChange: 0.55 }
+          };
+      setLiveIndices(usIdx);
     } else {
-      // Default initialization per market
-      if (currentMarket === 'US') {
-        setLiveIndices({
-          SP500:   { name: 'S&P 500',   price: 5980.25, change: 18.40,  pChange: 0.31 },
-          NASDAQ:  { name: 'NASDAQ 100', price: 19250.80, change: 95.60, pChange: 0.50 },
-          DOW:     { name: 'DOW JONES', price: 43810.50, change: -45.20, pChange: -0.10 },
-          RUSSELL: { name: 'RUSSELL 2000', price: 2245.10, change: 12.30, pChange: 0.55 }
-        });
-      } else {
-        setLiveIndices({
-          NIFTY50:   { name: 'NIFTY 50',   price: 24080.40, change: -95.25,  pChange: -0.39 },
-          SENSEX:    { name: 'SENSEX',     price: 76957.27, change: -307.24, pChange: -0.40 },
-          NIFTYBANK: { name: 'BANK NIFTY', price: 58024.95, change: 529.50,  pChange: 0.92 },
-          CNXIT:     { name: 'NIFTY IT',   price: 31191.45, change: -90.80,  pChange: -0.29 }
-        });
-      }
+      const inIdx = (marketData?.indices && typeof marketData.indices === 'object' && marketData.market !== 'US' && Object.keys(marketData.indices).length > 0)
+        ? marketData.indices
+        : {
+            NIFTY50:   { name: 'NIFTY 50',   price: 24065.25, change: -110.40, pChange: -0.46 },
+            SENSEX:    { name: 'SENSEX',     price: 76957.27, change: -307.24, pChange: -0.40 },
+            NIFTYBANK: { name: 'BANK NIFTY', price: 58024.95, change: 529.50,  pChange: 0.92 },
+            CNXIT:     { name: 'NIFTY IT',   price: 31191.45, change: -90.80,  pChange: -0.29 }
+          };
+      setLiveIndices(inIdx);
     }
   }, [marketData, currentMarket]);
 
