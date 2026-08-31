@@ -21,28 +21,38 @@ const PROXY_CANDIDATES = [
   (url) => url  // direct fallback (works in Capacitor native)
 ];
 
-// Multi-tier resilient fetcher: bypasses browser CORS via multiple proxies
-async function fetchFromYF(endpointWithQuery, timeoutMs = 6000) {
+// Multi-tier resilient fetcher: races multiple proxies concurrently for sub-second speed
+async function fetchFromYF(endpointWithQuery, timeoutMs = 4000) {
   const yfDirect = `https://query1.finance.yahoo.com${endpointWithQuery}`;
+  const candidates = PROXY_CANDIDATES.map(fn => fn(yfDirect));
+  const controllers = candidates.map(() => new AbortController());
 
-  for (const proxyFn of PROXY_CANDIDATES) {
-    const targetUrl = proxyFn(yfDirect);
-    try {
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(targetUrl, { signal: controller.signal });
-      clearTimeout(tid);
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.chart?.result?.[0]) {
-          return data;
-        }
-      }
-    } catch {
-      // try next candidate
-    }
+  try {
+    const result = await Promise.any(
+      candidates.map((targetUrl, idx) => {
+        const tid = setTimeout(() => {
+          try { controllers[idx].abort(); } catch {}
+        }, timeoutMs);
+
+        return fetch(targetUrl, { signal: controllers[idx].signal })
+          .then(async res => {
+            clearTimeout(tid);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.chart?.result?.[0]) {
+                // Abort other slower requests
+                controllers.forEach((c, i) => { if (i !== idx) try { c.abort(); } catch {} });
+                return data;
+              }
+            }
+            throw new Error(`Invalid response from ${targetUrl}`);
+          });
+      })
+    );
+    return result;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /**
