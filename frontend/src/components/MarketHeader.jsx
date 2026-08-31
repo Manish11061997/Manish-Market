@@ -74,23 +74,41 @@ function MarketHeader({
   });
 
   const [flashes, setFlashes] = useState({});
-  const prevPrices = useRef({});
-
-  // Sync when marketData prop changes
+  const prevPrices = useRef({});  // Sync when marketData or currentMarket prop changes
   useEffect(() => {
     if (Array.isArray(marketData?.indices)) {
       const obj = {};
+      const keyMap = { 
+        '^NSEI': 'NIFTY50', '^BSESN': 'SENSEX', '^NSEBANK': 'NIFTYBANK', '^CNXIT': 'CNXIT',
+        '^GSPC': 'SP500', '^IXIC': 'NASDAQ', '^DJI': 'DOW', '^RUT': 'RUSSELL'
+      };
       marketData.indices.forEach((idx, i) => {
         const k = idx.symbol || idx.name || `idx_${i}`;
-        const keyMap = { '^NSEI': 'NIFTY50', '^BSESN': 'SENSEX', '^NSEBANK': 'NIFTYBANK', '^CNXIT': 'CNXIT' };
         const cleanK = keyMap[idx.symbol] || k;
         obj[cleanK] = { ...idx, pChange: idx.changePercent ?? idx.pChange ?? 0 };
       });
       setLiveIndices(obj);
     } else if (marketData?.indices && typeof marketData.indices === 'object') {
       setLiveIndices(marketData.indices);
+    } else {
+      // Default initialization per market
+      if (currentMarket === 'US') {
+        setLiveIndices({
+          SP500:   { name: 'S&P 500',   price: 5980.25, change: 18.40,  pChange: 0.31 },
+          NASDAQ:  { name: 'NASDAQ 100', price: 19250.80, change: 95.60, pChange: 0.50 },
+          DOW:     { name: 'DOW JONES', price: 43810.50, change: -45.20, pChange: -0.10 },
+          RUSSELL: { name: 'RUSSELL 2000', price: 2245.10, change: 12.30, pChange: 0.55 }
+        });
+      } else {
+        setLiveIndices({
+          NIFTY50:   { name: 'NIFTY 50',   price: 24080.40, change: -95.25,  pChange: -0.39 },
+          SENSEX:    { name: 'SENSEX',     price: 76957.27, change: -307.24, pChange: -0.40 },
+          NIFTYBANK: { name: 'BANK NIFTY', price: 58024.95, change: 529.50,  pChange: 0.92 },
+          CNXIT:     { name: 'NIFTY IT',   price: 31191.45, change: -90.80,  pChange: -0.29 }
+        });
+      }
     }
-  }, [marketData]);
+  }, [marketData, currentMarket]);
 
   const [liveSession, setLiveSession] = useState(null);
 
@@ -109,12 +127,19 @@ function MarketHeader({
         const newFlashes = {};
         let hasChanges = false;
 
-        Object.keys(updated).forEach(key => {
-          const tick = findTick(payload.ticks, key);
-          if (tick && tick.price !== undefined && tick.price !== updated[key].price) {
-            hasChanges = true;
-            const prevP = updated[key].price;
-            newFlashes[key] = tick.price > prevP ? 'flash-up' : 'flash-down';
+        const targetKeys = currentMarket === 'US' 
+          ? ['SP500', 'NASDAQ', 'DOW', 'RUSSELL'] 
+          : ['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT'];
+
+        targetKeys.forEach(key => {
+          const tick = payload.ticks[key];
+          if (tick && tick.price !== undefined && updated[key]) {
+            const oldPrice = prevPrices.current[key] ?? updated[key].price;
+            if (tick.price !== oldPrice) {
+              newFlashes[key] = tick.price > oldPrice ? 'flash-green' : 'flash-red';
+              prevPrices.current[key] = tick.price;
+              hasChanges = true;
+            }
             updated[key] = {
               ...updated[key],
               price: tick.price,
