@@ -479,10 +479,10 @@ class WebSocketClient {
       if (!item) return;
 
       // Only generate movement during live US market hours (09:30–16:00 EST)
-      if (isUSOpen && Math.random() < 0.75) {
-        const delta = (Math.random() - 0.49) * (item.basePrice * 0.0004);
+      if (isUSOpen) {
+        const delta = (Math.random() - 0.48) * (item.basePrice * 0.0005);
         item.price = parseFloat((item.price + delta).toFixed(2));
-        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.0075) {
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
           item.price = item.basePrice;
         }
         item.change = parseFloat((item.price - item.prevClose).toFixed(2));
@@ -539,8 +539,8 @@ class WebSocketClient {
 
       // Only generate dynamic movement if that asset's market is actually open right now
       if (isAssetMarketOpen) {
-        const tickSpread = item.basePrice > 500 ? 0.65 : (isAssetUS ? 0.35 : 0.15);
-        const delta = (Math.random() - 0.49) * tickSpread;
+        const tickSpread = item.basePrice > 500 ? 0.85 : (isAssetUS ? 0.45 : 0.20);
+        const delta = (Math.random() - 0.48) * tickSpread;
         item.price = parseFloat((item.price + delta).toFixed(2));
 
         if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.02) {
