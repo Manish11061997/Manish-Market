@@ -11,7 +11,12 @@
  */
 
 import { getApiBase, getCandidateBases, isCapacitorNative, isSecureContext, probeFastestServer, refreshConfigFromCdn } from './api';
-import { getDirectMarketSummary, getDirectMarketBreadth, getDirectStockDetail, DEFAULT_INDICES, DEFAULT_INDIAN_SECURITIES, fetchBatchQuotesV7, INDEX_SYMBOLS } from './directMarketProvider';
+import { 
+  getDirectMarketSummary, getDirectMarketBreadth, getDirectStockDetail, 
+  DEFAULT_INDICES, DEFAULT_INDIAN_SECURITIES, 
+  DEFAULT_US_INDICES, DEFAULT_US_SECURITIES,
+  fetchBatchQuotesV7, INDEX_SYMBOLS, US_INDEX_SYMBOLS 
+} from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
@@ -254,7 +259,8 @@ class WebSocketClient {
         prevClose,
         change: cached?.change ?? idx.change ?? 0,
         changePercent: cached?.changePercent ?? idx.changePercent ?? 0,
-        volume: 50000000
+        volume: 50000000,
+        market: 'IN'
       };
       this.liveTickStore.set(idx.symbol, obj);
       if (idx.symbol === '^NSEI')    { this.liveTickStore.set('NIFTY50', obj); }
@@ -264,6 +270,28 @@ class WebSocketClient {
         this.liveTickStore.set('CNXIT', obj);
         this.liveTickStore.set('NIFTYIT', obj);
       }
+    });
+
+    DEFAULT_US_INDICES.forEach(idx => {
+      const cached = cache?.[idx.symbol] || null;
+      const price  = cached?.price || idx.price;
+      const prevClose = cached?.prevClose || (idx.price - (idx.change || 0));
+      const obj = {
+        symbol: idx.symbol,
+        name: idx.name,
+        price,
+        basePrice: price,
+        prevClose,
+        change: cached?.change ?? idx.change ?? 0,
+        changePercent: cached?.changePercent ?? idx.changePercent ?? 0,
+        volume: 80000000,
+        market: 'US'
+      };
+      this.liveTickStore.set(idx.symbol, obj);
+      if (idx.symbol === '^GSPC') { this.liveTickStore.set('SP500', obj); }
+      if (idx.symbol === '^IXIC') { this.liveTickStore.set('NASDAQ', obj); }
+      if (idx.symbol === '^DJI')  { this.liveTickStore.set('DOW', obj); }
+      if (idx.symbol === '^RUT')  { this.liveTickStore.set('RUSSELL', obj); }
     });
 
     DEFAULT_INDIAN_SECURITIES.forEach(sec => {
@@ -279,38 +307,58 @@ class WebSocketClient {
         prevClose,
         change: cached?.change ?? (price - prevClose),
         changePercent: cached?.changePercent ?? sec.change ?? 0,
-        volume: cached?.volume || sec.volume || 1000000
+        volume: cached?.volume || sec.volume || 1000000,
+        market: 'IN'
       };
       this.liveTickStore.set(sec.symbol, obj);
       this.liveTickStore.set(cleanSym, obj);
     });
+
+    DEFAULT_US_SECURITIES.forEach(sec => {
+      const cached    = cache?.[sec.symbol] || null;
+      const price     = cached?.price || sec.ltp;
+      const prevClose = cached?.prevClose || (sec.ltp / (1 + (sec.change || 0) / 100));
+      const obj = {
+        symbol: sec.symbol,
+        name: sec.name,
+        price,
+        basePrice: price,
+        prevClose,
+        change: cached?.change ?? (price - prevClose),
+        changePercent: cached?.changePercent ?? sec.change ?? 0,
+        volume: cached?.volume || sec.volume || 25000000,
+        market: 'US'
+      };
+      this.liveTickStore.set(sec.symbol, obj);
+    });
   }
 
   // Comprehensive real-time anchor sync using Yahoo Finance v7 batch quote API.
-  // Fetches ALL subscribed symbols + ALL index symbols + ALL default securities in a single HTTP call.
-  // This runs every 30s to keep price anchors tight to real exchange values.
   async syncLiveAnchors() {
     try {
-      // Build a deduplicated symbol list covering everything in the tick store
       const allSymbols = Array.from(new Set([
-        ...INDEX_SYMBOLS,                                          // ^NSEI, ^BSESN, ^NSEBANK, ^CNXIT
-        ...DEFAULT_INDIAN_SECURITIES.map(s => s.symbol),          // all 30+ NSE stocks
-        ...Array.from(this.subscribedSymbols)                     // any extra watchlist/user symbols
+        ...INDEX_SYMBOLS,
+        ...US_INDEX_SYMBOLS,
+        ...DEFAULT_INDIAN_SECURITIES.map(s => s.symbol),
+        ...DEFAULT_US_SECURITIES.map(s => s.symbol),
+        ...Array.from(this.subscribedSymbols)
       ]));
 
-      // Batch fetch all symbols at once via fast v7 API
       const liveMap = await fetchBatchQuotesV7(allSymbols, 8000);
-      if (!liveMap || liveMap.size === 0) return; // nothing to update, keep current state
+      if (!liveMap || liveMap.size === 0) return;
 
       liveMap.forEach((q, sym) => {
         if (!q?.price) return;
 
-        // Update index aliases
         let storeKey = sym;
         if (sym === '^NSEI')    storeKey = 'NIFTY50';
         if (sym === '^BSESN')   storeKey = 'SENSEX';
         if (sym === '^NSEBANK') storeKey = 'NIFTYBANK';
         if (sym === '^CNXIT')   storeKey = 'CNXIT';
+        if (sym === '^GSPC')    storeKey = 'SP500';
+        if (sym === '^IXIC')    storeKey = 'NASDAQ';
+        if (sym === '^DJI')     storeKey = 'DOW';
+        if (sym === '^RUT')     storeKey = 'RUSSELL';
 
         const existing = this.liveTickStore.get(storeKey) || this.liveTickStore.get(sym);
         if (existing) {
@@ -381,18 +429,19 @@ class WebSocketClient {
     const sessionLabel = isINOpen ? 'LIVE — NSE/BSE OPEN' : (isUSOpen ? 'LIVE — NYSE OPEN' : 'MARKET CLOSED');
     // ─────────────────────────────────────────────────────────────────────────
 
-    // 1. Tick indices
-    const indexKeys = ['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT'];
+    // 1. Tick Indian & US indices
+    const indianIndexKeys = ['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT'];
+    const usIndexKeys = ['SP500', 'NASDAQ', 'DOW', 'RUSSELL'];
 
-    indexKeys.forEach(key => {
+    // Indian Indices
+    indianIndexKeys.forEach(key => {
       const item = this.liveTickStore.get(key);
       if (!item) return;
 
-      // Only generate random movement during live market hours
-      if (generateMovement && Math.random() < 0.75) {
+      // Only generate movement during live Indian market hours (09:15–15:30 IST)
+      if (isINOpen && Math.random() < 0.75) {
         const delta = (Math.random() - 0.49) * (item.basePrice * 0.0003);
         item.price = parseFloat((item.price + delta).toFixed(2));
-        // Keep within ±0.75% of anchor
         if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.0075) {
           item.price = item.basePrice;
         }
@@ -424,27 +473,74 @@ class WebSocketClient {
       }
     });
 
-    // 2. Tick subscribed & top securities (select 6 symbols per pulse)
-    const candidates = Array.from(new Set([
-      ...Array.from(this.subscribedSymbols),
+    // US Indices
+    usIndexKeys.forEach(key => {
+      const item = this.liveTickStore.get(key);
+      if (!item) return;
+
+      // Only generate movement during live US market hours (09:30–16:00 EST)
+      if (isUSOpen && Math.random() < 0.75) {
+        const delta = (Math.random() - 0.49) * (item.basePrice * 0.0004);
+        item.price = parseFloat((item.price + delta).toFixed(2));
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.0075) {
+          item.price = item.basePrice;
+        }
+        item.change = parseFloat((item.price - item.prevClose).toFixed(2));
+        item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
+      }
+
+      const tickObj = {
+        symbol: key,
+        instrumentToken: `US_INDEX_${key}`,
+        price: item.price,
+        change: item.change,
+        changePercent: item.changePercent,
+        pChange: item.changePercent,
+        timestamp: new Date().toLocaleTimeString(),
+        ms: nowUtcMs,
+        volume: 80000000,
+        latencyMs: 12,
+        marketClosed: !isUSOpen
+      };
+
+      ticks[key] = tickObj;
+      if (key === 'SP500') ticks['^GSPC'] = tickObj;
+      if (key === 'NASDAQ') ticks['^IXIC'] = tickObj;
+      if (key === 'DOW') ticks['^DJI'] = tickObj;
+      if (key === 'RUSSELL') ticks['^RUT'] = tickObj;
+    });
+
+    // 2. Tick subscribed & top securities (select from both IN and US)
+    const inCandidates = [
       'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
       'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS'
+    ];
+    const usCandidates = [
+      'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD'
+    ];
+
+    const candidates = Array.from(new Set([
+      ...Array.from(this.subscribedSymbols),
+      ...inCandidates,
+      ...usCandidates
     ]));
 
-    const shuffled = candidates.sort(() => 0.5 - Math.random()).slice(0, 6);
+    const shuffled = candidates.sort(() => 0.5 - Math.random()).slice(0, 8);
 
     shuffled.forEach(sym => {
       const cleanSym = sym.replace('.NS', '').replace('.BO', '').trim();
       const item = this.liveTickStore.get(sym) || this.liveTickStore.get(cleanSym);
       if (!item) return;
 
-      // Only generate random movement during live market hours
-      if (generateMovement) {
-        const tickSpread = item.basePrice > 2000 ? 1.50 : item.basePrice > 500 ? 0.45 : 0.15;
+      const isAssetUS = item.market === 'US' || usCandidates.includes(cleanSym) || usCandidates.includes(sym);
+      const isAssetMarketOpen = isAssetUS ? isUSOpen : isINOpen;
+
+      // Only generate movement if that asset's market is actually open right now
+      if (isAssetMarketOpen) {
+        const tickSpread = item.basePrice > 2000 ? 1.50 : item.basePrice > 500 ? 0.45 : (isAssetUS ? 0.25 : 0.15);
         const delta = (Math.random() - 0.49) * tickSpread;
         item.price = parseFloat((item.price + delta).toFixed(2));
 
-        // Guard drift within ±1.5% of anchor
         if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
           item.price = item.basePrice;
         }
@@ -456,7 +552,7 @@ class WebSocketClient {
 
       const stockTick = {
         symbol: sym,
-        instrumentToken: `NSE_EQ_${cleanSym}`,
+        instrumentToken: isAssetUS ? `US_EQ_${cleanSym}` : `NSE_EQ_${cleanSym}`,
         price: item.price,
         change: item.change,
         changePercent: item.changePercent,
@@ -464,48 +560,55 @@ class WebSocketClient {
         ms: nowUtcMs,
         volume: item.volume,
         latencyMs: 12,
-        marketClosed: !isINOpen
+        marketClosed: !isAssetMarketOpen
       };
 
       ticks[cleanSym] = stockTick;
       ticks[sym] = stockTick;
-      ticks[`${cleanSym}.NS`] = stockTick;
+      if (!isAssetUS) {
+        ticks[`${cleanSym}.NS`] = stockTick;
+      }
     });
 
     this.lastTickTime = nowUtcMs;
-
-    // Show LIVE only when market is actually open; CLOSED when it's not
-    if (generateMovement) {
-      this.setStatus('LIVE');
-    } else {
-      // Use a distinct CLOSED status only if we're not already connected to a real WebSocket
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        this.setStatus('CLOSED');
-      }
-    }
 
     this.notifyListeners({
       type: 'TICK_STREAM',
       ticks,
       breadth: {
         IN: {
-          advances: generateMovement ? 24 + Math.floor(Math.random() * 4) : 22,
-          declines: generateMovement ? 18 + Math.floor(Math.random() * 4) : 26,
+          advances: isINOpen ? 24 + Math.floor(Math.random() * 4) : 22,
+          declines: isINOpen ? 18 + Math.floor(Math.random() * 4) : 26,
           unchanged: 2,
-          advanceDeclineRatio: generateMovement ? 1.35 : 0.85,
+          advanceDeclineRatio: isINOpen ? 1.35 : 0.85,
           indiaVix: 13.85,
           indiaVixChange: -0.80
+        },
+        US: {
+          advances: isUSOpen ? 28 + Math.floor(Math.random() * 4) : 24,
+          declines: isUSOpen ? 20 + Math.floor(Math.random() * 4) : 26,
+          unchanged: 3,
+          advanceDeclineRatio: isUSOpen ? 1.40 : 0.92,
+          indiaVix: 15.40,
+          indiaVixChange: -1.20
         }
       },
       session: {
         IN: {
           status: isINOpen ? 'LIVE' : 'CLOSED',
-          label: sessionLabel,
+          label: isINOpen ? 'LIVE — NSE/BSE OPEN' : 'MARKET CLOSED',
           marketOpen: isINOpen
+        },
+        US: {
+          status: isUSOpen ? 'LIVE' : 'CLOSED',
+          label: isUSOpen ? 'LIVE — NYSE OPEN' : 'MARKET CLOSED',
+          marketOpen: isUSOpen
         }
       },
       isFailover: true
     });
+
+    this.savePriceCache();
   }
 
   startSyntheticFallback() {
