@@ -183,17 +183,22 @@ class YahooFinanceLiveProvider(BaseMarketDataProvider):
             if not cached:
                 # Dynamic fetch of genuine exchange quote on demand
                 try:
-                    yf_sym = sym
+                    us_symbols = {
+                        "NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "AMD", "NFLX", "JPM",
+                        "PLTR", "UBER", "WMT", "ORCL", "TSM", "MU", "MA", "SQ", "AVGO", "INTC", "DIS", "BA", "BABA", "CRM", "PYPL", "V"
+                    }
                     if sym in ["NIFTY50", "^NSEI"]: yf_sym = "^NSEI"
                     elif sym in ["SENSEX", "^BSESN"]: yf_sym = "^BSESN"
                     elif sym in ["NIFTYBANK", "^NSEBANK"]: yf_sym = "^NSEBANK"
-                    elif sym in ["NIFTYIT", "^CNXIT"]: yf_sym = "^CNXIT"
+                    elif sym in ["NIFTYIT", "^CNXIT", "CNXIT"]: yf_sym = "^CNXIT"
                     elif sym in ["SP500", "^GSPC"]: yf_sym = "^GSPC"
                     elif sym in ["NASDAQ", "^IXIC"]: yf_sym = "^IXIC"
                     elif sym in ["DOW", "^DJI"]: yf_sym = "^DJI"
+                    elif sym in ["RUSSELL", "^RUT"]: yf_sym = "^RUT"
+                    elif sym.upper() in us_symbols:
+                        yf_sym = sym.upper()
                     elif not sym.endswith(".NS") and not sym.endswith(".BO") and not sym.startswith("^"):
-                        if sym not in ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "AMD", "NFLX", "JPM"]:
-                            yf_sym = f"{sym}.NS"
+                        yf_sym = f"{sym}.NS"
 
                     url = f"https://query2.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval=1m&range=1d"
                     res = _http_session.get(url, headers=HEADERS, timeout=4.5)
