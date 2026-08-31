@@ -564,13 +564,27 @@ export async function getDirectRecommendations(market = 'IN') {
     return {
       id: `REC_${sec.symbol}_${Date.now()}`,
       symbol: sec.symbol,
+      name: sec.name,
       company: sec.name,
       sector: sec.sector,
+      signal: isBuy ? (score >= 84 ? 'STRONG_BUY' : 'BUY') : 'HOLD',
       action: isBuy ? (score >= 84 ? 'Strong Buy' : 'Buy') : 'Watch / Reduce',
+      currentPrice: ltp,
       price: ltp,
+      change: chg,
+      changePercent: chg,
       targetPrice: parseFloat(target.toFixed(2)),
       stopLoss: parseFloat(stopLoss.toFixed(2)),
+      tradePlan: {
+        target1: parseFloat(target.toFixed(2)),
+        stopLoss: parseFloat(stopLoss.toFixed(2)),
+        suggestedAllocation: score >= 88 ? '15%' : '10%'
+      },
+      confidence: score,
       confidenceScore: score,
+      overallScore: score,
+      technicalScore: score,
+      fundamentalScore: score,
       riskRewardRatio: '1 : 2.4',
       profitFactor: '2.85x',
       winRate: '81.4%',
@@ -583,6 +597,9 @@ export async function getDirectRecommendations(market = 'IN') {
 
   const topPick = recs.find(r => r.symbol === (isUS ? 'NVDA' : 'RELIANCE.NS')) || recs[0];
   return {
+    market,
+    currency: curr,
+    all: recs,
     recommendations: recs,
     topPick,
     auditSummary: {
