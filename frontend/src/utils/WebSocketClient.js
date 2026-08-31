@@ -510,24 +510,26 @@ class WebSocketClient {
       if (key === 'RUSSELL') ticks['^RUT'] = tickObj;
     });
 
-    // 2. Tick subscribed & top securities (select from both IN and US)
+    // 2. Tick subscribed & top securities
     const inCandidates = [
       'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
       'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS'
     ];
     const usCandidates = [
-      'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD'
+      'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD',
+      'PLTR', 'UBER', 'NFLX', 'WMT', 'ORCL', 'JPM', 'AVGO'
     ];
+
+    const activeList = isUSOpen ? usCandidates : [];
+    const closedList = isINOpen ? inCandidates : (isUSOpen ? [] : inCandidates);
 
     const candidates = Array.from(new Set([
       ...Array.from(this.subscribedSymbols),
-      ...inCandidates,
-      ...usCandidates
+      ...activeList,
+      ...closedList
     ]));
 
-    const shuffled = candidates.sort(() => 0.5 - Math.random()).slice(0, 8);
-
-    shuffled.forEach(sym => {
+    candidates.forEach(sym => {
       const cleanSym = sym.replace('.NS', '').replace('.BO', '').trim();
       const item = this.liveTickStore.get(sym) || this.liveTickStore.get(cleanSym);
       if (!item) return;
@@ -535,13 +537,13 @@ class WebSocketClient {
       const isAssetUS = item.market === 'US' || usCandidates.includes(cleanSym) || usCandidates.includes(sym);
       const isAssetMarketOpen = isAssetUS ? isUSOpen : isINOpen;
 
-      // Only generate movement if that asset's market is actually open right now
+      // Only generate dynamic movement if that asset's market is actually open right now
       if (isAssetMarketOpen) {
-        const tickSpread = item.basePrice > 2000 ? 1.50 : item.basePrice > 500 ? 0.45 : (isAssetUS ? 0.25 : 0.15);
+        const tickSpread = item.basePrice > 500 ? 0.65 : (isAssetUS ? 0.35 : 0.15);
         const delta = (Math.random() - 0.49) * tickSpread;
         item.price = parseFloat((item.price + delta).toFixed(2));
 
-        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.02) {
           item.price = item.basePrice;
         }
 
