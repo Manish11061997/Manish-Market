@@ -11,7 +11,7 @@
  */
 
 import { getApiBase, getCandidateBases, isCapacitorNative, isSecureContext, probeFastestServer, refreshConfigFromCdn } from './api';
-import { getDirectMarketSummary, getDirectMarketBreadth, getDirectStockDetail, DEFAULT_INDICES, DEFAULT_INDIAN_SECURITIES } from './directMarketProvider';
+import { getDirectMarketSummary, getDirectMarketBreadth, getDirectStockDetail, DEFAULT_INDICES, DEFAULT_INDIAN_SECURITIES, fetchBatchQuotesV7, INDEX_SYMBOLS } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
@@ -232,34 +232,56 @@ class WebSocketClient {
     });
   }
 
-  // Periodic quiet anchor sync to keep baseline prices aligned with exchange (runs every 60s)
+  // Comprehensive real-time anchor sync using Yahoo Finance v7 batch quote API.
+  // Fetches ALL subscribed symbols + ALL index symbols + ALL default securities in a single HTTP call.
+  // This runs every 30s to keep price anchors tight to real exchange values.
   async syncLiveAnchors() {
     try {
-      const summary = await getDirectMarketSummary('IN');
-      if (Array.isArray(summary?.indices)) {
-        summary.indices.forEach(idx => {
-          const existing = this.liveTickStore.get(idx.symbol);
-          if (existing && idx.price) {
-            existing.basePrice = idx.price;
-            existing.price = idx.price;
-            existing.change = idx.change;
-            existing.changePercent = idx.changePercent;
-          }
-        });
-      }
-      if (Array.isArray(summary?.active)) {
-        summary.active.forEach(sec => {
-          const cleanSym = sec.symbol.replace('.NS', '').trim();
-          const existing = this.liveTickStore.get(sec.symbol) || this.liveTickStore.get(cleanSym);
-          if (existing && sec.ltp) {
-            existing.basePrice = sec.ltp;
-            existing.price = sec.ltp;
-            existing.changePercent = sec.change;
-          }
-        });
-      }
+      // Build a deduplicated symbol list covering everything in the tick store
+      const allSymbols = Array.from(new Set([
+        ...INDEX_SYMBOLS,                                          // ^NSEI, ^BSESN, ^NSEBANK, ^CNXIT
+        ...DEFAULT_INDIAN_SECURITIES.map(s => s.symbol),          // all 30+ NSE stocks
+        ...Array.from(this.subscribedSymbols)                     // any extra watchlist/user symbols
+      ]));
+
+      // Batch fetch all symbols at once via fast v7 API
+      const liveMap = await fetchBatchQuotesV7(allSymbols, 8000);
+      if (!liveMap || liveMap.size === 0) return; // nothing to update, keep current state
+
+      liveMap.forEach((q, sym) => {
+        if (!q?.price) return;
+
+        // Update index aliases
+        let storeKey = sym;
+        if (sym === '^NSEI')    storeKey = 'NIFTY50';
+        if (sym === '^BSESN')   storeKey = 'SENSEX';
+        if (sym === '^NSEBANK') storeKey = 'NIFTYBANK';
+        if (sym === '^CNXIT')   storeKey = 'CNXIT';
+
+        const existing = this.liveTickStore.get(storeKey) || this.liveTickStore.get(sym);
+        if (existing) {
+          existing.basePrice    = q.price;
+          existing.price        = q.price;
+          existing.prevClose    = q.previousClose || (q.price - q.change) || q.price;
+          existing.change       = q.change ?? 0;
+          existing.changePercent = q.changePercent ?? 0;
+          if (q.volume) existing.volume = q.volume;
+        }
+
+        // Also update under .NS clean variant
+        const cleanSym = sym.replace('.NS', '').trim();
+        const cleanExisting = this.liveTickStore.get(cleanSym);
+        if (cleanExisting && cleanExisting !== existing) {
+          cleanExisting.basePrice    = q.price;
+          cleanExisting.price        = q.price;
+          cleanExisting.prevClose    = q.previousClose || (q.price - q.change) || q.price;
+          cleanExisting.change       = q.change ?? 0;
+          cleanExisting.changePercent = q.changePercent ?? 0;
+          if (q.volume) cleanExisting.volume = q.volume;
+        }
+      });
     } catch {
-      // quiet fallback
+      // quiet fallback — ticker keeps running with last known prices
     }
   }
 
@@ -391,10 +413,14 @@ class WebSocketClient {
       this.executeDirectCloudTick();
     }, 1000);
 
-    // Anchor sync: quietly syncs real market prices in background every 60s
+    // Immediately fetch real live prices from Yahoo Finance to anchor the tick engine correctly
+    // This ensures users see real prices from the first second, not stale hardcoded defaults
+    this.syncLiveAnchors();
+
+    // Then re-sync every 30s (was 60s) to stay locked to real exchange prices
     this.anchorSyncTimer = setInterval(() => {
       this.syncLiveAnchors();
-    }, 60000);
+    }, 30000);
   }
 
   stopSyntheticFallback() {

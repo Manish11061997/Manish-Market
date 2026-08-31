@@ -4,25 +4,28 @@
  * Zero backend dependency — works 24/7 even when laptop is off.
  */
 
-// In-memory cache — 60s TTL for quotes, 5m for charts
+// In-memory cache — 30s TTL for quotes (was 60s), 5m for charts
 const chartCache = new Map();
 const quoteCache = new Map();
-const QUOTE_CACHE_TTL = 60_000;   // 60 seconds
+const QUOTE_CACHE_TTL = 30_000;   // 30 seconds (was 60s — halved for freshness)
 const CHART_CACHE_TTL = 300_000;  // 5 minutes
 
 // Yahoo Finance base
 const YF_BASE_V8 = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
-// Multi-tier resilient fetcher: bypasses browser CORS via proxy.cors.sh / allorigins, fallback to direct
+// CORS proxy candidates tried in order
+const PROXY_CANDIDATES = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => url  // direct fallback (works in Capacitor native)
+];
+
+// Multi-tier resilient fetcher: bypasses browser CORS via multiple proxies
 async function fetchFromYF(endpointWithQuery, timeoutMs = 6000) {
   const yfDirect = `https://query1.finance.yahoo.com${endpointWithQuery}`;
-  const candidates = [
-    `https://proxy.cors.sh/${yfDirect}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfDirect)}`,
-    yfDirect
-  ];
 
-  for (const targetUrl of candidates) {
+  for (const proxyFn of PROXY_CANDIDATES) {
+    const targetUrl = proxyFn(yfDirect);
     try {
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), timeoutMs);
@@ -39,6 +42,59 @@ async function fetchFromYF(endpointWithQuery, timeoutMs = 6000) {
     }
   }
   return null;
+}
+
+/**
+ * Batch-fetch live quotes via Yahoo Finance v7/finance/quote API.
+ * Supports up to ~50 symbols in a single HTTP request — much faster than per-symbol v8/chart.
+ * Returns Map<symbol, {price, changePercent, change, dayHigh, dayLow, volume, high52, low52, longName}>
+ */
+export async function fetchBatchQuotesV7(symbols, timeoutMs = 8000) {
+  if (!symbols || symbols.length === 0) return new Map();
+
+  const cacheKey = `batch_v7_${symbols.sort().join(',')}`;
+  const cached = quoteCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < QUOTE_CACHE_TTL) return cached.data;
+
+  const symsParam = encodeURIComponent(symbols.join(','));
+  const yfUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symsParam}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketChange,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume,fiftyTwoWeekHigh,fiftyTwoWeekLow,longName,shortName,regularMarketPreviousClose`;
+
+  for (const proxyFn of PROXY_CANDIDATES) {
+    const targetUrl = proxyFn(yfUrl);
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(targetUrl, { signal: controller.signal });
+      clearTimeout(tid);
+      if (res.ok) {
+        const data = await res.json();
+        const quotes = data?.quoteResponse?.result;
+        if (Array.isArray(quotes) && quotes.length > 0) {
+          const resultMap = new Map();
+          quotes.forEach(q => {
+            resultMap.set(q.symbol, {
+              symbol: q.symbol,
+              price: q.regularMarketPrice,
+              change: q.regularMarketChange ?? 0,
+              changePercent: q.regularMarketChangePercent ?? 0,
+              dayHigh: q.regularMarketDayHigh,
+              dayLow: q.regularMarketDayLow,
+              volume: q.regularMarketVolume,
+              high52: q.fiftyTwoWeekHigh,
+              low52: q.fiftyTwoWeekLow,
+              previousClose: q.regularMarketPreviousClose,
+              longName: q.longName || q.shortName || q.symbol
+            });
+          });
+          quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+          return resultMap;
+        }
+      }
+    } catch {
+      // try next proxy
+    }
+  }
+  return new Map(); // empty map on all-proxy failure
 }
 
 // Indian NSE/BSE universe - symbols for Yahoo Finance
@@ -214,35 +270,43 @@ export function generateSyntheticCandles(symbol, timeframe = '1D', count = 300, 
 
 /**
  * REAL-TIME Market Summary — fetches live NIFTY50, SENSEX, BANK NIFTY, NIFTY IT from Yahoo Finance
+ * Now uses fast v7 batch API to fetch indices + top 20 stocks in a single HTTP call.
  */
 export async function getDirectMarketSummary(region = 'IN') {
   try {
-    const indexQuotes = await fetchBatchYFQuotes(INDEX_SYMBOLS, 6000);
-    const stockQuotes = await fetchBatchYFQuotes(NIFTY50_SYMBOLS.slice(0, 20), 8000);
+    // Single batch call covers indices + all securities
+    const allSymbols = [...INDEX_SYMBOLS, ...NIFTY50_SYMBOLS.slice(0, 20)];
+    const liveMap = await fetchBatchQuotesV7(allSymbols, 8000);
 
-    const indices = indexQuotes.map(q => ({
-      symbol: q.symbol,
-      name: q.longName || q.symbol,
-      price: q.price,
-      change: parseFloat((q.change || 0).toFixed(2)),
-      changePercent: parseFloat((q.changePercent || 0).toFixed(2)),
-      high: q.dayHigh,
-      low: q.dayLow
-    }));
+    // Build index array
+    const indices = INDEX_SYMBOLS.map(sym => {
+      const q = liveMap.get(sym);
+      const def = DEFAULT_INDICES.find(d => d.symbol === sym);
+      if (!q) return def;
+      return {
+        symbol: sym,
+        name: q.longName || def?.name || sym,
+        price: q.price,
+        change: parseFloat((q.change || 0).toFixed(2)),
+        changePercent: parseFloat((q.changePercent || 0).toFixed(2)),
+        high: q.dayHigh,
+        low: q.dayLow
+      };
+    }).filter(Boolean);
 
     const securities = DEFAULT_INDIAN_SECURITIES.map(meta => {
-      const liveQ = stockQuotes.find(q => q.symbol === meta.symbol);
-      const ltp = liveQ?.price || meta.ltp || 1000;
-      const chg = liveQ?.changePercent ?? meta.change ?? 0;
+      const q = liveMap.get(meta.symbol);
+      const ltp = q?.price || meta.ltp || 1000;
+      const chg = q?.changePercent ?? meta.change ?? 0;
       return {
         symbol: meta.symbol,
         name: meta.name,
         sector: meta.sector || 'Diversified',
         ltp,
         change: parseFloat(chg.toFixed(2)),
-        volume: liveQ?.volume || meta.volume || 1000000,
-        high52: liveQ?.high52 || meta.high52,
-        low52: liveQ?.low52 || meta.low52,
+        volume: q?.volume || meta.volume || 1000000,
+        high52: q?.high52 || meta.high52,
+        low52: q?.low52 || meta.low52,
         pe: meta.pe,
         mcap: meta.mcap,
         beta: meta.beta
@@ -257,7 +321,7 @@ export async function getDirectMarketSummary(region = 'IN') {
       active: securities.sort((a, b) => b.volume - a.volume).slice(0, 8),
       marketStatus: 'LIVE_ACTIVE',
       timestamp: new Date().toISOString(),
-      source: 'YahooFinance-DirectCloud'
+      source: 'YahooFinance-v7-Batch'
     };
   } catch {
     return {
@@ -276,25 +340,30 @@ export async function getDirectMarketSummary(region = 'IN') {
  */
 export async function getDirectMarketBreadth(market = 'IN') {
   try {
-    const quotes = await fetchBatchYFQuotes([...NIFTY50_SYMBOLS.slice(0, 30)], 8000);
-    const advances = quotes.filter(q => (q.changePercent || 0) > 0).length;
-    const declines = quotes.filter(q => (q.changePercent || 0) < 0).length;
-    const unchanged = quotes.length - advances - declines;
-    const vixQ = await fetchYFQuote('^INDIAVIX', 4000);
+    // Batch fetch top 30 NSE stocks + India VIX in a single call
+    const syms = [...NIFTY50_SYMBOLS.slice(0, 30), '^INDIAVIX'];
+    const liveMap = await fetchBatchQuotesV7(syms, 8000);
+
+    const stockEntries = Array.from(liveMap.values()).filter(q => q.symbol !== '^INDIAVIX');
+    const advances = stockEntries.filter(q => (q.changePercent || 0) > 0).length;
+    const declines = stockEntries.filter(q => (q.changePercent || 0) < 0).length;
+    const unchanged = stockEntries.length - advances - declines;
+    const vixQ = liveMap.get('^INDIAVIX');
+
     return {
       market,
       advances,
       declines,
       unchanged,
       advanceDeclineRatio: declines > 0 ? parseFloat((advances / declines).toFixed(2)) : 1.0,
-      high52w: quotes.filter(q => q.price && q.high52 && q.price >= q.high52 * 0.98).length,
-      low52w: quotes.filter(q => q.price && q.low52 && q.price <= q.low52 * 1.02).length,
+      high52w: stockEntries.filter(q => q.price && q.high52 && q.price >= q.high52 * 0.98).length,
+      low52w: stockEntries.filter(q => q.price && q.low52 && q.price <= q.low52 * 1.02).length,
       indiaVix: vixQ?.price || 14.20,
       indiaVixChange: vixQ?.changePercent || -1.50,
       fiiFlowCr: 1420.5,
       diiFlowCr: 980.2,
       timestamp: new Date().toISOString(),
-      source: 'YahooFinance-DirectCloud'
+      source: 'YahooFinance-v7-Batch'
     };
   } catch {
     return {
@@ -308,18 +377,13 @@ export async function getDirectMarketBreadth(market = 'IN') {
 }
 
 /**
- * REAL-TIME Recommendations — live prices from Yahoo Finance
+ * REAL-TIME Recommendations — live prices for ALL securities from Yahoo Finance v7 batch
  */
 export async function getDirectRecommendations(market = 'IN') {
   const baseList = DEFAULT_INDIAN_SECURITIES;
-  
-  // Try fetching live quotes for top symbols to update prices
-  const liveQuoteMap = new Map();
-  try {
-    const symbolsToFetch = baseList.slice(0, 12).map(s => s.symbol);
-    const quotes = await fetchBatchYFQuotes(symbolsToFetch, 5000);
-    quotes.forEach(q => { if (q?.symbol) liveQuoteMap.set(q.symbol, q); });
-  } catch { /* proceed with baseList */ }
+
+  // Fetch live quotes for ALL securities in one batch call (not just 12)
+  const liveQuoteMap = await fetchBatchQuotesV7(baseList.map(s => s.symbol), 8000);
 
   const recs = baseList.map((sec, idx) => {
     const liveQ = liveQuoteMap.get(sec.symbol);
@@ -612,24 +676,31 @@ export async function getDirectHorizonAnalysis(symbol, horizon = 'INTRADAY') {
 }
 
 /**
- * Direct Screener Provider
+ * Direct Screener Provider — uses live Yahoo Finance v7 prices
  */
 export async function getDirectScreener() {
-  return {
-    total: DEFAULT_INDIAN_SECURITIES.length,
-    results: DEFAULT_INDIAN_SECURITIES.map(s => ({
+  const allSymbols = DEFAULT_INDIAN_SECURITIES.map(s => s.symbol);
+  const liveMap = await fetchBatchQuotesV7(allSymbols, 8000);
+
+  const results = DEFAULT_INDIAN_SECURITIES.map(s => {
+    const q = liveMap.get(s.symbol);
+    const price = q?.price || s.ltp;
+    const changePercent = q?.changePercent ?? s.change ?? 0;
+    return {
       symbol: s.symbol,
       name: s.name,
       sector: s.sector,
-      price: s.ltp,
-      changePercent: s.change,
-      volume: s.volume,
+      price,
+      changePercent,
+      volume: q?.volume || s.volume,
       peRatio: s.pe,
       marketCap: s.mcap,
-      signal: s.change > 2.0 ? "STRONG_BUY" : (s.change > 0 ? "BUY" : "HOLD"),
-      score: s.change > 3.0 ? 91 : (s.change > 0 ? 82 : 65)
-    }))
-  };
+      signal: changePercent > 2.0 ? 'STRONG_BUY' : (changePercent > 0 ? 'BUY' : 'HOLD'),
+      score: changePercent > 3.0 ? 91 : (changePercent > 0 ? 82 : 65)
+    };
+  });
+
+  return { total: results.length, results };
 }
 
 /**
@@ -638,12 +709,12 @@ export async function getDirectScreener() {
 export async function getDirectFnoSignals() {
   return {
     pcrRatio: 1.18,
-    maxPainStrike: 24200,
-    overallSentiment: "BULLISH_BIAS",
+    maxPainStrike: 24050,
+    overallSentiment: 'BULLISH_BIAS',
     signals: [
-      { symbol: "NIFTY", expiry: "Weekly", strike: 24200, type: "CE", action: "LONG_BUILDUP", oiChange: "+14.2%", iv: 13.8 },
-      { symbol: "BANKNIFTY", expiry: "Weekly", strike: 57500, type: "PE", action: "SHORT_COVERING", oiChange: "-8.5%", iv: 15.2 },
-      { symbol: "RELIANCE", expiry: "Monthly", strike: 1300, type: "CE", action: "CALL_UNWINDING", oiChange: "+22.4%", iv: 18.5 }
+      { symbol: 'NIFTY', expiry: 'Weekly', strike: 24100, type: 'CE', action: 'LONG_BUILDUP', oiChange: '+14.2%', iv: 13.8 },
+      { symbol: 'BANKNIFTY', expiry: 'Weekly', strike: 57500, type: 'PE', action: 'SHORT_COVERING', oiChange: '-8.5%', iv: 15.2 },
+      { symbol: 'RELIANCE', expiry: 'Monthly', strike: 1300, type: 'CE', action: 'CALL_UNWINDING', oiChange: '+22.4%', iv: 18.5 }
     ]
   };
 }
@@ -654,14 +725,14 @@ export async function getDirectFnoSignals() {
 export async function getDirectIpoList() {
   return {
     open: [
-      { name: "Tata Capital Ltd IPO", issueSize: "₹12,500 Cr", priceBand: "₹310 - ₹326", gmp: "+₹142 (43.5%)", subscription: "18.4x", status: "APPLY_RECOMMENDED", closeDate: "2026-09-04" }
+      { name: 'Tata Capital Ltd IPO', issueSize: '₹12,500 Cr', priceBand: '₹310 - ₹326', gmp: '+₹142 (43.5%)', subscription: '18.4x', status: 'APPLY_RECOMMENDED', closeDate: '2026-09-04' }
     ],
     upcoming: [
-      { name: "Reliance Retail Ventures IPO", issueSize: "₹35,000 Cr", priceBand: "Announcing Soon", gmp: "+52%", status: "HIGH_INTEREST" },
-      { name: "NSDL Ltd IPO", issueSize: "₹4,500 Cr", priceBand: "₹750 - ₹790", gmp: "+38%", status: "UPCOMING" }
+      { name: 'Reliance Retail Ventures IPO', issueSize: '₹35,000 Cr', priceBand: 'Announcing Soon', gmp: '+52%', status: 'HIGH_INTEREST' },
+      { name: 'NSDL Ltd IPO', issueSize: '₹4,500 Cr', priceBand: '₹750 - ₹790', gmp: '+38%', status: 'UPCOMING' }
     ],
     listed: [
-      { name: "Ola Electric Ltd", listingGain: "+20.0%", issuePrice: "₹76.00", currentPrice: "₹112.50", gainSinceListing: "+48.0%" }
+      { name: 'Ola Electric Ltd', listingGain: '+20.0%', issuePrice: '₹76.00', currentPrice: '₹112.50', gainSinceListing: '+48.0%' }
     ]
   };
 }
@@ -674,21 +745,27 @@ export async function getDirectCopilotAnswer(query) {
   let foundStock = DEFAULT_INDIAN_SECURITIES.find(s => cleanQ.includes(s.symbol.replace('.NS', '').toLowerCase()) || cleanQ.includes(s.name.toLowerCase()));
   if (!foundStock) foundStock = DEFAULT_INDIAN_SECURITIES[0];
 
+  // Fetch latest live price for the found stock
+  const liveMap = await fetchBatchQuotesV7([foundStock.symbol], 4000);
+  const q = liveMap.get(foundStock.symbol);
+  const livePrice = q?.price || foundStock.ltp;
+  const liveChange = q?.changePercent ?? foundStock.change ?? 0;
+
   return {
     query,
     symbol: foundStock.symbol,
     answer: `### Institutional Market Synthesis: **${foundStock.name} (${foundStock.symbol})**\n\n` +
       `**1. Observed Data (Market Facts)**\n` +
-      `- Current Market Price: ₹${foundStock.ltp.toLocaleString()}\n` +
-      `- 24h Price Change: ${foundStock.change >= 0 ? '+' : ''}${foundStock.change}%\n` +
-      `- Trailing Volume: ${foundStock.volume.toLocaleString()} shares\n` +
-      `- 52-Week Range: ₹${foundStock.low52} – ₹${foundStock.high52}\n\n` +
+      `- Current Market Price: ₹${livePrice.toLocaleString()}\n` +
+      `- 24h Price Change: ${liveChange >= 0 ? '+' : ''}${liveChange.toFixed(2)}%\n` +
+      `- Trailing Volume: ${(q?.volume || foundStock.volume).toLocaleString()} shares\n` +
+      `- 52-Week Range: ₹${q?.low52 || foundStock.low52} – ₹${q?.high52 || foundStock.high52}\n\n` +
       `**2. Quantitative Inference**\n` +
       `- Technical Structure: Trading above key dynamic 20-EMA value zones.\n` +
       `- Multi-Factor Confluence: 84/100 Quantitative Score.\n` +
-      `- Suggested Strategy: Buy on pullbacks to ₹${(foundStock.ltp * 0.99).toFixed(2)} with Target ₹${(foundStock.ltp * 1.08).toFixed(2)}.\n\n` +
+      `- Suggested Strategy: Buy on pullbacks to ₹${(livePrice * 0.99).toFixed(2)} with Target ₹${(livePrice * 1.08).toFixed(2)}.\n\n` +
       `**3. Risk & Invalidation**\n` +
-      `- Hard Invalidation Threshold: Hourly close below ₹${(foundStock.ltp * 0.965).toFixed(2)}.`,
+      `- Hard Invalidation Threshold: Hourly close below ₹${(livePrice * 0.965).toFixed(2)}.`,
     timestamp: new Date().toISOString()
   };
 }
