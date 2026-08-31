@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
+import { generateSyntheticCandles } from '../utils/directMarketProvider';
 import {
   Maximize2, RotateCw, RotateCcw, X, TrendingUp, Minus, MoveRight, Square,
   Trash2, Zap, Sparkles, Plus, Play, Save, Check, CheckCircle2, ChevronDown, Sliders,
@@ -642,17 +643,28 @@ export default function TradingViewCandleChart({
   // 1. Fetch Historical OHLCV Series (Deep History Going Back Years)
   useEffect(() => {
     if (!cleanSymbol) return;
-    console.log("[CHART EFFECT] Starting fetch for:", cleanSymbol, "timeframe:", timeframe);
-    setLoading(true);
+
+    // Instant zero-delay preview: Seed instant price candles so chart renders immediately in 0ms
+    if (!candlesRef.current || candlesRef.current.length === 0) {
+      const instantBars = generateSyntheticCandles(cleanSymbol, timeframe, 120);
+      if (instantBars && instantBars.length > 0) {
+        candlesRef.current = instantBars;
+        setCandles(instantBars);
+        setLastCandle(instantBars[instantBars.length - 1]);
+        setLoading(false);
+        syncCandlesToCharts(instantBars, true);
+      }
+    }
+
     setNoData(false);
 
-    let period = '5y';
+    let period = '1y';
     let interval = '1d';
     if (timeframe === '1m') { period = '5d'; interval = '1m'; }
     else if (timeframe === '5m') { period = '1mo'; interval = '5m'; }
     else if (timeframe === '15m') { period = '3mo'; interval = '15m'; }
     else if (timeframe === '1h') { period = '1y'; interval = '60m'; }
-    else if (timeframe === '1D') { period = '5y'; interval = '1d'; }
+    else if (timeframe === '1D') { period = '1y'; interval = '1d'; }
     else if (timeframe === '1W') { period = 'max'; interval = '1wk'; }
 
     const targetSym = encodeURIComponent(cleanSymbol);
