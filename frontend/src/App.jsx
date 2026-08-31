@@ -198,10 +198,10 @@ export default function App() {
           market: currentMarket,
           marketStatus: "LIVE_ACTIVE",
           indices: {
-            NIFTY50: { name: "Nifty 50", price: 24066.80, change: -108.85, pChange: -0.45, status: "BULLISH" },
-            SENSEX: { name: "BSE Sensex", price: 76991.34, change: -273.15, pChange: -0.35, status: "BULLISH" },
-            NIFTYBANK: { name: "Nifty Bank", price: 57373.75, change: -122.50, pChange: -0.21, status: "NEUTRAL" },
-            CNXIT: { name: "Nifty IT", price: 30837.15, change: -320.10, pChange: -1.03, status: "NEUTRAL" }
+            NIFTY50: { name: "Nifty 50", price: 24075.90, change: -99.75, pChange: -0.41, status: "BULLISH" },
+            SENSEX: { name: "BSE Sensex", price: 76861.69, change: -402.80, pChange: -0.52, status: "BULLISH" },
+            NIFTYBANK: { name: "Nifty Bank", price: 57409.70, change: -86.55, pChange: -0.15, status: "NEUTRAL" },
+            CNXIT: { name: "Nifty IT", price: 30894.65, change: -262.60, pChange: -0.84, status: "NEUTRAL" }
           }
         });
         checkDone('Market Summary', true);
@@ -241,8 +241,8 @@ export default function App() {
           market: currentMarket,
           currency: currentMarket === 'US' ? '$' : '₹',
           all: [
-            { symbol: currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS', name: currentMarket === 'US' ? 'NVIDIA Corp' : 'Reliance Industries', sector: 'Energy/Tech', currentPrice: currentMarket === 'US' ? 217.55 : 1286.50, signal: 'BULLISH_BREAKOUT', action: 'STRONG BUY', overallScore: 92, tradePlan: { target1: currentMarket === 'US' ? 245.0 : 1395.0, stopLoss: currentMarket === 'US' ? 190.0 : 1240.0, suggestedAllocation: '15%' }, rationale: ['5-Pillar Confluence Score: 92/100', '20-EMA Breakout with Volume Confirmation'] },
-            { symbol: currentMarket === 'US' ? 'AAPL' : 'TCS.NS', name: currentMarket === 'US' ? 'Apple Inc' : 'Tata Consultancy Services', sector: 'IT/Tech', currentPrice: currentMarket === 'US' ? 319.70 : 2323.70, signal: 'BULLISH', action: 'BUY', overallScore: 88, tradePlan: { target1: currentMarket === 'US' ? 350.0 : 2520.0, stopLoss: currentMarket === 'US' ? 290.0 : 2240.0, suggestedAllocation: '12%' }, rationale: ['RSI Bullish Momentum > 60', 'Institutional Delivery Accumulation'] }
+            { symbol: currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS', name: currentMarket === 'US' ? 'NVIDIA Corp' : 'Reliance Industries', sector: 'Energy/Tech', currentPrice: currentMarket === 'US' ? 217.55 : 1293.00, signal: 'BULLISH_BREAKOUT', action: 'STRONG BUY', overallScore: 92, tradePlan: { target1: currentMarket === 'US' ? 245.0 : 1395.0, stopLoss: currentMarket === 'US' ? 190.0 : 1240.0, suggestedAllocation: '15%' }, rationale: ['5-Pillar Confluence Score: 92/100', '20-EMA Breakout with Volume Confirmation'] },
+            { symbol: currentMarket === 'US' ? 'AAPL' : 'TCS.NS', name: currentMarket === 'US' ? 'Apple Inc' : 'Tata Consultancy Services', sector: 'IT/Tech', currentPrice: currentMarket === 'US' ? 319.70 : 2329.00, signal: 'BULLISH', action: 'BUY', overallScore: 88, tradePlan: { target1: currentMarket === 'US' ? 350.0 : 2520.0, stopLoss: currentMarket === 'US' ? 290.0 : 2240.0, suggestedAllocation: '12%' }, rationale: ['RSI Bullish Momentum > 60', 'Institutional Delivery Accumulation'] }
           ]
         });
         checkDone('Recommendations', true);

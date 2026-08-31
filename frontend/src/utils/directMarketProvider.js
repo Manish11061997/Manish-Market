@@ -66,22 +66,22 @@ export const INDEX_SYMBOLS = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT'];
 
 // Real current market baseline securities universe (active live baseline data)
 export const DEFAULT_INDIAN_SECURITIES = [
-  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1286.50, change: -0.04, high52: 1611.80, low52: 1249.80, volume: 5078400, pe: 24.5, mcap: "17.4L Cr", beta: 0.85 },
-  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2323.70, change: -0.78, high52: 3350.00, low52: 1976.80, volume: 1016700, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
-  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 717.75,  change: -0.35, high52: 1020.50, low52: 707.00,  volume: 42026600, pe: 19.8, mcap: "13.2L Cr", beta: 0.95 },
-  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1123.40, change: -1.80, high52: 1728.00, low52: 982.40,  volume: 3861300, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
-  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1436.30, change: 0.95,  high52: 1480.00, low52: 1187.60, volume: 8316300, pe: 18.2, mcap: "10.0L Cr", beta: 1.05 },
-  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1884.90, change: 0.13,  high52: 2174.50, low52: 1740.50, volume: 2864600, pe: 42.1, mcap: "10.8L Cr", beta: 0.65 },
-  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 1041.60, change: -0.56, high52: 1234.70, low52: 802.65,  volume: 2095600, pe: 10.4, mcap: "7.2L Cr",  beta: 1.15 },
+  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1293.00, change: 0.45,  high52: 1611.80, low52: 1249.80, volume: 5278400, pe: 24.5, mcap: "17.5L Cr", beta: 0.85 },
+  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2329.00, change: -0.55, high52: 3350.00, low52: 1976.80, volume: 1046700, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
+  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 706.25,  change: -1.95, high52: 1020.50, low52: 705.00,  volume: 44026600, pe: 19.8, mcap: "13.0L Cr", beta: 0.95 },
+  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1126.50, change: -1.50, high52: 1728.00, low52: 982.40,  volume: 3961300, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
+  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1443.30, change: 1.45,  high52: 1480.00, low52: 1187.60, volume: 8416300, pe: 18.2, mcap: "10.1L Cr", beta: 1.05 },
+  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1880.00, change: -0.15, high52: 2174.50, low52: 1740.50, volume: 2964600, pe: 42.1, mcap: "10.8L Cr", beta: 0.65 },
+  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 1046.70, change: -0.10, high52: 1234.70, low52: 802.65,  volume: 2195600, pe: 10.4, mcap: "7.3L Cr",  beta: 1.15 },
   { symbol: "BAJFINANCE.NS",name: "Bajaj Finance Ltd",                sector: "NBFC & Financials",         ltp: 1063.60, change: -1.51, high52: 1176.40, low52: 787.90,  volume: 2626400, pe: 28.5, mcap: "4.5L Cr",  beta: 1.20 },
   { symbol: "KOTAKBANK.NS", name: "Kotak Mahindra Bank Ltd",          sector: "Banking & Financials",      ltp: 421.60,  change: -0.50, high52: 453.20,  low52: 345.50,  volume: 7740700, pe: 20.1, mcap: "4.2L Cr",  beta: 0.90 },
-  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 4003.00, change: -1.06, high52: 4440.00, low52: 3288.10, volume: 623100, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
+  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 4022.30, change: -0.60, high52: 4440.00, low52: 3288.10, volume: 643100, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
   { symbol: "MARUTI.NS",    name: "Maruti Suzuki India Ltd",          sector: "Automotive",                ltp: 13435.0, change: 0.44,  high52: 17370.0, low52: 12201.0, volume: 210200,  pe: 26.5, mcap: "3.6L Cr",  beta: 0.95 },
   { symbol: "HCLTECH.NS",   name: "HCL Technologies Ltd",             sector: "IT Services & Consulting",  ltp: 1316.00, change: -0.01, high52: 1780.10, low52: 1030.00, volume: 770100,  pe: 24.8, mcap: "4.3L Cr",  beta: 0.85 },
   { symbol: "NTPC.NS",      name: "NTPC Ltd",                         sector: "Power & Utilities",          ltp: 324.80,  change: -1.59, high52: 414.40,  low52: 315.55,  volume: 9445800, pe: 18.0, mcap: "3.3L Cr",  beta: 0.70 },
   { symbol: "POWERGRID.NS", name: "Power Grid Corp of India",         sector: "Power & Utilities",          ltp: 264.70,  change: -0.51, high52: 324.95,  low52: 250.00,  volume: 3638700, pe: 16.5, mcap: "2.9L Cr",  beta: 0.60 },
-  { symbol: "TATAMOTORS.NS",name: "Tata Motors Ltd",                  sector: "Automotive",                ltp: 875.40,  change: 0.85,  high52: 1179.00, low52: 850.00,  volume: 6540000, pe: 10.2, mcap: "3.5L Cr",  beta: 1.40 },
-  { symbol: "ITC.NS",       name: "ITC Ltd",                          sector: "FMCG",                      ltp: 264.90,  change: -0.41, high52: 427.00,  low52: 264.00,  volume: 6900600, pe: 26.0, mcap: "3.3L Cr",  beta: 0.60 },
+  { symbol: "TATAMOTORS.NS",name: "Tata Motors Ltd",                  sector: "Automotive",                ltp: 878.50,  change: 1.20,  high52: 1179.00, low52: 850.00,  volume: 6740000, pe: 10.2, mcap: "3.5L Cr",  beta: 1.40 },
+  { symbol: "ITC.NS",       name: "ITC Ltd",                          sector: "FMCG",                      ltp: 264.95,  change: -0.40, high52: 427.00,  low52: 264.00,  volume: 6950600, pe: 26.0, mcap: "3.3L Cr",  beta: 0.60 },
   { symbol: "JSWSTEEL.NS",  name: "JSW Steel Ltd",                    sector: "Metals & Steel",            ltp: 1319.40, change: -1.16, high52: 1351.00, low52: 1026.10, volume: 610900,  pe: 22.0, mcap: "3.2L Cr",  beta: 1.25 },
   { symbol: "TITAN.NS",     name: "Titan Company Ltd",                sector: "Consumer Goods & Retail",   ltp: 5125.20, change: -0.85, high52: 5186.70, low52: 3303.10, volume: 150000,  pe: 82.0, mcap: "4.6L Cr",  beta: 0.78 },
   { symbol: "ADANIPORTS.NS",name: "Adani Ports & SEZ Ltd",            sector: "Infrastructure & Ports",    ltp: 1663.40, change: -2.58, high52: 1891.10, low52: 1292.00, volume: 1429700, pe: 35.0, mcap: "3.6L Cr",  beta: 1.40 },
@@ -103,11 +103,12 @@ export const DEFAULT_INDIAN_SECURITIES = [
 ];
 
 export const DEFAULT_INDICES = [
-  { symbol: "^NSEI",    name: "NIFTY 50",   price: 24066.80, change: -108.85, changePercent: -0.45 },
-  { symbol: "^BSESN",  name: "SENSEX",     price: 76991.34, change: -273.15, changePercent: -0.35 },
-  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 57373.75, change: -122.50, changePercent: -0.21 },
-  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 30837.15, change: -320.10, changePercent: -1.03 }
+  { symbol: "^NSEI",    name: "NIFTY 50",   price: 24075.90, change: -99.75, changePercent: -0.41 },
+  { symbol: "^BSESN",  name: "SENSEX",     price: 76861.69, change: -402.80, changePercent: -0.52 },
+  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 57409.70, change: -86.55, changePercent: -0.15 },
+  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 30894.65, change: -262.60, changePercent: -0.84 }
 ];
+
 
 // Fetch real-time quote from Yahoo Finance via multi-tier CORS proxy
 async function fetchYFQuote(symbol, timeoutMs = 5000) {
@@ -429,9 +430,10 @@ export async function getDirectStockDetail(symbol) {
     name: meta.name || q?.longName || symbol,
     sector: meta.sector || 'Diversified',
     price,
+    currentPrice: price,
     change: q?.change || 0,
     changePercent: parseFloat(chg.toFixed(2)),
-    volume: q?.volume || 1000000,
+    volume: q?.volume || meta.volume || 1000000,
     high52: q?.high52 || price * 1.30,
     low52: q?.low52 || price * 0.75,
     peRatio: meta.pe || 25,

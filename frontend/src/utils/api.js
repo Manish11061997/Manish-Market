@@ -135,7 +135,8 @@ export async function probeFastestServer() {
     )
   )
   .catch(() => {
-    return candidates[0] || LIVE_CLOUDFLARE_URL;
+    activeWorkingBase = null;
+    return null;
   })
   .finally(() => {
     probePromise = null;
@@ -373,7 +374,7 @@ async function handleOfflineFallback(endpointPath) {
       const parts = pathname.split('/');
       const stockIdx = parts.indexOf('stock');
       const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
-      const tf = searchParams.get('timeframe') || '1D';
+      const tf = searchParams.get('timeframe') || searchParams.get('interval') || '1D';
       const limit = parseInt(searchParams.get('limit') || '365', 10);
       const data = await getDirectStockChart(symbol, tf, limit);
       return new Response(JSON.stringify(data), {
