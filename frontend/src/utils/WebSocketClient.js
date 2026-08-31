@@ -268,20 +268,19 @@ class WebSocketClient {
     this.initLiveTickStore();
     const ticks = {};
 
-    // 1. Tick indices
+    // 1. Tick indices (tick active indices every pulse so the ribbon actively moves)
     const indexKeys = ['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT'];
-    const pickedIndex = indexKeys[Math.floor(Math.random() * indexKeys.length)];
 
     indexKeys.forEach(key => {
       const item = this.liveTickStore.get(key);
       if (!item) return;
 
-      if (key === pickedIndex) {
-        // Micro-fluctuation: ±0.015% to ±0.035%
-        const delta = (Math.random() - 0.49) * (item.basePrice * 0.00035);
+      // 75% chance of micro-movement on each tick pulse
+      if (Math.random() < 0.75) {
+        const delta = (Math.random() - 0.49) * (item.basePrice * 0.0003);
         item.price = parseFloat((item.price + delta).toFixed(2));
-        // Keep within ±1% of anchor
-        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.01) {
+        // Keep within ±0.75% of anchor
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.0075) {
           item.price = item.basePrice;
         }
         item.change = parseFloat((item.price - item.prevClose).toFixed(2));

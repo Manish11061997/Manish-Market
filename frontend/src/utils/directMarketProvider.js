@@ -66,16 +66,16 @@ export const INDEX_SYMBOLS = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT'];
 
 // Real current market baseline securities universe (active live baseline data)
 export const DEFAULT_INDIAN_SECURITIES = [
-  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1293.00, change: 0.45,  high52: 1611.80, low52: 1249.80, volume: 5278400, pe: 24.5, mcap: "17.5L Cr", beta: 0.85 },
-  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2329.00, change: -0.55, high52: 3350.00, low52: 1976.80, volume: 1046700, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
-  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 706.25,  change: -1.95, high52: 1020.50, low52: 705.00,  volume: 44026600, pe: 19.8, mcap: "13.0L Cr", beta: 0.95 },
-  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1126.50, change: -1.50, high52: 1728.00, low52: 982.40,  volume: 3961300, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
-  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1443.30, change: 1.45,  high52: 1480.00, low52: 1187.60, volume: 8416300, pe: 18.2, mcap: "10.1L Cr", beta: 1.05 },
-  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1880.00, change: -0.15, high52: 2174.50, low52: 1740.50, volume: 2964600, pe: 42.1, mcap: "10.8L Cr", beta: 0.65 },
-  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 1046.70, change: -0.10, high52: 1234.70, low52: 802.65,  volume: 2195600, pe: 10.4, mcap: "7.3L Cr",  beta: 1.15 },
-  { symbol: "BAJFINANCE.NS",name: "Bajaj Finance Ltd",                sector: "NBFC & Financials",         ltp: 1063.60, change: -1.51, high52: 1176.40, low52: 787.90,  volume: 2626400, pe: 28.5, mcap: "4.5L Cr",  beta: 1.20 },
+  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1296.10, change: 0.71,  high52: 1611.80, low52: 1249.80, volume: 5410000, pe: 24.5, mcap: "17.5L Cr", beta: 0.85 },
+  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2328.40, change: -0.58, high52: 3350.00, low52: 1976.80, volume: 1060000, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
+  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 710.30,  change: -1.39, high52: 1020.50, low52: 705.00,  volume: 45200000, pe: 19.8, mcap: "13.1L Cr", beta: 0.95 },
+  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1125.80, change: -1.55, high52: 1728.00, low52: 982.40,  volume: 4010000, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
+  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1443.70, change: 1.47,  high52: 1480.00, low52: 1187.60, volume: 8550000, pe: 18.2, mcap: "10.1L Cr", beta: 1.05 },
+  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1869.70, change: -0.67, high52: 2174.50, low52: 1740.50, volume: 3100000, pe: 42.1, mcap: "10.7L Cr", beta: 0.65 },
+  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 1044.60, change: -0.28, high52: 1234.70, low52: 802.65,  volume: 2280000, pe: 10.4, mcap: "7.3L Cr",  beta: 1.15 },
+  { symbol: "BAJFINANCE.NS",name: "Bajaj Finance Ltd",                sector: "NBFC & Financials",         ltp: 1065.00, change: -1.38, high52: 1176.40, low52: 787.90,  volume: 2680000, pe: 28.5, mcap: "4.5L Cr",  beta: 1.20 },
   { symbol: "KOTAKBANK.NS", name: "Kotak Mahindra Bank Ltd",          sector: "Banking & Financials",      ltp: 421.60,  change: -0.50, high52: 453.20,  low52: 345.50,  volume: 7740700, pe: 20.1, mcap: "4.2L Cr",  beta: 0.90 },
-  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 4022.30, change: -0.60, high52: 4440.00, low52: 3288.10, volume: 643100, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
+  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 4020.00, change: -0.64, high52: 4440.00, low52: 3288.10, volume: 655000, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
   { symbol: "MARUTI.NS",    name: "Maruti Suzuki India Ltd",          sector: "Automotive",                ltp: 13435.0, change: 0.44,  high52: 17370.0, low52: 12201.0, volume: 210200,  pe: 26.5, mcap: "3.6L Cr",  beta: 0.95 },
   { symbol: "HCLTECH.NS",   name: "HCL Technologies Ltd",             sector: "IT Services & Consulting",  ltp: 1316.00, change: -0.01, high52: 1780.10, low52: 1030.00, volume: 770100,  pe: 24.8, mcap: "4.3L Cr",  beta: 0.85 },
   { symbol: "NTPC.NS",      name: "NTPC Ltd",                         sector: "Power & Utilities",          ltp: 324.80,  change: -1.59, high52: 414.40,  low52: 315.55,  volume: 9445800, pe: 18.0, mcap: "3.3L Cr",  beta: 0.70 },
@@ -103,11 +103,12 @@ export const DEFAULT_INDIAN_SECURITIES = [
 ];
 
 export const DEFAULT_INDICES = [
-  { symbol: "^NSEI",    name: "NIFTY 50",   price: 24075.90, change: -99.75, changePercent: -0.41 },
-  { symbol: "^BSESN",  name: "SENSEX",     price: 76861.69, change: -402.80, changePercent: -0.52 },
-  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 57409.70, change: -86.55, changePercent: -0.15 },
-  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 30894.65, change: -262.60, changePercent: -0.84 }
+  { symbol: "^NSEI",    name: "NIFTY 50",   price: 24065.25, change: -110.40, changePercent: -0.46 },
+  { symbol: "^BSESN",  name: "SENSEX",     price: 77034.69, change: -229.82, changePercent: -0.30 },
+  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 57417.10, change: -79.20,  changePercent: -0.14 },
+  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 30896.30, change: -385.40, changePercent: -1.23 }
 ];
+
 
 
 // Fetch real-time quote from Yahoo Finance via multi-tier CORS proxy

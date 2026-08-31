@@ -5,6 +5,8 @@ import { useWatchlist } from '../utils/useWatchlist';
 import UserProfileDropdown from './UserProfileDropdown';
 import LogoHexagon from './LogoHexagon';
 import { fuzzySearchUniverse } from '../utils/stockUniverse';
+import { wsClient } from '../utils/WebSocketClient';
+import { findTick } from '../utils/symbolMatcher';
 
 function MarketHeader({
   marketData,
@@ -21,29 +23,81 @@ function MarketHeader({
   isFailover = false
 }) {
   const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || isFailover || Boolean(marketData?.indices);
-  const indices = useMemo(() => {
-    if (Array.isArray(marketData?.indices)) {
-      const obj = {};
-      marketData.indices.forEach((idx, i) => {
-        const k = idx.symbol || idx.name || `idx_${i}`;
-        obj[k] = { ...idx, pChange: idx.changePercent ?? idx.pChange ?? 0 };
-      });
-      return obj;
-    }
-    if (marketData?.indices && Object.keys(marketData.indices).length > 0) {
-      return marketData.indices;
-    }
+
+  // Direct live reactive indices state
+  const [liveIndices, setLiveIndices] = useState(() => {
     return currentMarket === 'US' ? {
       SP500:  { name: 'S&P 500',   price: 7711.76, change: -19.20,  pChange: -0.25 },
       NASDAQ: { name: 'NASDAQ',    price: 26402.42, change: -138.10, pChange: -0.52 },
       DOW:    { name: 'Dow Jones', price: 53559.99, change: -11.00,  pChange: -0.02 }
     } : {
-      NIFTY50:   { name: 'NIFTY 50',   price: 24066.80, change: -108.85, pChange: -0.45 },
-      SENSEX:    { name: 'SENSEX',     price: 76991.34, change: -273.15, pChange: -0.35 },
-      NIFTYBANK: { name: 'BANK NIFTY', price: 57373.75, change: -122.50, pChange: -0.21 },
-      CNXIT:     { name: 'NIFTY IT',   price: 30837.15, change: -320.10, pChange: -1.03 }
+      NIFTY50:   { name: 'NIFTY 50',   price: 24065.25, change: -110.40, pChange: -0.46 },
+      SENSEX:    { name: 'SENSEX',     price: 77034.69, change: -229.82, pChange: -0.30 },
+      NIFTYBANK: { name: 'BANK NIFTY', price: 57417.10, change: -79.20,  pChange: -0.14 },
+      CNXIT:     { name: 'NIFTY IT',   price: 30896.30, change: -385.40, pChange: -1.23 }
     };
-  }, [marketData, currentMarket]);
+  });
+
+  const [flashes, setFlashes] = useState({});
+  const prevPrices = useRef({});
+
+  // Sync when marketData prop changes
+  useEffect(() => {
+    if (Array.isArray(marketData?.indices)) {
+      const obj = {};
+      marketData.indices.forEach((idx, i) => {
+        const k = idx.symbol || idx.name || `idx_${i}`;
+        const keyMap = { '^NSEI': 'NIFTY50', '^BSESN': 'SENSEX', '^NSEBANK': 'NIFTYBANK', '^CNXIT': 'CNXIT' };
+        const cleanK = keyMap[idx.symbol] || k;
+        obj[cleanK] = { ...idx, pChange: idx.changePercent ?? idx.pChange ?? 0 };
+      });
+      setLiveIndices(obj);
+    } else if (marketData?.indices && typeof marketData.indices === 'object') {
+      setLiveIndices(marketData.indices);
+    }
+  }, [marketData]);
+
+  // Direct WebSocket tick listener for instant index pill updates & flash animations
+  useEffect(() => {
+    const unsub = wsClient.onTick((payload) => {
+      if (payload.type !== 'TICK_STREAM' || !payload.ticks) return;
+
+      setLiveIndices(prev => {
+        const updated = { ...prev };
+        const newFlashes = {};
+        let hasChanges = false;
+
+        Object.keys(updated).forEach(key => {
+          const tick = findTick(payload.ticks, key);
+          if (tick && tick.price !== undefined && tick.price !== updated[key].price) {
+            hasChanges = true;
+            const prevP = updated[key].price;
+            newFlashes[key] = tick.price > prevP ? 'flash-up' : 'flash-down';
+            updated[key] = {
+              ...updated[key],
+              price: tick.price,
+              change: tick.change ?? updated[key].change,
+              changePercent: tick.changePercent ?? updated[key].changePercent,
+              pChange: tick.changePercent ?? updated[key].pChange ?? 0
+            };
+          }
+        });
+
+        if (Object.keys(newFlashes).length > 0) {
+          setFlashes(newFlashes);
+          setTimeout(() => setFlashes({}), 700);
+        }
+
+        return hasChanges ? updated : prev;
+      });
+    });
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [currentMarket]);
+
+  const indices = liveIndices;
 
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
@@ -52,28 +106,8 @@ function MarketHeader({
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [replaySpeed, setReplaySpeed] = useState(1.0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(true);
-  const [flashes, setFlashes] = useState({});
-  const prevPrices = useRef({});
-
   const currentSession = sessionInfo?.[currentMarket] || { status: 'LIVE', label: 'LIVE MARKET DATA' };
 
-  useEffect(() => {
-    const newFlashes = {};
-    Object.entries(indices).forEach(([key, idx]) => {
-      const prev = prevPrices.current[key];
-      if (prev !== undefined && idx.price !== undefined && idx.price !== prev) {
-        if (idx.price > prev) newFlashes[key] = 'flash-up';
-        else if (idx.price < prev) newFlashes[key] = 'flash-down';
-      }
-      prevPrices.current[key] = idx.price;
-    });
-
-    if (Object.keys(newFlashes).length > 0) {
-      setFlashes(newFlashes);
-      const timer = setTimeout(() => setFlashes({}), 700);
-      return () => clearTimeout(timer);
-    }
-  }, [indices]);
 
   const [liveSearchResults, setLiveSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
