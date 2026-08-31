@@ -13,10 +13,11 @@ const CHART_CACHE_TTL = 300_000;  // 5 minutes
 // Yahoo Finance base
 const YF_BASE_V8 = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
-// CORS proxy candidates tried in order
+// CORS proxy candidates tried in order (most reliable first)
 const PROXY_CANDIDATES = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
   (url) => url  // direct fallback (works in Capacitor native)
 ];
 
@@ -45,56 +46,139 @@ async function fetchFromYF(endpointWithQuery, timeoutMs = 6000) {
 }
 
 /**
- * Batch-fetch live quotes via Yahoo Finance v7/finance/quote API.
- * Supports up to ~50 symbols in a single HTTP request — much faster than per-symbol v8/chart.
- * Returns Map<symbol, {price, changePercent, change, dayHigh, dayLow, volume, high52, low52, longName}>
+ * Robust batch quote fetcher — 3-tier fallback system:
+ *  Tier 1: Yahoo Finance Spark API (crumb-free, up to 50 symbols per call)
+ *  Tier 2: Yahoo Finance v8/finance/quote?symbols= batch (alternate format)
+ *  Tier 3: Parallel per-symbol v8/finance/chart (the reliable fallback we know works)
+ *
+ * Returns Map<symbol, {price, changePercent, change, previousClose, volume, dayHigh, dayLow, high52, low52}>
  */
 export async function fetchBatchQuotesV7(symbols, timeoutMs = 8000) {
   if (!symbols || symbols.length === 0) return new Map();
 
-  const cacheKey = `batch_v7_${symbols.sort().join(',')}`;
+  const cacheKey = `batch_v7_${[...symbols].sort().join(',')}`;
   const cached = quoteCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < QUOTE_CACHE_TTL) return cached.data;
 
-  const symsParam = encodeURIComponent(symbols.join(','));
-  const yfUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symsParam}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketChange,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume,fiftyTwoWeekHigh,fiftyTwoWeekLow,longName,shortName,regularMarketPreviousClose`;
+  const resultMap = new Map();
 
-  for (const proxyFn of PROXY_CANDIDATES) {
-    const targetUrl = proxyFn(yfUrl);
-    try {
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(targetUrl, { signal: controller.signal });
-      clearTimeout(tid);
-      if (res.ok) {
+  // ── Tier 1: Yahoo Finance Spark API (no crumb needed, batch) ────────────────
+  try {
+    const symsParam = encodeURIComponent(symbols.join(','));
+    const sparkUrl = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${symsParam}&range=1d&interval=5m`;
+
+    for (const proxyFn of PROXY_CANDIDATES) {
+      if (resultMap.size > 0) break;
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), timeoutMs);
+        const res = await fetch(proxyFn(sparkUrl), { signal: controller.signal });
+        clearTimeout(tid);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const results = data?.spark?.result;
+        if (!Array.isArray(results) || results.length === 0) continue;
+
+        results.forEach(item => {
+          const meta = item?.response?.[0]?.meta;
+          if (!meta?.regularMarketPrice) return;
+          const price     = meta.regularMarketPrice;
+          const prevClose = meta.chartPreviousClose || meta.regularMarketPreviousClose || price;
+          resultMap.set(item.symbol, {
+            symbol: item.symbol,
+            price,
+            change: parseFloat((price - prevClose).toFixed(2)),
+            changePercent: prevClose ? parseFloat(((price - prevClose) / prevClose * 100).toFixed(2)) : 0,
+            previousClose: prevClose,
+            volume: meta.regularMarketVolume || 0,
+            dayHigh: meta.regularMarketDayHigh || price,
+            dayLow: meta.regularMarketDayLow || price,
+            high52: meta.fiftyTwoWeekHigh,
+            low52: meta.fiftyTwoWeekLow,
+          });
+        });
+      } catch { /* try next proxy */ }
+    }
+  } catch { /* fall through to tier 2 */ }
+
+  if (resultMap.size > 0) {
+    quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+    return resultMap;
+  }
+
+  // ── Tier 2: Yahoo Finance v8/quote batch ────────────────────────────────────
+  try {
+    const symsParam = encodeURIComponent(symbols.join(','));
+    const quoteUrl = `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${symsParam}`;
+
+    for (const proxyFn of PROXY_CANDIDATES) {
+      if (resultMap.size > 0) break;
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), Math.min(timeoutMs, 6000));
+        const res = await fetch(proxyFn(quoteUrl), { signal: controller.signal });
+        clearTimeout(tid);
+        if (!res.ok) continue;
         const data = await res.json();
         const quotes = data?.quoteResponse?.result;
-        if (Array.isArray(quotes) && quotes.length > 0) {
-          const resultMap = new Map();
-          quotes.forEach(q => {
-            resultMap.set(q.symbol, {
-              symbol: q.symbol,
-              price: q.regularMarketPrice,
-              change: q.regularMarketChange ?? 0,
-              changePercent: q.regularMarketChangePercent ?? 0,
-              dayHigh: q.regularMarketDayHigh,
-              dayLow: q.regularMarketDayLow,
-              volume: q.regularMarketVolume,
-              high52: q.fiftyTwoWeekHigh,
-              low52: q.fiftyTwoWeekLow,
-              previousClose: q.regularMarketPreviousClose,
-              longName: q.longName || q.shortName || q.symbol
-            });
+        if (!Array.isArray(quotes) || quotes.length === 0) continue;
+
+        quotes.forEach(q => {
+          if (!q?.regularMarketPrice) return;
+          resultMap.set(q.symbol, {
+            symbol: q.symbol,
+            price: q.regularMarketPrice,
+            change: q.regularMarketChange ?? 0,
+            changePercent: q.regularMarketChangePercent ?? 0,
+            previousClose: q.regularMarketPreviousClose || q.regularMarketPrice,
+            volume: q.regularMarketVolume || 0,
+            dayHigh: q.regularMarketDayHigh,
+            dayLow: q.regularMarketDayLow,
+            high52: q.fiftyTwoWeekHigh,
+            low52: q.fiftyTwoWeekLow,
           });
-          quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
-          return resultMap;
-        }
-      }
-    } catch {
-      // try next proxy
+        });
+      } catch { /* try next proxy */ }
     }
+  } catch { /* fall through to tier 3 */ }
+
+  if (resultMap.size > 0) {
+    quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+    return resultMap;
   }
-  return new Map(); // empty map on all-proxy failure
+
+  // ── Tier 3: Parallel per-symbol v8/finance/chart (the reliable fallback) ───
+  // Run 8 symbols concurrently in chunks for speed
+  const CONCURRENCY = 8;
+  for (let i = 0; i < symbols.length; i += CONCURRENCY) {
+    const chunk = symbols.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      chunk.map(sym => fetchYFQuote(sym, Math.min(timeoutMs, 5000)))
+    );
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled' && result.value?.price) {
+        const q = result.value;
+        resultMap.set(chunk[idx], {
+          symbol: chunk[idx],
+          price: q.price,
+          change: q.change ?? 0,
+          changePercent: q.changePercent ?? 0,
+          previousClose: q.previousClose || q.price,
+          volume: q.volume || 0,
+          dayHigh: q.dayHigh,
+          dayLow: q.dayLow,
+          high52: q.high52,
+          low52: q.low52,
+        });
+      }
+    });
+  }
+
+  if (resultMap.size > 0) {
+    quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+  }
+
+  return resultMap; // may be partially populated or empty if all tiers fail
 }
 
 // Indian NSE/BSE universe - symbols for Yahoo Finance
