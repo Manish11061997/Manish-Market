@@ -1,5 +1,7 @@
 {
-  "apiUrl": null,
-  "tunnelUrl": null,
-  "buildTime": "2026-08-31T14:55:00Z"
+  "apiUrl": "https://rapids-planning-without-liked.trycloudflare.com",
+  "tunnelUrl": "https://rapids-planning-without-liked.trycloudflare.com",
+  "wsUrl": "wss://rapids-planning-without-liked.trycloudflare.com/ws/live",
+  "status": "ONLINE",
+  "updatedAt": "2026-08-31T14:43:00Z"
 }

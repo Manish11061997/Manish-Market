@@ -20,7 +20,7 @@ import {
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = null;
+export const LIVE_CLOUDFLARE_URL = 'https://rapids-planning-without-liked.trycloudflare.com';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = null;
@@ -66,12 +66,17 @@ export function getCandidateBases() {
     list.push(dynamicApiBase);
   }
 
-  // 4. Active working base (cached from recent successful call)
+  // 4. Live Cloudflare tunnel fallback
+  if (LIVE_CLOUDFLARE_URL) {
+    list.push(LIVE_CLOUDFLARE_URL);
+  }
+
+  // 5. Active working base (cached from recent successful call)
   if (activeWorkingBase) {
     list.push(activeWorkingBase);
   }
 
-  // 5. Capacitor Native Local LAN IP
+  // 6. Capacitor Native Local LAN IP
   if (isCapacitorNative()) {
     list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
     list.push('http://10.0.2.2:8000');
