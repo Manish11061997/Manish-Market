@@ -11,7 +11,7 @@ const DEFAULT_WATCHLISTS = {
       id: 'favorites_in',
       name: '⭐ My Watchlist',
       isDefault: true,
-      symbols: []
+      symbols: ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'LT.NS']
     }
   ],
   US: [
@@ -19,7 +19,7 @@ const DEFAULT_WATCHLISTS = {
       id: 'favorites_us',
       name: '⭐ My Watchlist',
       isDefault: true,
-      symbols: []
+      symbols: ['NVDA', 'AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOGL']
     }
   ]
 };

@@ -12,13 +12,13 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "RELIANCE.NS",
       name: "Reliance Industries",
       sector: "Energy & Oil",
-      currentPrice: 1282.20,
-      change: -15.80,
-      changePercent: -1.22,
+      currentPrice: 1296.10,
+      change: 9.10,
+      changePercent: 0.71,
       signal: "STRONG_BUY",
       confidence: 94,
-      targetPrice: 1480.00,
-      stopLoss: 1220.00,
+      targetPrice: 1405.00,
+      stopLoss: 1245.00,
       horizon: "SWING",
       setup: "High-Volume Breakout Above 50 EMA",
       catalyst: "Strong Jio & Retail ARPU expansion",
@@ -29,13 +29,13 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "TCS.NS",
       name: "Tata Consultancy Services",
       sector: "IT Services",
-      currentPrice: 2248.40,
-      change: -21.60,
-      changePercent: -0.95,
+      currentPrice: 2328.40,
+      change: -13.60,
+      changePercent: -0.58,
       signal: "BUY",
       confidence: 88,
-      targetPrice: 2550.00,
-      stopLoss: 2150.00,
+      targetPrice: 2520.00,
+      stopLoss: 2240.00,
       horizon: "LONG_TERM",
       setup: "Multi-Week Cup & Handle Base",
       catalyst: "Generative AI deal pipeline expansion",
@@ -46,13 +46,13 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "HDFCBANK.NS",
       name: "HDFC Bank",
       sector: "Banking & Financials",
-      currentPrice: 1642.15,
-      change: -8.30,
-      changePercent: -0.50,
+      currentPrice: 710.30,
+      change: -10.00,
+      changePercent: -1.39,
       signal: "STRONG_BUY",
       confidence: 91,
-      targetPrice: 1820.00,
-      stopLoss: 1560.00,
+      targetPrice: 820.00,
+      stopLoss: 660.00,
       horizon: "INTRADAY",
       setup: "Ascending Triangle Consolidation",
       catalyst: "NIM expansion & loan growth",
@@ -63,9 +63,9 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "INFY.NS",
       name: "Infosys Ltd",
       sector: "IT Services",
-      currentPrice: 1110.80,
-      change: 14.00,
-      changePercent: 1.28,
+      currentPrice: 1125.80,
+      change: -17.70,
+      changePercent: -1.55,
       signal: "BUY",
       confidence: 89,
       targetPrice: 1280.00,
@@ -80,13 +80,13 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "TATAMOTORS.NS",
       name: "Tata Motors",
       sector: "Auto Tech & EV",
-      currentPrice: 984.60,
-      change: -7.40,
-      changePercent: -0.75,
+      currentPrice: 878.50,
+      change: 10.40,
+      changePercent: 1.20,
       signal: "STRONG_BUY",
       confidence: 93,
-      targetPrice: 1150.00,
-      stopLoss: 920.00,
+      targetPrice: 1050.00,
+      stopLoss: 820.00,
       horizon: "SWING",
       setup: "Ascending Channel Continuation",
       catalyst: "JLR margin expansion & EV market leadership",
@@ -97,13 +97,13 @@ const DEFAULT_RECOMMENDATIONS_IN = {
       symbol: "SBIN.NS",
       name: "State Bank of India",
       sector: "Banking & Financials",
-      currentPrice: 812.40,
-      change: 6.50,
-      changePercent: 0.81,
+      currentPrice: 1044.60,
+      change: -2.90,
+      changePercent: -0.28,
       signal: "STRONG_BUY",
       confidence: 92,
-      targetPrice: 940.00,
-      stopLoss: 770.00,
+      targetPrice: 1180.00,
+      stopLoss: 980.00,
       horizon: "SWING",
       setup: "Fresh All-Time High Breakout",
       catalyst: "Credit growth outperformance and NPA reduction",
@@ -134,20 +134,18 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
 
   // Fallback fetch only if parent did not provide recommendations
   useEffect(() => {
-    if (recommendations && recommendations.all && recommendations.all.length > 0) {
+    if (recommendations && recommendations.all && recommendations.all.length >= 10) {
       return;
     }
     let isMounted = true;
-    setLoading(true);
     apiFetch(`/api/recommendations?market=${currentMarket}`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
+      .then(async res => {
+        const data = typeof res?.json === 'function' ? await res.json() : res;
         if (isMounted && data?.all?.length) {
           setFeedData(data);
           setLoading(false);
+          const syms = data.all.map(s => s.symbol).filter(Boolean);
+          wsClient.subscribe(syms);
         }
       })
       .catch(err => {
@@ -526,27 +524,34 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                   </div>
                 </div>
 
-                {/* Right: LTP + % Gain Pill + Star Button */}
+                {/* Right: LTP + Day % Change Pill + Star Button */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                   <div style={{ textAlign: 'right' }}>
                     <div className={`mono-num ${stock.tickDirection === 'UP' ? 'flash-up' : (stock.tickDirection === 'DOWN' ? 'flash-down' : '')}`} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
                       {stockCurrPrefix}{stock.currentPrice?.toLocaleString('en-US')}
                     </div>
-                    <div style={{
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      marginTop: '3px',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      backgroundColor: stock.directionCode === 'UP' ? 'var(--accent-green-bg)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red-bg)' : 'var(--accent-gold-bg)'),
-                      color: stock.directionCode === 'UP' ? 'var(--accent-green)' : (stock.directionCode === 'DOWN' ? 'var(--accent-red)' : 'var(--accent-gold)'),
-                      border: stock.directionCode === 'UP' ? '1px solid var(--accent-green-border)' : (stock.directionCode === 'DOWN' ? '1px solid var(--accent-red-border)' : '1px solid var(--accent-gold-border)')
-                    }}>
-                      {stock.directionCode === 'UP' ? '▲' : (stock.directionCode === 'DOWN' ? '▼' : '')} {potentialGain}%
-                    </div>
+                    {(() => {
+                      const chg = stock.change ?? 0;
+                      const chgPct = stock.changePercent ?? (chg !== 0 && stock.currentPrice ? (chg / (stock.currentPrice - chg)) * 100 : 0);
+                      const isUp = chg >= 0;
+                      return (
+                        <div style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          marginTop: '3px',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          backgroundColor: isUp ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
+                          color: isUp ? 'var(--accent-green)' : 'var(--accent-red)',
+                          border: isUp ? '1px solid var(--accent-green-border)' : '1px solid var(--accent-red-border)'
+                        }}>
+                          {isUp ? '▲ +' : '▼ '}{Math.abs(chgPct).toFixed(2)}%
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <button
