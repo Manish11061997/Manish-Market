@@ -295,7 +295,19 @@ async function handleOfflineFallback(endpointPath) {
 
     if (pathname.includes('/market-summary') || pathname.includes('/market/summary')) {
       const region = searchParams.get('market') || searchParams.get('region') || 'IN';
-      const data = await getDirectMarketSummary(region);
+      const raw = await getDirectMarketSummary(region);
+      // Transform indices array → keyed object expected by App.jsx
+      const indicesKey = {
+        NIFTY50:   { name: 'Nifty 50',   ...raw.indices?.find?.(i => i.symbol === '^NSEI')    || raw.indices?.[0] },
+        SENSEX:    { name: 'BSE Sensex', ...raw.indices?.find?.(i => i.symbol === '^BSESN')   || raw.indices?.[1] },
+        NIFTYBANK: { name: 'Bank Nifty', ...raw.indices?.find?.(i => i.symbol === '^NSEBANK') || raw.indices?.[2] },
+        CNXIT:     { name: 'Nifty IT',   ...raw.indices?.find?.(i => i.symbol === '^CNXIT')   || raw.indices?.[3] }
+      };
+      // Ensure pChange field exists (used by MarketHeader for colours)
+      Object.values(indicesKey).forEach(idx => {
+        if (idx) idx.pChange = idx.changePercent ?? idx.pChange ?? 0;
+      });
+      const data = { ...raw, indices: indicesKey };
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -313,12 +325,38 @@ async function handleOfflineFallback(endpointPath) {
 
     if (pathname.includes('/recommendations')) {
       const market = searchParams.get('market') || 'IN';
-      const data = await getDirectRecommendations(market);
+      const raw = await getDirectRecommendations(market);
+      // Transform to the {all:[...]} format that App.jsx expects
+      const all = (raw.recommendations || []).map(r => ({
+        symbol: r.symbol,
+        name: r.company,
+        sector: r.sector,
+        currentPrice: r.price,
+        signal: r.action.includes('Strong Buy') ? 'BULLISH_BREAKOUT' : r.action.includes('Buy') ? 'BULLISH' : 'BEARISH',
+        action: r.action,
+        overallScore: r.confidenceScore,
+        tradePlan: {
+          target1: r.targetPrice,
+          stopLoss: r.stopLoss,
+          suggestedAllocation: '10%'
+        },
+        rationale: [r.rationale],
+        tags: r.tags,
+        timestamp: r.timestamp
+      }));
+      const data = {
+        market,
+        currency: market === 'US' ? '$' : '₹',
+        all,
+        topPick: all.find(s => s.overallScore >= 85),
+        auditSummary: raw.auditSummary
+      };
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
 
     if (pathname.includes('/chart-reading')) {
       const parts = pathname.split('/');

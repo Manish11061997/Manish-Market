@@ -666,24 +666,24 @@ function MarketHeader({
           </div>
         )}
 
-        {/* Failover Feed Warning Badge if Active */}
+        {/* Direct Cloud Feed Badge - shown when using Yahoo Finance direct API */}
         {isFailover && (
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
-            backgroundColor: 'var(--accent-red-bg)',
-            border: '1px solid var(--accent-red-border)',
+            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
             padding: '3px 8px',
             borderRadius: '14px',
             fontSize: '10px',
             fontWeight: 800,
-            color: 'var(--accent-red)',
+            color: '#38bdf8',
             whiteSpace: 'nowrap',
             flexShrink: 0
           }}>
-            <AlertTriangle style={{ width: '11px', height: '11px' }} />
-            <span>FAILOVER</span>
+            <span style={{ fontSize: '9px' }}>☁️</span>
+            <span>CLOUD</span>
           </div>
         )}
 

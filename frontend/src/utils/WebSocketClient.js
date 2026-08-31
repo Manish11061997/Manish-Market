@@ -192,16 +192,24 @@ class WebSocketClient {
     try {
       const summary = await getDirectMarketSummary('IN');
       const breadth = await getDirectMarketBreadth('IN');
-      const syntheticTicks = {};
-      
-      if (summary?.indices) {
-        Object.entries(summary.indices).forEach(([sym, data]) => {
-          syntheticTicks[sym] = {
-            symbol: sym,
-            instrumentToken: `INDEX_${sym}`,
-            price: data.price,
-            change: data.change,
-            changePercent: data.changePercent,
+      const ticks = {};
+
+      // Map Yahoo Finance index array to tick keys App.jsx knows
+      const YF_TO_TICK_KEY = {
+        '^NSEI': 'NIFTY50', '^BSESN': 'SENSEX',
+        '^NSEBANK': 'NIFTYBANK', '^CNXIT': 'CNXIT'
+      };
+
+      if (Array.isArray(summary?.indices)) {
+        summary.indices.forEach(idx => {
+          const tickKey = YF_TO_TICK_KEY[idx.symbol] || idx.symbol;
+          ticks[tickKey] = {
+            symbol: tickKey,
+            instrumentToken: `INDEX_${tickKey}`,
+            price: idx.price,
+            change: idx.change,
+            changePercent: idx.changePercent,
+            pChange: idx.changePercent,
             timestamp: new Date().toLocaleTimeString(),
             ms: Date.now(),
             volume: 5000000,
@@ -213,7 +221,7 @@ class WebSocketClient {
       for (const sym of Array.from(this.subscribedSymbols)) {
         const cleanSym = sym.replace('.NS', '').trim();
         const detail = await getDirectStockDetail(sym);
-        syntheticTicks[cleanSym] = {
+        ticks[cleanSym] = {
           symbol: sym,
           instrumentToken: `NSE_EQ_${cleanSym}`,
           price: detail.price,
@@ -230,15 +238,16 @@ class WebSocketClient {
       this.setStatus('LIVE');
       this.notifyListeners({
         type: 'TICK_STREAM',
-        ticks: syntheticTicks,
+        ticks,
         breadth: { IN: breadth },
         session: { IN: { status: 'LIVE', label: 'LIVE MARKET DATA' } },
         isFailover: true
       });
     } catch (e) {
-      console.debug("Direct cloud tick notice:", e);
+      console.debug('Direct cloud tick notice:', e);
     }
   }
+
 
   startSyntheticFallback() {
     this.setStatus('LIVE');
