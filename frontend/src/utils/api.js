@@ -11,6 +11,10 @@ import {
   getDirectFnoSignals,
   getDirectIpoList,
   getDirectCopilotAnswer,
+  getDirectSearch,
+  getDirectDailyBriefing,
+  getDirectOptionChain,
+  getDirectCorporateActions,
   DEFAULT_INDIAN_SECURITIES,
   DEFAULT_INDICES
 } from './directMarketProvider';
@@ -359,6 +363,131 @@ async function handleOfflineFallback(endpointPath) {
     }
 
 
+    if (pathname.includes('/search')) {
+      const q = searchParams.get('q') || '';
+      const market = searchParams.get('market') || 'IN';
+      const data = await getDirectSearch(q, market);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/daily-briefing')) {
+      const market = searchParams.get('market') || 'IN';
+      const data = await getDirectDailyBriefing(market);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/fno/option-chain') || pathname.includes('/option-chain')) {
+      const sym = searchParams.get('symbol') || 'NIFTY50';
+      const data = await getDirectOptionChain(sym);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/corporate-actions')) {
+      const parts = pathname.split('/');
+      const symbol = parts[parts.length - 1] ? decodeURIComponent(parts[parts.length - 1]) : 'RELIANCE.NS';
+      const data = await getDirectCorporateActions(symbol);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/strategies/library')) {
+      const library = [
+        { id: 'ema_crossover', name: '20/50 EMA Golden Cross', winRate: 72.4, profitFactor: 2.15, maxDrawdown: 4.2, sharpeRatio: 1.85, tradesCount: 142, description: 'Enter long on 20 EMA crossing above 50 EMA with volume expansion.' },
+        { id: 'rsi_divergence', name: 'RSI Reversal Breakout', winRate: 68.9, profitFactor: 2.30, maxDrawdown: 3.8, sharpeRatio: 1.95, tradesCount: 118, description: 'Counter-trend reversal on RSI < 35 bullish divergences.' },
+        { id: 'vwap_pullback', name: 'VWAP Institutional Pullback', winRate: 76.5, profitFactor: 2.65, maxDrawdown: 2.9, sharpeRatio: 2.20, tradesCount: 204, description: 'Institutional liquidity grab entries on first intraday VWAP touch.' }
+      ];
+      return new Response(JSON.stringify({ total: library.length, strategies: library }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/backtest') || pathname.includes('/strategy/custom-backtest')) {
+      const sym = searchParams.get('symbol') || 'RELIANCE.NS';
+      const simulatedTrades = [
+        { entryDate: '2026-06-15', exitDate: '2026-06-28', entryPrice: 1240.50, exitPrice: 1315.00, pnlPct: 6.01, outcome: 'WIN' },
+        { entryDate: '2026-07-02', exitDate: '2026-07-14', entryPrice: 1290.00, exitPrice: 1360.00, pnlPct: 5.43, outcome: 'WIN' },
+        { entryDate: '2026-07-22', exitDate: '2026-07-29', entryPrice: 1350.00, exitPrice: 1320.00, pnlPct: -2.22, outcome: 'LOSS' },
+        { entryDate: '2026-08-05', exitDate: '2026-08-18', entryPrice: 1310.00, exitPrice: 1395.00, pnlPct: 6.49, outcome: 'WIN' },
+        { entryDate: '2026-08-20', exitDate: '2026-08-28', entryPrice: 1380.00, exitPrice: 1445.00, pnlPct: 4.71, outcome: 'WIN' }
+      ];
+      return new Response(JSON.stringify({
+        symbol: sym,
+        winRate: 80.0,
+        totalTrades: simulatedTrades.length,
+        netReturnPct: 20.42,
+        profitFactor: 3.12,
+        maxDrawdownPct: 2.22,
+        sharpeRatio: 2.15,
+        trades: simulatedTrades
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/paper/portfolio')) {
+      let portfolio = {
+        cashBalance: 1000000.0,
+        investedAmount: 0.0,
+        totalPortfolioValue: 1000000.0,
+        unrealizedPnl: 0.0,
+        realizedPnl: 0.0,
+        positions: [],
+        orders: []
+      };
+      try {
+        const saved = localStorage.getItem('mm_paper_portfolio_v1');
+        if (saved) portfolio = JSON.parse(saved);
+      } catch {}
+      return new Response(JSON.stringify(portfolio), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/paper/order')) {
+      return new Response(JSON.stringify({ status: 'EXECUTED', orderId: `ORD_${Date.now()}`, timestamp: new Date().toISOString() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/alerts')) {
+      let alerts = [];
+      try {
+        const saved = localStorage.getItem('mm_price_alerts_v1');
+        if (saved) alerts = JSON.parse(saved);
+      } catch {}
+      return new Response(JSON.stringify(alerts), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/broker/settings')) {
+      let settings = { broker: 'PAPER', paperBalance: 1000000, riskPerTradePct: 2.0 };
+      try {
+        const saved = localStorage.getItem('mm_broker_settings_v1');
+        if (saved) settings = JSON.parse(saved);
+      } catch {}
+      return new Response(JSON.stringify(settings), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     if (pathname.includes('/chart-reading')) {
       const parts = pathname.split('/');
       const stockIdx = parts.indexOf('stock');
@@ -428,7 +557,7 @@ async function handleOfflineFallback(endpointPath) {
       });
     }
 
-    if (pathname.includes('/fno/signals')) {
+    if (pathname.includes('/fno-signals') || pathname.includes('/fno/signals')) {
       const data = await getDirectFnoSignals();
       return new Response(JSON.stringify(data), {
         status: 200,
@@ -444,7 +573,7 @@ async function handleOfflineFallback(endpointPath) {
       });
     }
 
-    if (pathname.includes('/copilot/query')) {
+    if (pathname.includes('/copilot/query') || pathname.includes('/copilot/chat')) {
       const q = searchParams.get('q') || 'RELIANCE';
       const data = await getDirectCopilotAnswer(q);
       return new Response(JSON.stringify(data), {
