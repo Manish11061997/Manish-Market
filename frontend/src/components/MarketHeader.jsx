@@ -24,17 +24,52 @@ function MarketHeader({
 }) {
   const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || wsStatus === 'CLOSED' || isFailover || Boolean(marketData?.indices);
 
-  // Direct live reactive indices state
+  // Direct live reactive indices state — initialized from localStorage cache
   const [liveIndices, setLiveIndices] = useState(() => {
-    return currentMarket === 'US' ? {
-      SP500:  { name: 'S&P 500',   price: 7711.76, change: -19.20,  pChange: -0.25 },
-      NASDAQ: { name: 'NASDAQ',    price: 26402.42, change: -138.10, pChange: -0.52 },
-      DOW:    { name: 'Dow Jones', price: 53559.99, change: -11.00,  pChange: -0.02 }
-    } : {
-      NIFTY50:   { name: 'NIFTY 50',   price: 24065.25, change: -110.40, pChange: -0.46 },
-      SENSEX:    { name: 'SENSEX',     price: 77034.69, change: -229.82, pChange: -0.30 },
-      NIFTYBANK: { name: 'BANK NIFTY', price: 57417.10, change: -79.20,  pChange: -0.14 },
-      CNXIT:     { name: 'NIFTY IT',   price: 30896.30, change: -385.40, pChange: -1.23 }
+    // Try to read last-known real prices from localStorage (saved by syncLiveAnchors)
+    let cached = null;
+    try {
+      const raw = localStorage.getItem('mm_price_cache_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.data && Date.now() - parsed.ts < 24 * 3600_000) {
+          cached = parsed.data;
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (currentMarket === 'US') {
+      return {
+        SP500:  { name: 'S&P 500',   price: 7711.76, change: -19.20,  pChange: -0.25 },
+        NASDAQ: { name: 'NASDAQ',    price: 26402.42, change: -138.10, pChange: -0.52 },
+        DOW:    { name: 'Dow Jones', price: 53559.99, change: -11.00,  pChange: -0.02 }
+      };
+    }
+    return {
+      NIFTY50:   {
+        name: 'NIFTY 50',
+        price:   cached?.NIFTY50?.price   ?? 24065.25,
+        change:  cached?.NIFTY50?.change  ?? -110.40,
+        pChange: cached?.NIFTY50?.changePercent ?? -0.46
+      },
+      SENSEX:    {
+        name: 'SENSEX',
+        price:   cached?.SENSEX?.price   ?? 77034.69,
+        change:  cached?.SENSEX?.change  ?? -229.82,
+        pChange: cached?.SENSEX?.changePercent ?? -0.30
+      },
+      NIFTYBANK: {
+        name: 'BANK NIFTY',
+        price:   cached?.NIFTYBANK?.price   ?? 57417.10,
+        change:  cached?.NIFTYBANK?.change  ?? -79.20,
+        pChange: cached?.NIFTYBANK?.changePercent ?? -0.14
+      },
+      CNXIT:     {
+        name: 'NIFTY IT',
+        price:   cached?.CNXIT?.price   ?? 30896.30,
+        change:  cached?.CNXIT?.change  ?? -385.40,
+        pChange: cached?.CNXIT?.changePercent ?? -1.23
+      }
     };
   });
 

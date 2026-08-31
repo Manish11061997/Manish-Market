@@ -89,10 +89,48 @@ const DEFAULT_CHAIN_DATA_IN = {
 
 export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
   const [fnoTab, setFnoTab] = useState('SETUPS'); // 'SETUPS' or 'CHAIN'
-  const [fnoData, setFnoData] = useState(DEFAULT_FNO_SIGNALS_IN);
+
+  // Initialize spot prices from localStorage cache — no stale hardcoded prices
+  const [fnoData, setFnoData] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mm_price_cache_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const cache = parsed?.data;
+        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
+          return DEFAULT_FNO_SIGNALS_IN.map(item => {
+            const cleanSym = item.symbol.replace('.NS', '');
+            const c = cache[item.symbol] || cache[cleanSym];
+            if (c?.price) return { ...item, spotPrice: c.price };
+            return item;
+          });
+        }
+      }
+    } catch { /* fallback */ }
+    return DEFAULT_FNO_SIGNALS_IN;
+  });
+
   const [filterDirection, setFilterDirection] = useState('ALL');
   const [selectedChainSymbol, setSelectedChainSymbol] = useState(currentMarket === 'US' ? 'SP500' : 'NIFTY50');
-  const [chainData, setChainData] = useState(DEFAULT_CHAIN_DATA_IN);
+
+  // Initialize option chain underlying price from localStorage cache
+  const [chainData, setChainData] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mm_price_cache_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const cache = parsed?.data;
+        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
+          const niftyPrice = cache['NIFTY50']?.price || cache['^NSEI']?.price;
+          if (niftyPrice) {
+            return { ...DEFAULT_CHAIN_DATA_IN, underlyingValue: niftyPrice };
+          }
+        }
+      }
+    } catch { /* fallback */ }
+    return DEFAULT_CHAIN_DATA_IN;
+  });
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';

@@ -110,7 +110,46 @@ const DEFAULT_BRIEFING = {
 };
 
 export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }) {
-  const [briefing, setBriefing] = useState(DEFAULT_BRIEFING);
+  // Initialize from localStorage price cache so first render shows real prices
+  const [briefing, setBriefing] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mm_price_cache_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const cache = parsed?.data;
+        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
+          // Patch DEFAULT_BRIEFING with cached real prices
+          const patched = JSON.parse(JSON.stringify(DEFAULT_BRIEFING));
+          if (patched.topDailyBuys) {
+            patched.topDailyBuys = patched.topDailyBuys.map(b => {
+              const cleanSym = b.symbol.replace('.NS', '');
+              const c = cache[b.symbol] || cache[cleanSym];
+              if (c?.price) return { ...b, currentPrice: c.price, spotPrice: c.price };
+              return b;
+            });
+          }
+          if (patched.topDailySells) {
+            patched.topDailySells = patched.topDailySells.map(b => {
+              const cleanSym = b.symbol.replace('.NS', '');
+              const c = cache[b.symbol] || cache[cleanSym];
+              if (c?.price) return { ...b, currentPrice: c.price, spotPrice: c.price };
+              return b;
+            });
+          }
+          if (patched.topFnoSetups) {
+            patched.topFnoSetups = patched.topFnoSetups.map(b => {
+              const cleanSym = b.symbol.replace('.NS', '');
+              const c = cache[b.symbol] || cache[cleanSym];
+              if (c?.price) return { ...b, spotPrice: c.price };
+              return b;
+            });
+          }
+          return patched;
+        }
+      }
+    } catch { /* fallback to default */ }
+    return DEFAULT_BRIEFING;
+  });
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [copied, setCopied] = useState(false);

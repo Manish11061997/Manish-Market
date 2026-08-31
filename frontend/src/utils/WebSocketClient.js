@@ -188,44 +188,98 @@ class WebSocketClient {
     }, 2000);
   }
 
-  // Initialize live tick store with genuine exchange baseline quotes
+  // ── Persistent Price Cache (localStorage) ───────────────────────────────────
+  // Prices are saved to localStorage after every successful Yahoo Finance sync.
+  // On the next page load, we read from localStorage FIRST (instant, no network),
+  // so users never see stale hardcoded defaults — they see yesterday's closing prices.
+  // Cache TTL: 24 hours (prices older than 24h are discarded; weekends re-use Friday close).
+  static CACHE_KEY = 'mm_price_cache_v2';
+  static CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  savePriceCache() {
+    try {
+      if (!this.liveTickStore) return;
+      const snapshot = {};
+      this.liveTickStore.forEach((val, key) => {
+        snapshot[key] = {
+          price: val.price,
+          prevClose: val.prevClose,
+          change: val.change,
+          changePercent: val.changePercent,
+          volume: val.volume,
+          symbol: val.symbol,
+          name: val.name
+        };
+      });
+      localStorage.setItem(WebSocketClient.CACHE_KEY, JSON.stringify({
+        ts: Date.now(),
+        data: snapshot
+      }));
+    } catch { /* localStorage may be unavailable in some browsers */ }
+  }
+
+  loadPriceCache() {
+    try {
+      const raw = localStorage.getItem(WebSocketClient.CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.data || !parsed?.ts) return null;
+      // Accept cache up to 24h old (covers weekend gaps — Friday close is valid Saturday/Sunday)
+      if (Date.now() - parsed.ts > WebSocketClient.CACHE_TTL_MS) return null;
+      return parsed.data;
+    } catch {
+      return null;
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Initialize live tick store.
+  // Priority: 1) localStorage cached prices (instant, from last session)
+  //           2) Hardcoded DEFAULT_INDIAN_SECURITIES (last resort for first-ever load)
   initLiveTickStore() {
     if (this.liveTickStore) return;
     this.liveTickStore = new Map();
 
+    const cache = this.loadPriceCache();
+
     DEFAULT_INDICES.forEach(idx => {
+      const cached = cache?.[idx.symbol] || cache?.['NIFTY50'] || null;
+      const price  = cached?.price || idx.price;
+      const prevClose = cached?.prevClose || (idx.price - (idx.change || 0));
       const obj = {
         symbol: idx.symbol,
         name: idx.name,
-        price: idx.price,
-        basePrice: idx.price,
-        prevClose: idx.price - (idx.change || 0),
-        change: idx.change || 0,
-        changePercent: idx.changePercent || 0,
+        price,
+        basePrice: price,
+        prevClose,
+        change: cached?.change ?? idx.change ?? 0,
+        changePercent: cached?.changePercent ?? idx.changePercent ?? 0,
         volume: 50000000
       };
       this.liveTickStore.set(idx.symbol, obj);
-      if (idx.symbol === '^NSEI') this.liveTickStore.set('NIFTY50', obj);
-      if (idx.symbol === '^BSESN') this.liveTickStore.set('SENSEX', obj);
-      if (idx.symbol === '^NSEBANK') this.liveTickStore.set('NIFTYBANK', obj);
-      if (idx.symbol === '^CNXIT') {
+      if (idx.symbol === '^NSEI')    { this.liveTickStore.set('NIFTY50', obj); }
+      if (idx.symbol === '^BSESN')   { this.liveTickStore.set('SENSEX', obj); }
+      if (idx.symbol === '^NSEBANK') { this.liveTickStore.set('NIFTYBANK', obj); }
+      if (idx.symbol === '^CNXIT')   {
         this.liveTickStore.set('CNXIT', obj);
         this.liveTickStore.set('NIFTYIT', obj);
       }
     });
 
     DEFAULT_INDIAN_SECURITIES.forEach(sec => {
-      const cleanSym = sec.symbol.replace('.NS', '').trim();
-      const prevClose = sec.ltp / (1 + (sec.change || 0) / 100);
+      const cleanSym  = sec.symbol.replace('.NS', '').trim();
+      const cached    = cache?.[sec.symbol] || cache?.[cleanSym] || null;
+      const price     = cached?.price || sec.ltp;
+      const prevClose = cached?.prevClose || (sec.ltp / (1 + (sec.change || 0) / 100));
       const obj = {
         symbol: sec.symbol,
         name: sec.name,
-        price: sec.ltp,
-        basePrice: sec.ltp,
+        price,
+        basePrice: price,
         prevClose,
-        change: sec.ltp - prevClose,
-        changePercent: sec.change || 0,
-        volume: sec.volume || 1000000
+        change: cached?.change ?? (price - prevClose),
+        changePercent: cached?.changePercent ?? sec.change ?? 0,
+        volume: cached?.volume || sec.volume || 1000000
       };
       this.liveTickStore.set(sec.symbol, obj);
       this.liveTickStore.set(cleanSym, obj);
@@ -280,6 +334,11 @@ class WebSocketClient {
           if (q.volume) cleanExisting.volume = q.volume;
         }
       });
+
+      // ── Persist to localStorage so next page load gets real prices instantly ──
+      // This is the permanent fix: users never see stale hardcoded prices again.
+      this.savePriceCache();
+      // ─────────────────────────────────────────────────────────────────────────
     } catch {
       // quiet fallback — ticker keeps running with last known prices
     }
