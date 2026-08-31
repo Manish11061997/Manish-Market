@@ -361,9 +361,12 @@ async function fetchBatchYFQuotes(symbols, timeoutMs = 5000) {
  * Used as fallback when Yahoo Finance chart is unavailable.
  */
 export function generateSyntheticCandles(symbol, timeframe = '1D', count = 300, basePrice = null) {
-  const cleanSym = symbol.replace('.NS', '').trim();
-  const found = DEFAULT_INDIAN_SECURITIES.find(s => s.symbol === symbol || s.symbol.includes(cleanSym));
-  const currentPrice = basePrice || found?.ltp || 1000;
+  const cleanSym = symbol.replace('.NS', '').replace('.BO', '').replace('^', '').trim().toUpperCase();
+  const foundIN = DEFAULT_INDIAN_SECURITIES.find(s => s.symbol === symbol || s.symbol.toUpperCase().includes(cleanSym));
+  const foundUS = DEFAULT_US_SECURITIES.find(s => s.symbol === symbol || s.symbol.toUpperCase() === cleanSym);
+  const foundIdx = (DEFAULT_INDICES && DEFAULT_INDICES[cleanSym]) || (DEFAULT_US_INDICES && DEFAULT_US_INDICES[cleanSym]);
+  const found = foundUS || foundIN || (foundIdx ? { ltp: foundIdx.price } : null);
+  const currentPrice = basePrice || found?.ltp || found?.price || (foundUS ? 250 : 1000);
 
   const bars = [];
   const now = new Date();
