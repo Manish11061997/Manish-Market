@@ -170,18 +170,32 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
             return {
               ...stock,
               currentPrice: tick.price,
+              change: tick.change !== undefined ? tick.change : stock.change,
+              changePercent: tick.changePercent !== undefined ? tick.changePercent : stock.changePercent,
               tickDirection: tick.price > (stock.currentPrice || 0) ? 'UP' : 'DOWN'
             };
           }
           return stock;
         });
 
+        if (hasChanges) {
+          setTimeout(() => {
+            setFeedData(p => {
+              if (!p || !p.all) return p;
+              return {
+                ...p,
+                all: p.all.map(s => ({ ...s, tickDirection: null }))
+              };
+            });
+          }, 600);
+        }
+
         return hasChanges ? { ...prev, all: updatedAll } : prev;
       });
     });
 
     return () => unsub();
-  }, []);
+  }, [currentMarket]);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
   const allStocks = useMemo(() => feedData?.all || [], [feedData]);

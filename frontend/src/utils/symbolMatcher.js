@@ -23,10 +23,12 @@ const INDEX_ALIASES = {
   '^NSEBANK': ['NIFTYBANK', 'BANKNIFTY', 'NIFTY BANK'],
   'SP500': ['^GSPC', 'SPX', 'S&P 500', 'S&P500', '^INX'],
   '^GSPC': ['SP500', 'SPX', 'S&P 500'],
-  'NASDAQ': ['^IXIC', 'COMP', 'NASDAQ', 'NDX', '^NDX'],
-  '^IXIC': ['NASDAQ', 'COMP', 'NDX'],
+  'NASDAQ': ['^IXIC', 'COMP', 'NASDAQ', 'NDX', '^NDX', 'NASDAQ 100', 'NASDAQ100'],
+  '^IXIC': ['NASDAQ', 'COMP', 'NDX', 'NASDAQ 100', 'NASDAQ100'],
   'DOW': ['^DJI', 'DJI', 'DOW JONES', 'DJIA'],
-  '^DJI': ['DOW', 'DJI', 'DOW JONES']
+  '^DJI': ['DOW', 'DJI', 'DOW JONES'],
+  'RUSSELL': ['^RUT', 'RUT', 'RUSSELL 2000', 'RUSSELL2000'],
+  '^RUT': ['RUSSELL', 'RUT', 'RUSSELL 2000', 'RUSSELL2000']
 };
 
 export function findTick(ticks, querySymbol) {
