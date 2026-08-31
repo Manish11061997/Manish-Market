@@ -677,30 +677,60 @@ export default function TradingViewCandleChart({
         const parsed = [];
         for (const item of raw) {
           let tVal = item.time || item.timestamp;
-          if (typeof tVal !== 'number' || tVal <= 0) {
+          if (typeof tVal === 'string') {
+            const parsedMs = Date.parse(tVal);
+            if (!isNaN(parsedMs)) {
+              tVal = Math.floor(parsedMs / 1000);
+            } else {
+              tVal = Math.floor(new Date(item.date || tVal).getTime() / 1000);
+            }
+          } else if (typeof tVal !== 'number' || tVal <= 0 || isNaN(tVal)) {
             tVal = Math.floor(new Date(item.date || Date.now()).getTime() / 1000);
           }
-          parsed.push({
-            time: tVal,
-            open: Number(item.open ?? item.close),
-            high: Number(item.high ?? item.close),
-            low: Number(item.low ?? item.close),
-            close: Number(item.close),
-            volume: Number(item.volume || 0)
-          });
+
+          const o = Number(item.open ?? item.close);
+          const h = Number(item.high ?? item.close);
+          const l = Number(item.low ?? item.close);
+          const c = Number(item.close);
+          const v = Number(item.volume || 0);
+
+          if (!isNaN(o) && !isNaN(h) && !isNaN(l) && !isNaN(c) && !isNaN(tVal) && tVal > 0) {
+            parsed.push({
+              time: tVal,
+              open: o,
+              high: Math.max(h, o, c),
+              low: Math.min(l, o, c),
+              close: c,
+              volume: v
+            });
+          }
         }
 
+        // Sort strictly ascending by timestamp and eliminate duplicates (TradingView requirement)
         parsed.sort((a, b) => a.time - b.time);
-        candlesRef.current = parsed;
-        setCandles(parsed);
-        if (parsed.length > 0) {
-          setLastCandle(parsed[parsed.length - 1]);
+        const uniqueBars = [];
+        let lastTimestamp = null;
+        for (const bar of parsed) {
+          if (bar.time !== lastTimestamp) {
+            uniqueBars.push(bar);
+            lastTimestamp = bar.time;
+          }
         }
+
+        if (uniqueBars.length === 0) {
+          setNoData(true);
+          setLoading(false);
+          return;
+        }
+
+        candlesRef.current = uniqueBars;
+        setCandles(uniqueBars);
+        setLastCandle(uniqueBars[uniqueBars.length - 1]);
         setLoading(false);
-        console.log("[CHART EFFECT] Set loading to false, parsed bars:", parsed.length);
+        console.log("[CHART EFFECT] Set loading to false, unique parsed bars:", uniqueBars.length);
 
         // Fit content ONLY on initial data fetch so user can pan/scroll freely afterwards
-        syncCandlesToCharts(parsed, true);
+        syncCandlesToCharts(uniqueBars, true);
       })
       .catch(err => {
         console.warn("OHLCV chart fetch notice:", err);

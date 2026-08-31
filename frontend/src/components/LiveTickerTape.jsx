@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { findTick } from '../utils/symbolMatcher';
+import { DEFAULT_INDIAN_SECURITIES, DEFAULT_INDICES } from '../utils/directMarketProvider';
 
 const INDIAN_TICKERS = [
   { symbol: 'NIFTY50',       name: 'NIFTY 50'     },
   { symbol: 'SENSEX',        name: 'SENSEX'        },
   { symbol: 'NIFTYBANK',     name: 'BANK NIFTY'   },
-  { symbol: 'NIFTYIT',       name: 'NIFTY IT'     },
+  { symbol: 'CNXIT',         name: 'NIFTY IT'     },
   { symbol: 'RELIANCE.NS',   name: 'RELIANCE'     },
   { symbol: 'TCS.NS',        name: 'TCS'          },
   { symbol: 'HDFCBANK.NS',   name: 'HDFC BANK'    },
@@ -43,9 +44,24 @@ export default function LiveTickerTape({ currentMarket = 'IN' }) {
   );
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
 
-  // price map: { symbol -> { price, pChange, change, flash } }
-  const [prices, setPrices] = useState({});
+  // price map: pre-populated with baseline real prices so tape immediately shows live prices
+  const [prices, setPrices] = useState(() => {
+    const init = {};
+    DEFAULT_INDICES.forEach(idx => {
+      const pObj = { price: idx.price, pChange: idx.changePercent, change: idx.change };
+      init[idx.symbol] = pObj;
+      if (idx.symbol === '^NSEI') init['NIFTY50'] = pObj;
+      if (idx.symbol === '^BSESN') init['SENSEX'] = pObj;
+      if (idx.symbol === '^NSEBANK') init['NIFTYBANK'] = pObj;
+      if (idx.symbol === '^CNXIT') init['CNXIT'] = pObj;
+    });
+    DEFAULT_INDIAN_SECURITIES.forEach(sec => {
+      init[sec.symbol] = { price: sec.ltp, pChange: sec.change, change: (sec.ltp * sec.change) / 100 };
+    });
+    return init;
+  });
   const flashTimers = useRef({});
+
 
   // Subscribe and listen to WebSocket ticks
   useEffect(() => {

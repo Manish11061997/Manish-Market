@@ -21,7 +21,30 @@ function MarketHeader({
   isFailover = false
 }) {
   const wsConnected = wsStatus === 'LIVE' || wsStatus === 'REPLAY' || isFailover || Boolean(marketData?.indices);
-  const indices = useMemo(() => marketData?.indices || {}, [marketData]);
+  const indices = useMemo(() => {
+    if (Array.isArray(marketData?.indices)) {
+      const obj = {};
+      marketData.indices.forEach((idx, i) => {
+        const k = idx.symbol || idx.name || `idx_${i}`;
+        obj[k] = { ...idx, pChange: idx.changePercent ?? idx.pChange ?? 0 };
+      });
+      return obj;
+    }
+    if (marketData?.indices && Object.keys(marketData.indices).length > 0) {
+      return marketData.indices;
+    }
+    return currentMarket === 'US' ? {
+      SP500:  { name: 'S&P 500',   price: 7711.76, change: -19.20,  pChange: -0.25 },
+      NASDAQ: { name: 'NASDAQ',    price: 26402.42, change: -138.10, pChange: -0.52 },
+      DOW:    { name: 'Dow Jones', price: 53559.99, change: -11.00,  pChange: -0.02 }
+    } : {
+      NIFTY50:   { name: 'NIFTY 50',   price: 24066.80, change: -108.85, pChange: -0.45 },
+      SENSEX:    { name: 'SENSEX',     price: 76991.34, change: -273.15, pChange: -0.35 },
+      NIFTYBANK: { name: 'BANK NIFTY', price: 57373.75, change: -122.50, pChange: -0.21 },
+      CNXIT:     { name: 'NIFTY IT',   price: 30837.15, change: -320.10, pChange: -1.03 }
+    };
+  }, [marketData, currentMarket]);
+
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);

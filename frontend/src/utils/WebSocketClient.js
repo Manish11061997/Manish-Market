@@ -203,7 +203,7 @@ class WebSocketClient {
       if (Array.isArray(summary?.indices)) {
         summary.indices.forEach(idx => {
           const tickKey = YF_TO_TICK_KEY[idx.symbol] || idx.symbol;
-          ticks[tickKey] = {
+          const tickObj = {
             symbol: tickKey,
             instrumentToken: `INDEX_${tickKey}`,
             price: idx.price,
@@ -215,23 +215,33 @@ class WebSocketClient {
             volume: 5000000,
             latencyMs: 18
           };
+          ticks[tickKey] = tickObj;
+          if (idx.symbol) ticks[idx.symbol] = tickObj;
+          if (tickKey === 'CNXIT') ticks['NIFTYIT'] = tickObj;
         });
       }
 
+      // Skip index symbols — they're already covered above by the YF index fetch
+      const INDEX_KEYS = new Set(['NIFTY50', 'SENSEX', 'NIFTYBANK', 'CNXIT', 'NIFTYIT', '^NSEI', '^BSESN', '^NSEBANK', '^CNXIT']);
       for (const sym of Array.from(this.subscribedSymbols)) {
-        const cleanSym = sym.replace('.NS', '').trim();
+        if (INDEX_KEYS.has(sym)) continue;  // skip index subscriptions
+        const cleanSym = sym.replace('.NS', '').replace('.BO', '').trim();
         const detail = await getDirectStockDetail(sym);
-        ticks[cleanSym] = {
-          symbol: sym,
-          instrumentToken: `NSE_EQ_${cleanSym}`,
-          price: detail.price,
-          change: detail.change,
-          changePercent: detail.changePercent,
-          timestamp: new Date().toLocaleTimeString(),
-          ms: Date.now(),
-          volume: detail.volume || 1000000,
-          latencyMs: 18
-        };
+        if (detail && detail.price) {
+          const stockTick = {
+            symbol: sym,
+            instrumentToken: `NSE_EQ_${cleanSym}`,
+            price: detail.price,
+            change: detail.change,
+            changePercent: detail.changePercent,
+            timestamp: new Date().toLocaleTimeString(),
+            ms: Date.now(),
+            volume: detail.volume || 1000000,
+            latencyMs: 18
+          };
+          ticks[cleanSym] = stockTick;
+          ticks[sym] = stockTick;
+        }
       }
 
       this.lastTickTime = Date.now();
