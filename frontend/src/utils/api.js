@@ -20,7 +20,7 @@ import {
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://constitutional-insert-first-shannon.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = 'https://api.trycloudflare.com';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = null;

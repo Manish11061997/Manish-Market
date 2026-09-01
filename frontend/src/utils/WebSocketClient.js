@@ -510,40 +510,39 @@ class WebSocketClient {
       if (key === 'RUSSELL') ticks['^RUT'] = tickObj;
     });
 
-    // 2. Tick subscribed & top securities
-    const inCandidates = [
-      'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
-      'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS'
-    ];
-    const usCandidates = [
-      'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD',
-      'PLTR', 'UBER', 'NFLX', 'WMT', 'ORCL', 'JPM', 'AVGO'
-    ];
-
-    const activeList = isUSOpen ? usCandidates : [];
-    const closedList = isINOpen ? inCandidates : (isUSOpen ? [] : inCandidates);
+    // 2. Tick ALL securities (subscribed + full default lists) so every stock in the watchlist gets live movement
+    // Use all default securities to ensure no stock is left out — not just a hardcoded short list
+    const allINSymbols = DEFAULT_INDIAN_SECURITIES.map(s => s.symbol);
+    const allUSSymbols = DEFAULT_US_SECURITIES.map(s => s.symbol);
 
     const candidates = Array.from(new Set([
       ...Array.from(this.subscribedSymbols),
-      ...activeList,
-      ...closedList
+      ...(isINOpen ? allINSymbols : []),
+      ...(isUSOpen ? allUSSymbols : [])
     ]));
+
+    // Keep usCandidates set for market classification
+    const usCandidateSet = new Set(allUSSymbols);
 
     candidates.forEach(sym => {
       const cleanSym = sym.replace('.NS', '').replace('.BO', '').trim();
       const item = this.liveTickStore.get(sym) || this.liveTickStore.get(cleanSym);
       if (!item) return;
 
-      const isAssetUS = item.market === 'US' || usCandidates.includes(cleanSym) || usCandidates.includes(sym);
+      const isAssetUS = item.market === 'US' || usCandidateSet.has(cleanSym) || usCandidateSet.has(sym);
       const isAssetMarketOpen = isAssetUS ? isUSOpen : isINOpen;
 
       // Only generate dynamic movement if that asset's market is actually open right now
       if (isAssetMarketOpen) {
-        const tickSpread = item.basePrice > 500 ? 0.85 : (isAssetUS ? 0.45 : 0.20);
-        const delta = (Math.random() - 0.48) * tickSpread;
+        // CRITICAL FIX: Use PERCENTAGE-based jitter (same as index logic above)
+        // so all stocks — large cap or small cap — show visible, realistic tick movement.
+        // Indian equities: ±0.030% per tick; US equities: ±0.040% per tick (more volatile)
+        const jitterPct = isAssetUS ? 0.0004 : 0.0003;
+        const delta = (Math.random() - 0.48) * item.basePrice * jitterPct;
         item.price = parseFloat((item.price + delta).toFixed(2));
 
-        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.02) {
+        // Allow ±1.5% drift from basePrice before snapping back (realistic intraday range)
+        if (Math.abs(item.price - item.basePrice) > item.basePrice * 0.015) {
           item.price = item.basePrice;
         }
 
