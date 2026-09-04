@@ -146,7 +146,55 @@ export default function TradingViewCandleChart({
 
   const activeCandleRef = useRef(null);
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
-  const timeframesList = ['1m', '5m', '15m', '1h', '1D', '1W'];
+  const timeframesList = ['1m', '5m', '15m', '1h', '1D', '1W', '1M'];
+  const rangePresets = ['1D', '5D', '1M', '3M', '6M', 'YTD', '1Y', '5Y', 'ALL'];
+  const [activeRange, setActiveRange] = useState('AUTO');
+
+  const applyVisibleRange = (rangeKey) => {
+    setActiveRange(rangeKey);
+    const chart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+    if (!chart?.timeScale) return;
+
+    const data = candlesRef.current;
+    if (!data || data.length === 0) return;
+
+    if (rangeKey === 'ALL') {
+      chart.timeScale().fitContent();
+      return;
+    }
+
+    const lastBar = data[data.length - 1];
+    const lastTime = typeof lastBar.time === 'number' ? lastBar.time : Math.floor(new Date(lastBar.time || Date.now()).getTime() / 1000);
+    let secondsBack = 365 * 86400;
+
+    if (rangeKey === '1D') secondsBack = 86400;
+    else if (rangeKey === '5D') secondsBack = 5 * 86400;
+    else if (rangeKey === '1M') secondsBack = 30 * 86400;
+    else if (rangeKey === '3M') secondsBack = 90 * 86400;
+    else if (rangeKey === '6M') secondsBack = 180 * 86400;
+    else if (rangeKey === 'YTD') {
+      const startOfYear = Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
+      secondsBack = Math.max(86400, lastTime - startOfYear);
+    } else if (rangeKey === '1Y') secondsBack = 365 * 86400;
+    else if (rangeKey === '5Y') secondsBack = 5 * 365 * 86400;
+
+    const targetStartTime = lastTime - secondsBack;
+    try {
+      chart.timeScale().setVisibleRange({
+        from: targetStartTime,
+        to: lastTime + Math.floor(secondsBack * 0.04)
+      });
+    } catch {
+      const firstTime = typeof data[0].time === 'number' ? data[0].time : Math.floor(new Date(data[0].time).getTime() / 1000);
+      const totalSpan = Math.max(1, lastTime - firstTime);
+      const fraction = Math.min(1, Math.max(0.05, secondsBack / totalSpan));
+      const barsEstimated = Math.max(10, Math.floor(data.length * fraction));
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, data.length - barsEstimated),
+        to: data.length + 5
+      });
+    }
+  };
 
   // Helper to format candles for lightweight-charts with strict OHLC validation
   const formatTVCandles = (rawList) => {
@@ -526,14 +574,11 @@ export default function TradingViewCandleChart({
       try {
         candleSeriesRef.current.setData(tvData);
         if (shouldFit && chartInstanceRef.current?.timeScale) {
-          if (tvData.length > 90) {
-            chartInstanceRef.current.timeScale().setVisibleLogicalRange({
-              from: tvData.length - 85,
-              to: tvData.length + 5
-            });
-          } else {
-            chartInstanceRef.current.timeScale().fitContent();
-          }
+          const defaultVisible = Math.min(tvData.length, timeframe === '1D' ? 180 : timeframe === '1W' ? 120 : 150);
+          chartInstanceRef.current.timeScale().setVisibleLogicalRange({
+            from: Math.max(0, tvData.length - defaultVisible),
+            to: tvData.length + 5
+          });
         }
       } catch (e) {
         console.warn("Primary chart setData notice:", e);
@@ -544,14 +589,11 @@ export default function TradingViewCandleChart({
       try {
         fullCandleSeriesRef.current.setData(tvData);
         if (shouldFit && fullChartInstanceRef.current?.timeScale) {
-          if (tvData.length > 120) {
-            fullChartInstanceRef.current.timeScale().setVisibleLogicalRange({
-              from: tvData.length - 110,
-              to: tvData.length + 6
-            });
-          } else {
-            fullChartInstanceRef.current.timeScale().fitContent();
-          }
+          const defaultVisible = Math.min(tvData.length, timeframe === '1D' ? 240 : timeframe === '1W' ? 180 : 180);
+          fullChartInstanceRef.current.timeScale().setVisibleLogicalRange({
+            from: Math.max(0, tvData.length - defaultVisible),
+            to: tvData.length + 8
+          });
         }
       } catch (e) {
         console.warn("Fullscreen chart setData notice:", e);
@@ -645,9 +687,10 @@ export default function TradingViewCandleChart({
     if (!cleanSymbol) return;
 
     // Instant zero-delay preview: Seed instant price candles so chart renders immediately in 0ms
-    if (!candlesRef.current || candlesRef.current.length === 0) {
-      const instantBars = generateSyntheticCandles(cleanSymbol, timeframe, 120);
+    if (!candlesRef.current || candlesRef.current.length === 0 || candlesRef.current._timeframe !== timeframe) {
+      const instantBars = generateSyntheticCandles(cleanSymbol, timeframe, 500);
       if (instantBars && instantBars.length > 0) {
+        instantBars._timeframe = timeframe;
         candlesRef.current = instantBars;
         setCandles(instantBars);
         setLastCandle(instantBars[instantBars.length - 1]);
@@ -658,14 +701,15 @@ export default function TradingViewCandleChart({
 
     setNoData(false);
 
-    let period = '1y';
+    let period = '5y';
     let interval = '1d';
-    if (timeframe === '1m') { period = '5d'; interval = '1m'; }
-    else if (timeframe === '5m') { period = '1mo'; interval = '5m'; }
-    else if (timeframe === '15m') { period = '3mo'; interval = '15m'; }
-    else if (timeframe === '1h') { period = '1y'; interval = '60m'; }
-    else if (timeframe === '1D') { period = '1y'; interval = '1d'; }
-    else if (timeframe === '1W') { period = 'max'; interval = '1wk'; }
+    if (timeframe === '1m') { period = '7d'; interval = '1m'; }
+    else if (timeframe === '5m') { period = '60d'; interval = '5m'; }
+    else if (timeframe === '15m') { period = '60d'; interval = '15m'; }
+    else if (timeframe === '1h') { period = '730d'; interval = '60m'; }
+    else if (timeframe === '1D') { period = '5y'; interval = '1d'; }
+    else if (timeframe === '1W') { period = '10y'; interval = '1wk'; }
+    else if (timeframe === '1M') { period = 'max'; interval = '1mo'; }
 
     const targetSym = encodeURIComponent(cleanSymbol);
 
@@ -2291,6 +2335,75 @@ export default function TradingViewCandleChart({
         )}
       </div>
 
+      {/* 📅 Interactive Range Selector Toolbar: [1D] [5D] [1M] [3M] [6M] [YTD] [1Y] [5Y] [ALL] [Fit] */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '5px 8px',
+        backgroundColor: 'var(--md-sys-color-surface-container)',
+        borderRadius: '8px',
+        border: '1px solid var(--md-sys-color-outline-variant)',
+        flexWrap: 'wrap',
+        gap: '6px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', overflowX: 'auto', maxWidth: '100%' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, paddingRight: '4px', textTransform: 'uppercase' }}>
+            Range:
+          </span>
+          {rangePresets.map(rng => (
+            <button
+              key={rng}
+              type="button"
+              onClick={() => applyVisibleRange(rng)}
+              style={{
+                padding: '2px 7px',
+                borderRadius: '5px',
+                fontSize: '10px',
+                fontWeight: activeRange === rng ? 800 : 600,
+                backgroundColor: activeRange === rng ? 'var(--accent-blue)' : 'transparent',
+                color: activeRange === rng ? '#090d16' : 'var(--text-secondary)',
+                border: activeRange === rng ? '1px solid var(--accent-blue)' : '1px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {rng}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveRange('ALL');
+              const chart = isFullScreen ? fullChartInstanceRef.current : chartInstanceRef.current;
+              chart?.timeScale?.()?.fitContent?.();
+            }}
+            style={{
+              padding: '2px 8px',
+              borderRadius: '5px',
+              fontSize: '10px',
+              fontWeight: 700,
+              backgroundColor: 'var(--md-sys-color-surface-container-high)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              color: 'var(--accent-gold)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <RotateCcw style={{ width: '11px', height: '11px' }} />
+            Fit All
+          </button>
+          <span className="mono-num" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            {candles.length.toLocaleString()} bars
+          </span>
+        </div>
+      </div>
+
       {/* 🌊 RSI (14) Synchronized Oscillator Sub-Pane */}
       {activeIndicators.RSI_14 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
@@ -3125,6 +3238,76 @@ export default function TradingViewCandleChart({
                 <X style={{ width: '14px', height: '14px' }} />
                 <span>Exit</span>
               </button>
+            </div>
+          </div>
+
+          {/* Full Screen Range Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '4px 8px',
+            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            marginTop: '6px',
+            flexWrap: 'wrap',
+            gap: '6px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto' }}>
+              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, paddingRight: '4px', textTransform: 'uppercase' }}>
+                Range:
+              </span>
+              {rangePresets.map(rng => (
+                <button
+                  key={rng}
+                  type="button"
+                  onClick={() => applyVisibleRange(rng)}
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: activeRange === rng ? 800 : 600,
+                    backgroundColor: activeRange === rng ? '#38bdf8' : 'transparent',
+                    color: activeRange === rng ? '#090d16' : '#94a3b8',
+                    border: activeRange === rng ? '1px solid #38bdf8' : '1px solid transparent',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {rng}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveRange('ALL');
+                  fullChartInstanceRef.current?.timeScale?.()?.fitContent?.();
+                }}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#fbbf24',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <RotateCcw style={{ width: '11px', height: '11px' }} />
+                Fit All
+              </button>
+              {candles && candles.length > 0 && (
+                <span className="mono-num" style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>
+                  {candles.length} bars
+                </span>
+              )}
             </div>
           </div>
 

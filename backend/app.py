@@ -786,7 +786,7 @@ def get_single_stock_analysis(symbol: str, market: str = "IN"):
     return JSONResponse(content=sanitize_json_data(res))
 
 @app.get("/api/stock/{symbol}/chart")
-def get_stock_chart_data(symbol: str, period: str = "6mo", interval: str = "1d", adjusted: bool = True, market: str = "IN"):
+def get_stock_chart_data(symbol: str, period: str = "5y", interval: str = "1d", adjusted: bool = True, market: str = "IN"):
     """OHLCV series with corporate actions adjustment toggle and event markers."""
     symbol_resolved = resolve_ticker_symbol(symbol, market=market)
     market_gateway.subscribe_symbols([symbol_resolved])

@@ -505,7 +505,7 @@ async function handleOfflineFallback(endpointPath) {
       const stockIdx = parts.indexOf('stock');
       const symbol = stockIdx !== -1 && parts[stockIdx + 1] ? decodeURIComponent(parts[stockIdx + 1]) : 'RELIANCE.NS';
       const tf = searchParams.get('timeframe') || searchParams.get('interval') || '1D';
-      const limit = parseInt(searchParams.get('limit') || '365', 10);
+      const limit = parseInt(searchParams.get('limit') || '1000', 10);
       const data = await getDirectStockChart(symbol, tf, limit);
       return new Response(JSON.stringify(data), {
         status: 200,
