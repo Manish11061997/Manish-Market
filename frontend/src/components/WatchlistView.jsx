@@ -7,6 +7,7 @@ import { useWatchlist } from '../utils/useWatchlist';
 import { wsClient } from '../utils/WebSocketClient';
 import { findTick } from '../utils/symbolMatcher';
 import { apiFetch } from '../utils/api';
+import { fuzzySearchUniverse } from '../utils/stockUniverse';
 
 export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
   const {
@@ -107,10 +108,15 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
     return () => { isMounted = false; };
   }, [currentMarket, symbols]);
 
-  // 3. Search debounced handler for "Add to Watchlist"
+  // 3. Instant local results + debounced API fetch for "Add to Watchlist"
+  const localResults = useMemo(() => {
+    return fuzzySearchUniverse(searchQuery, currentMarket);
+  }, [searchQuery, currentMarket]);
+
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
@@ -126,12 +132,27 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
         .catch(() => {
           setIsSearching(false);
         });
-    }, 200);
+    }, 150);
 
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery, currentMarket]);
+
+  // Unified instant display results
+  const displayResults = useMemo(() => {
+    const map = new Map();
+    // 1. Add instant local matches
+    localResults.forEach(r => map.set(r.symbol.toUpperCase(), r));
+    // 2. Merge API matches
+    searchResults.forEach(r => {
+      if (r && r.symbol) {
+        const key = r.symbol.toUpperCase();
+        map.set(key, { ...map.get(key), ...r });
+      }
+    });
+    return Array.from(map.values()).slice(0, 10);
+  }, [localResults, searchResults]);
 
   // Merge symbols with live ticks and metadata
   const watchlistedStocks = useMemo(() => {
@@ -496,17 +517,56 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
             placeholder={`Add stock to "${activeList.name}" (e.g. RELIANCE, NVDA)...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                e.preventDefault();
+                if (displayResults.length > 0) {
+                  const targetSym = displayResults[0].symbol;
+                  if (!symbols.some(s => s.toUpperCase() === targetSym.toUpperCase())) {
+                    addSymbolToList(targetSym);
+                  }
+                } else {
+                  let sym = searchQuery.trim().toUpperCase();
+                  if (currentMarket === 'IN' && !sym.endsWith('.NS') && !sym.endsWith('.BO') && !sym.startsWith('^')) {
+                    sym = `${sym}.NS`;
+                  }
+                  if (!symbols.some(s => s.toUpperCase() === sym.toUpperCase())) {
+                    addSymbolToList(sym);
+                  }
+                }
+                setSearchQuery('');
+              }
+            }}
             className="pro-input-field"
             style={{
               width: '100%',
               paddingLeft: '36px',
-              paddingRight: '12px',
+              paddingRight: searchQuery ? '32px' : '12px',
               fontSize: '12px',
               borderRadius: '20px',
               backgroundColor: 'var(--bg-elevated)',
               border: '1px solid var(--border-subtle)'
             }}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                padding: '2px 4px'
+              }}
+            >
+              ✕
+            </button>
+          )}
 
           {/* Autocomplete Dropdown */}
           {searchQuery.trim() && (
@@ -525,16 +585,16 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
               boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
               zIndex: 100
             }}>
-              {isSearching ? (
+              {displayResults.length === 0 && isSearching ? (
                 <div style={{ padding: '10px', fontSize: '11px', color: 'var(--accent-blue)', textAlign: 'center' }}>
                   Searching securities...
                 </div>
-              ) : searchResults.length === 0 ? (
+              ) : displayResults.length === 0 ? (
                 <div style={{ padding: '10px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                  No match. Press Enter to add symbol directly.
+                  No exact match. Press Enter to add "{searchQuery.trim().toUpperCase()}" directly.
                 </div>
               ) : (
-                searchResults.map(res => {
+                displayResults.map(res => {
                   const alreadyAdded = symbols.some(s => s.toUpperCase() === res.symbol.toUpperCase());
                   return (
                     <div

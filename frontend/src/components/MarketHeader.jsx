@@ -205,20 +205,23 @@ function MarketHeader({
     return fuzzySearchUniverse(searchQuery, currentMarket);
   }, [searchQuery, currentMarket]);
 
-  // Combine and deduplicate local universe and live search
+  // Combine and deduplicate local universe and live search (instant local first for 0ms latency)
   const combinedResults = useMemo(() => {
     const map = new Map();
-    // 1. First add API search results if available
-    liveSearchResults.forEach(item => {
-      if (item && item.symbol) {
-        map.set(item.symbol.toUpperCase(), item);
-      }
-    });
-    // 2. Add or backfill with local high-accuracy universe
+    // 1. First add local high-accuracy universe instantly (0ms)
     localFiltered.forEach(item => {
       const key = item.symbol.toUpperCase();
-      if (!map.has(key)) {
-        map.set(key, item);
+      map.set(key, item);
+    });
+    // 2. Enrich with live API search results if available
+    liveSearchResults.forEach(item => {
+      if (item && item.symbol) {
+        const key = item.symbol.toUpperCase();
+        if (map.has(key)) {
+          map.set(key, { ...map.get(key), ...item });
+        } else {
+          map.set(key, item);
+        }
       }
     });
     return Array.from(map.values()).slice(0, 10);
@@ -577,8 +580,28 @@ function MarketHeader({
                 setShowSearchDropdown(true);
               }}
               className="pro-input-field"
-              style={{ width: '100%', paddingLeft: '36px', paddingRight: '46px', fontSize: '12px', borderRadius: '24px', backgroundColor: 'var(--md-sys-color-surface-container)', border: '1px solid var(--md-sys-color-outline-variant)' }}
+              style={{ width: '100%', paddingLeft: '36px', paddingRight: searchQuery ? '68px' : '46px', fontSize: '12px', borderRadius: '24px', backgroundColor: 'var(--md-sys-color-surface-container)', border: '1px solid var(--md-sys-color-outline-variant)' }}
             />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setHighlightIndex(-1); }}
+                style={{
+                  position: 'absolute',
+                  right: '34px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: '2px 4px'
+                }}
+              >
+                ✕
+              </button>
+            ) : null}
             <kbd className="hide-on-mobile" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', pointerEvents: 'none' }}>
               ⌘K
             </kbd>
@@ -613,6 +636,13 @@ function MarketHeader({
                     }
                     selectSymbol(sym);
                   }}
+                  onClick={() => {
+                    let sym = searchQuery.trim().toUpperCase();
+                    if (currentMarket === 'IN' && !sym.endsWith('.NS') && !sym.startsWith('^')) {
+                      sym = `${sym}.NS`;
+                    }
+                    selectSymbol(sym);
+                  }}
                   style={{
                     padding: '10px 12px',
                     borderRadius: '8px',
@@ -636,7 +666,7 @@ function MarketHeader({
                   <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--accent-blue)' }} />
                 </div>
 
-                {isSearching && (
+                {isSearching && combinedResults.length === 0 && (
                   <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="live-dot-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-blue)' }}></span>
                     Searching global exchanges...
@@ -653,6 +683,7 @@ function MarketHeader({
                       e.preventDefault();
                       selectSymbol(s.symbol);
                     }}
+                    onClick={() => selectSymbol(s.symbol)}
                     style={{
                       padding: '8px 12px',
                       borderRadius: '8px',
@@ -857,14 +888,16 @@ function MarketHeader({
             <div style={{ position: 'relative', flex: 1 }}>
               <Search style={{ width: '16px', height: '16px', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
+                id="mobile-market-search-input"
                 autoFocus
                 type="text"
                 placeholder={currentMarket === 'US' ? "Search US stocks (NVDA, AAPL)..." : "Search NSE stocks (Reliance, TCS)..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
                 style={{
                   width: '100%',
-                  padding: '12px 14px 12px 38px',
+                  padding: '12px 36px 12px 38px',
                   fontSize: '14px',
                   borderRadius: '12px',
                   backgroundColor: 'var(--bg-elevated)',
@@ -872,6 +905,26 @@ function MarketHeader({
                   color: 'var(--text-main)'
                 }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '4px'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
             <button
               onClick={() => setShowMobileSearch(false)}

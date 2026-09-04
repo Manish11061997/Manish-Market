@@ -122,8 +122,8 @@ class TunnelSupervisor:
                 time.sleep(0.2)
                 continue
             
-            match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
-            if match:
+            match = re.search(r"https://([a-zA-Z0-9-]+)\.trycloudflare\.com", line)
+            if match and match.group(1).lower() != "api":
                 tunnel_url = match.group(0)
                 logger.info(f"Captured active Cloudflare tunnel: {tunnel_url}")
                 break

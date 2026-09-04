@@ -81,23 +81,48 @@ export const INDIAN_STOCKS_UNIVERSE = [
   { symbol: 'TATATECH.NS', name: 'Tata Technologies Ltd', sector: 'Engineering & Tech', exchange: 'NSE', currency: 'INR', aliases: ['TATA TECH', 'TATATECH'] },
   { symbol: 'POLICYBZR.NS', name: 'PB Fintech Ltd (PolicyBazaar)', sector: 'FinTech & Insurance', exchange: 'NSE', currency: 'INR', aliases: ['POLICYBAZAAR', 'PB FINTECH'] },
   { symbol: 'NYKAA.NS', name: 'FSN E-Commerce Ventures (Nykaa)', sector: 'E-Commerce & Beauty', exchange: 'NSE', currency: 'INR', aliases: ['NYKAA'] },
-  { symbol: 'DELHIVERY.NS', name: 'Delhivery Ltd', sector: 'Logistics & Supply Chain', exchange: 'NSE', currency: 'INR', aliases: ['DELHIVERY'] }
+  { symbol: 'DELHIVERY.NS', name: 'Delhivery Ltd', sector: 'Logistics & Supply Chain', exchange: 'NSE', currency: 'INR', aliases: ['DELHIVERY'] },
+  { symbol: 'RVNL.NS', name: 'Rail Vikas Nigam Ltd', sector: 'Railways & Infrastructure', exchange: 'NSE', currency: 'INR', aliases: ['RVNL', 'RAIL VIKAS'] },
+  { symbol: 'IREDA.NS', name: 'Indian Renewable Energy Development Agency', sector: 'Green Energy & PSU', exchange: 'NSE', currency: 'INR', aliases: ['IREDA'] },
+  { symbol: 'MAZDOCK.NS', name: 'Mazagon Dock Shipbuilders Ltd', sector: 'Defence & Shipbuilding', exchange: 'NSE', currency: 'INR', aliases: ['MAZAGON', 'MAZDOCK', 'MDL'] },
+  { symbol: 'COCHINSHIP.NS', name: 'Cochin Shipyard Ltd', sector: 'Defence & Shipbuilding', exchange: 'NSE', currency: 'INR', aliases: ['COCHIN SHIPYARD', 'COCHINSHIP'] },
+  { symbol: 'HUDCO.NS', name: 'Housing & Urban Development Corp', sector: 'PSU & Housing Finance', exchange: 'NSE', currency: 'INR', aliases: ['HUDCO'] },
+  { symbol: 'NBCC.NS', name: 'NBCC (India) Ltd', sector: 'Infrastructure & Construction', exchange: 'NSE', currency: 'INR', aliases: ['NBCC'] },
+  { symbol: 'IOC.NS', name: 'Indian Oil Corporation Ltd', sector: 'Energy & Oil', exchange: 'NSE', currency: 'INR', aliases: ['IOC', 'INDIAN OIL'] },
+  { symbol: 'BPCL.NS', name: 'Bharat Petroleum Corp Ltd', sector: 'Energy & Oil', exchange: 'NSE', currency: 'INR', aliases: ['BPCL', 'BHARAT PETROLEUM'] },
+  { symbol: 'GAIL.NS', name: 'GAIL (India) Ltd', sector: 'Natural Gas & Utilities', exchange: 'NSE', currency: 'INR', aliases: ['GAIL'] },
+  { symbol: 'SAIL.NS', name: 'Steel Authority of India Ltd', sector: 'Metals & Steel', exchange: 'NSE', currency: 'INR', aliases: ['SAIL'] },
+  { symbol: 'NMDC.NS', name: 'NMDC Ltd', sector: 'Mining & Minerals', exchange: 'NSE', currency: 'INR', aliases: ['NMDC'] },
+  { symbol: 'NHPC.NS', name: 'NHPC Ltd', sector: 'Hydro & Clean Power', exchange: 'NSE', currency: 'INR', aliases: ['NHPC'] },
+  { symbol: 'SJVN.NS', name: 'SJVN Ltd', sector: 'Power & Utilities', exchange: 'NSE', currency: 'INR', aliases: ['SJVN'] },
+  { symbol: 'HAVELLS.NS', name: 'Havells India Ltd', sector: 'Consumer Electricals', exchange: 'NSE', currency: 'INR', aliases: ['HAVELLS'] },
+  { symbol: 'VOLTAS.NS', name: 'Voltas Ltd (Tata Group)', sector: 'Consumer Appliances & AC', exchange: 'NSE', currency: 'INR', aliases: ['VOLTAS'] },
+  { symbol: 'MRF.NS', name: 'MRF Ltd', sector: 'Tyres & Automotive', exchange: 'NSE', currency: 'INR', aliases: ['MRF', 'MRF TYRES'] },
+  { symbol: 'PAGEIND.NS', name: 'Page Industries Ltd (Jockey)', sector: 'Apparel & Retail', exchange: 'NSE', currency: 'INR', aliases: ['PAGE INDUSTRIES', 'JOCKEY', 'PAGEIND'] },
+  { symbol: 'BOSCHLTD.NS', name: 'Bosch Ltd', sector: 'Auto Components & Tech', exchange: 'NSE', currency: 'INR', aliases: ['BOSCH', 'BOSCHLTD'] },
+  { symbol: 'MUTHOOTFIN.NS', name: 'Muthoot Finance Ltd', sector: 'Gold Loans & NBFC', exchange: 'NSE', currency: 'INR', aliases: ['MUTHOOT', 'MUTHOOT FINANCE', 'MUTHOOTFIN'] },
+  { symbol: 'COFORGE.NS', name: 'Coforge Ltd', sector: 'IT Services', exchange: 'NSE', currency: 'INR', aliases: ['COFORGE'] },
+  { symbol: 'FEDERALBNK.NS', name: 'Federal Bank Ltd', sector: 'Banking & Financials', exchange: 'NSE', currency: 'INR', aliases: ['FEDERAL BANK', 'FEDERALBNK'] },
+  { symbol: 'IDFCFIRSTB.NS', name: 'IDFC FIRST Bank Ltd', sector: 'Banking & Financials', exchange: 'NSE', currency: 'INR', aliases: ['IDFC FIRST BANK', 'IDFC', 'IDFCFIRSTB'] },
+  { symbol: 'IDEA.NS', name: 'Vodafone Idea Ltd', sector: 'Telecommunications', exchange: 'NSE', currency: 'INR', aliases: ['VODAFONE IDEA', 'VI', 'IDEA'] },
+  { symbol: 'YESBANK.NS', name: 'Yes Bank Ltd', sector: 'Banking & Financials', exchange: 'NSE', currency: 'INR', aliases: ['YES BANK', 'YESBANK'] }
 ];
 
 export const US_STOCKS_UNIVERSE = [
   { symbol: 'SP500', name: 'S&P 500 Benchmark Index', sector: 'US Index', exchange: 'NYSE/NASDAQ', currency: 'USD', aliases: ['SP500', 'S&P 500', 'S&P500'] },
   { symbol: 'NASDAQ', name: 'NASDAQ 100 Tech Index', sector: 'US Tech Index', exchange: 'NASDAQ', currency: 'USD', aliases: ['NASDAQ', 'NASDAQ 100', 'NDX'] },
   { symbol: 'DOW', name: 'Dow Jones Industrial Average', sector: 'US Industrial Index', exchange: 'NYSE', currency: 'USD', aliases: ['DOW', 'DOW JONES', 'DJIA'] },
+  { symbol: 'RUSSELL', name: 'Russell 2000 Small Cap Index', sector: 'US Index', exchange: 'NYSE', currency: 'USD', aliases: ['RUSSELL', 'RUSSELL 2000', 'RUT'] },
   
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Semiconductors & AI', exchange: 'NASDAQ', currency: 'USD', aliases: ['NVIDIA', 'NVDA', 'GPU'] },
-  { symbol: 'AAPL', name: 'Apple Inc', sector: 'Consumer Electronics', exchange: 'NASDAQ', currency: 'USD', aliases: ['APPLE', 'AAPL', 'IPHONE', 'MACBOOK'] },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Software & Cloud', exchange: 'NASDAQ', currency: 'USD', aliases: ['MICROSOFT', 'MSFT', 'WINDOWS', 'AZURE'] },
-  { symbol: 'AMZN', name: 'Amazon.com Inc', sector: 'E-Commerce & Cloud', exchange: 'NASDAQ', currency: 'USD', aliases: ['AMAZON', 'AMZN', 'AWS'] },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Semiconductors & AI', exchange: 'NASDAQ', currency: 'USD', aliases: ['NVIDIA', 'NVDA', 'GPU', 'BLACKWELL'] },
+  { symbol: 'AAPL', name: 'Apple Inc', sector: 'Consumer Electronics', exchange: 'NASDAQ', currency: 'USD', aliases: ['APPLE', 'AAPL', 'IPHONE', 'MACBOOK', 'IOS'] },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Software & Cloud', exchange: 'NASDAQ', currency: 'USD', aliases: ['MICROSOFT', 'MSFT', 'WINDOWS', 'AZURE', 'COPILOT'] },
+  { symbol: 'AMZN', name: 'Amazon.com Inc', sector: 'E-Commerce & Cloud', exchange: 'NASDAQ', currency: 'USD', aliases: ['AMAZON', 'AMZN', 'AWS', 'PRIME'] },
   { symbol: 'GOOGL', name: 'Alphabet Inc (Google)', sector: 'Internet & Search', exchange: 'NASDAQ', currency: 'USD', aliases: ['GOOGLE', 'GOOGL', 'GOOG', 'ALPHABET', 'YOUTUBE'] },
-  { symbol: 'META', name: 'Meta Platforms Inc (Facebook)', sector: 'Social Media & AI', exchange: 'NASDAQ', currency: 'USD', aliases: ['META', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP'] },
-  { symbol: 'TSLA', name: 'Tesla Inc', sector: 'Automotive & Clean Energy', exchange: 'NASDAQ', currency: 'USD', aliases: ['TESLA', 'TSLA', 'ELON', 'EV'] },
-  { symbol: 'AMD', name: 'Advanced Micro Devices Inc', sector: 'Semiconductors', exchange: 'NASDAQ', currency: 'USD', aliases: ['AMD', 'RYZEN'] },
-  { symbol: 'PLTR', name: 'Palantir Technologies Inc', sector: 'AI & Big Data Analytics', exchange: 'NASDAQ', currency: 'USD', aliases: ['PALANTIR', 'PLTR'] },
+  { symbol: 'META', name: 'Meta Platforms Inc (Facebook)', sector: 'Social Media & AI', exchange: 'NASDAQ', currency: 'USD', aliases: ['META', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP', 'LLAMA'] },
+  { symbol: 'TSLA', name: 'Tesla Inc', sector: 'Automotive & Clean Energy', exchange: 'NASDAQ', currency: 'USD', aliases: ['TESLA', 'TSLA', 'ELON', 'EV', 'CYBERTRUCK'] },
+  { symbol: 'AMD', name: 'Advanced Micro Devices Inc', sector: 'Semiconductors', exchange: 'NASDAQ', currency: 'USD', aliases: ['AMD', 'RYZEN', 'RADEON'] },
+  { symbol: 'PLTR', name: 'Palantir Technologies Inc', sector: 'AI & Big Data Analytics', exchange: 'NASDAQ', currency: 'USD', aliases: ['PALANTIR', 'PLTR', 'AIP'] },
   { symbol: 'ARM', name: 'Arm Holdings plc', sector: 'Semiconductors', exchange: 'NASDAQ', currency: 'USD', aliases: ['ARM'] },
   { symbol: 'COIN', name: 'Coinbase Global Inc', sector: 'Crypto & FinTech', exchange: 'NASDAQ', currency: 'USD', aliases: ['COINBASE', 'COIN', 'CRYPTO', 'BITCOIN'] },
   { symbol: 'SMCI', name: 'Super Micro Computer Inc', sector: 'AI Server Hardware', exchange: 'NASDAQ', currency: 'USD', aliases: ['SUPERMICRO', 'SMCI'] },
@@ -114,7 +139,7 @@ export const US_STOCKS_UNIVERSE = [
   { symbol: 'BABA', name: 'Alibaba Group Holding', sector: 'E-Commerce', exchange: 'NYSE', currency: 'USD', aliases: ['ALIBABA', 'BABA'] },
   { symbol: 'TSM', name: 'Taiwan Semiconductor Mfg', sector: 'Semiconductors', exchange: 'NYSE', currency: 'USD', aliases: ['TSMC', 'TSM'] },
   { symbol: 'UBER', name: 'Uber Technologies Inc', sector: 'Mobility & Delivery', exchange: 'NYSE', currency: 'USD', aliases: ['UBER'] },
-  { symbol: 'QCOM', name: 'Qualcomm Inc', sector: 'Semiconductors', exchange: 'NASDAQ', currency: 'USD', aliases: ['QUALCOMM', 'QCOM'] },
+  { symbol: 'QCOM', name: 'Qualcomm Inc', sector: 'Semiconductors', exchange: 'NASDAQ', currency: 'USD', aliases: ['QUALCOMM', 'QCOM', 'SNAPDRAGON'] },
   { symbol: 'CRM', name: 'Salesforce Inc', sector: 'Cloud & CRM', exchange: 'NYSE', currency: 'USD', aliases: ['SALESFORCE', 'CRM'] },
   { symbol: 'ORCL', name: 'Oracle Corporation', sector: 'Cloud & Database', exchange: 'NYSE', currency: 'USD', aliases: ['ORACLE', 'ORCL'] },
   { symbol: 'ADBE', name: 'Adobe Inc', sector: 'Creative Software', exchange: 'NASDAQ', currency: 'USD', aliases: ['ADOBE', 'ADBE', 'PHOTOSHOP'] },
@@ -122,7 +147,11 @@ export const US_STOCKS_UNIVERSE = [
   { symbol: 'SQ', name: 'Block Inc (Square)', sector: 'FinTech', exchange: 'NYSE', currency: 'USD', aliases: ['SQUARE', 'BLOCK', 'SQ'] },
   { symbol: 'SHOP', name: 'Shopify Inc', sector: 'E-Commerce Software', exchange: 'NYSE', currency: 'USD', aliases: ['SHOPIFY', 'SHOP'] },
   { symbol: 'SNOW', name: 'Snowflake Inc', sector: 'Cloud Data Warehousing', exchange: 'NYSE', currency: 'USD', aliases: ['SNOWFLAKE', 'SNOW'] },
-  { symbol: 'MU', name: 'Micron Technology Inc', sector: 'Semiconductors & Memory', exchange: 'NASDAQ', currency: 'USD', aliases: ['MICRON', 'MU'] }
+  { symbol: 'MU', name: 'Micron Technology Inc', sector: 'Semiconductors & Memory', exchange: 'NASDAQ', currency: 'USD', aliases: ['MICRON', 'MU'] },
+  { symbol: 'BA', name: 'The Boeing Company', sector: 'Aerospace & Defense', exchange: 'NYSE', currency: 'USD', aliases: ['BOEING', 'BA'] },
+  { symbol: 'COST', name: 'Costco Wholesale Corp', sector: 'Consumer Retail', exchange: 'NASDAQ', currency: 'USD', aliases: ['COSTCO', 'COST'] },
+  { symbol: 'SBUX', name: 'Starbucks Corporation', sector: 'Restaurants & Coffee', exchange: 'NASDAQ', currency: 'USD', aliases: ['STARBUCKS', 'SBUX'] },
+  { symbol: 'NKE', name: 'Nike Inc', sector: 'Footwear & Apparel', exchange: 'NYSE', currency: 'USD', aliases: ['NIKE', 'NKE'] }
 ];
 
 export function fuzzySearchUniverse(query, market = 'IN') {
@@ -130,42 +159,94 @@ export function fuzzySearchUniverse(query, market = 'IN') {
   const qClean = query.trim();
   const qUpper = qClean.toUpperCase();
   const qLower = qClean.toLowerCase();
+  const qNorm = qClean.replace(/[\s\-_.]/g, '').toUpperCase();
 
-  const primary = market === 'US' ? US_STOCKS_UNIVERSE : INDIAN_STOCKS_UNIVERSE;
-  const secondary = market === 'US' ? INDIAN_STOCKS_UNIVERSE : US_STOCKS_UNIVERSE;
+  const isUS = market === 'US';
+  const primary = isUS ? US_STOCKS_UNIVERSE : INDIAN_STOCKS_UNIVERSE;
+  const secondary = isUS ? INDIAN_STOCKS_UNIVERSE : US_STOCKS_UNIVERSE;
 
   const scored = [];
   const seen = new Set();
 
   const evaluate = (stock, baseBonus = 0) => {
     const sym = stock.symbol.toUpperCase();
-    const symBase = sym.replace('.NS', '').replace('.BO', '');
+    const symBase = sym.replace('.NS', '').replace('.BO', '').replace('^', '');
+    const symNorm = symBase.replace(/[\s\-_.]/g, '');
     const nameLower = stock.name.toLowerCase();
+    const nameNorm = stock.name.replace(/[\s\-_.]/g, '').toUpperCase();
     const sectorLower = (stock.sector || '').toLowerCase();
     const aliases = (stock.aliases || []).map(a => a.toLowerCase());
+    const aliasesNorm = (stock.aliases || []).map(a => a.replace(/[\s\-_.]/g, '').toUpperCase());
 
-    if (seen.has(sym)) return;
+    if (seen.has(sym) || seen.has(symBase)) return;
 
     let score = 0;
 
-    // Exact matches
-    if (qUpper === sym || qUpper === symBase) score = 1000;
-    else if (aliases.includes(qLower)) score = 950;
-    else if (symBase.startsWith(qUpper)) score = 900;
-    else if (nameLower.startsWith(qLower)) score = 850;
-    else if (aliases.some(a => a.startsWith(qLower))) score = 820;
-    else if (nameLower.includes(qLower)) score = 750;
-    else if (aliases.some(a => a.includes(qLower))) score = 700;
-    else if (sectorLower.includes(qLower)) score = 500;
+    // 1. Exact symbol or normalized symbol match
+    if (qUpper === sym || qUpper === symBase || qNorm === symNorm) {
+      score = 1000;
+    }
+    // 2. Exact alias match
+    else if (aliases.includes(qLower) || aliasesNorm.includes(qNorm)) {
+      score = 960;
+    }
+    // 3. Starts with ticker
+    else if (symBase.startsWith(qUpper) || symNorm.startsWith(qNorm)) {
+      score = 920;
+    }
+    // 4. Starts with company name
+    else if (nameLower.startsWith(qLower) || nameNorm.startsWith(qNorm)) {
+      score = 880;
+    }
+    // 5. Starts with alias
+    else if (aliases.some(a => a.startsWith(qLower)) || aliasesNorm.some(a => a.startsWith(qNorm))) {
+      score = 840;
+    }
+    // 6. Substring in company name
+    else if (nameLower.includes(qLower)) {
+      score = 760;
+    }
+    // 7. Substring in alias
+    else if (aliases.some(a => a.includes(qLower))) {
+      score = 720;
+    }
+    // 8. Substring in sector
+    else if (sectorLower.includes(qLower)) {
+      score = 520;
+    }
 
     if (score > 0) {
       seen.add(sym);
+      seen.add(symBase);
       scored.push({ score: score + baseBonus, item: stock });
     }
   };
 
-  primary.forEach(s => evaluate(s, 100));
+  primary.forEach(s => evaluate(s, 150));
   secondary.forEach(s => evaluate(s, 0));
+
+  // If query looks like a valid ticker and not in universe, synthesize an instant entry
+  if (/^[A-Za-z0-9^.-]{1,12}$/.test(qClean)) {
+    const isExplicitUS = isUS || (!qUpper.endsWith('.NS') && !qUpper.endsWith('.BO') && !qUpper.startsWith('^') && isUS);
+    const displaySym = isExplicitUS 
+      ? qUpper.replace('.NS', '').replace('.BO', '') 
+      : (qUpper.endsWith('.NS') || qUpper.endsWith('.BO') || qUpper.startsWith('^') ? qUpper : `${qUpper}.NS`);
+    const cleanSym = displaySym.replace('.NS', '').replace('.BO', '').replace('^', '');
+
+    if (!seen.has(displaySym) && !seen.has(cleanSym)) {
+      scored.push({
+        score: 600,
+        item: {
+          symbol: displaySym,
+          name: `${cleanSym} (${isExplicitUS ? 'US Equity' : 'NSE Equity'})`,
+          sector: isExplicitUS ? 'US Market' : 'Indian Equity',
+          exchange: isExplicitUS ? 'NASDAQ/NYSE' : 'NSE',
+          currency: isExplicitUS ? 'USD' : 'INR',
+          isSynthesized: true
+        }
+      });
+    }
+  }
 
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, 10).map(s => s.item);

@@ -20,7 +20,7 @@ import {
 } from './directMarketProvider';
 
 const DEFAULT_LOCAL_IP = '192.168.31.184';
-export const LIVE_CLOUDFLARE_URL = 'https://api.trycloudflare.com';
+export const LIVE_CLOUDFLARE_URL = '';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 let dynamicApiBase = null;
@@ -42,37 +42,32 @@ export function isCapacitorNative() {
 
 // Candidate base URLs in priority order
 export function getCandidateBases() {
-  const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_server_ip') : null;
   const list = [];
 
-  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  // 1. If running on localhost browser, prioritize local origin via Vite proxy or direct backend
-  if (isLocalHost && typeof window !== 'undefined') {
+  // 1. Current Origin (Vite dev server / native proxy)
+  if (typeof window !== 'undefined') {
     list.push(window.location.origin);
-    list.push('http://localhost:8000');
-    list.push('http://127.0.0.1:8000');
-    return list;
   }
 
-  // 2. User manual override (if set in settings)
+  // 2. Custom override from localStorage
+  const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_custom_ip') : null;
   if (customIp && customIp.trim()) {
     const val = customIp.trim();
     list.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
   }
 
   // 3. Dynamic tunnel from Firebase CDN (if published by supervisor)
-  if (dynamicApiBase) {
+  if (dynamicApiBase && !dynamicApiBase.includes('api.trycloudflare.com')) {
     list.push(dynamicApiBase);
   }
 
   // 4. Live Cloudflare tunnel fallback
-  if (LIVE_CLOUDFLARE_URL) {
+  if (LIVE_CLOUDFLARE_URL && !LIVE_CLOUDFLARE_URL.includes('api.trycloudflare.com')) {
     list.push(LIVE_CLOUDFLARE_URL);
   }
 
   // 5. Active working base (cached from recent successful call)
-  if (activeWorkingBase) {
+  if (activeWorkingBase && !activeWorkingBase.includes('api.trycloudflare.com')) {
     list.push(activeWorkingBase);
   }
 
@@ -82,7 +77,7 @@ export function getCandidateBases() {
     list.push('http://10.0.2.2:8000');
   }
 
-  const uniqueList = Array.from(new Set(list.filter(Boolean)));
+  const uniqueList = Array.from(new Set(list.filter(url => Boolean(url) && !url.includes('api.trycloudflare.com'))));
 
   if (isSecureContext() && !isCapacitorNative()) {
     return uniqueList.filter(url => url && url.startsWith('https://'));
@@ -102,8 +97,9 @@ export async function refreshConfigFromCdn() {
     const res = await fetch('/config.json?t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const cfg = await res.json();
-      if (cfg && (cfg.tunnelUrl || cfg.apiUrl)) {
-        dynamicApiBase = cfg.tunnelUrl || cfg.apiUrl;
+      const cand = cfg?.tunnelUrl || cfg?.apiUrl;
+      if (cand && !cand.includes('api.trycloudflare.com')) {
+        dynamicApiBase = cand;
         activeWorkingBase = dynamicApiBase;
         return dynamicApiBase;
       }
