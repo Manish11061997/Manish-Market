@@ -74,7 +74,7 @@ export default function SidebarNav({
       bottom: isMobile ? 0 : undefined,
       transform: isMobile ? (open ? 'translateX(0)' : 'translateX(-100%)') : 'none',
       transition: 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)',
-      zIndex: isMobile ? 1100 : 40,
+      zIndex: isMobile ? 'var(--z-drawer)' : 40,
       boxShadow: isMobile && open ? '4px 0 24px rgba(0,0,0,0.7)' : 'none',
       borderRadius: isMobile ? '0 28px 28px 0' : 0
     }}>
@@ -181,6 +181,8 @@ export default function SidebarNav({
             return (
               <button
                 key={item.id}
+                data-nav-id={item.id}
+                data-testid={`nav-${item.id.toLowerCase()}`}
                 onClick={() => handleNavigate(item.id)}
                 style={{
                   width: '100%',
@@ -314,8 +316,8 @@ export default function SidebarNav({
           <button
             onClick={() => {
               if (onClose) onClose();
-              const currentIp = localStorage.getItem('manish_market_server_ip') || '10.73.152.182';
-              const input = prompt('Enter Backend Server IP Address (e.g. 10.73.152.182):', currentIp);
+              const currentIp = localStorage.getItem('manish_market_server_ip') || '';
+              const input = prompt('Enter Backend Server IP Address (e.g. 192.168.1.100):', currentIp);
               if (input && input.trim()) {
                 localStorage.setItem('manish_market_server_ip', input.trim());
                 window.location.reload();
@@ -339,7 +341,7 @@ export default function SidebarNav({
             }}
           >
             <Globe style={{ width: '16px', height: '16px' }} />
-            <span>Configure Server IP ({localStorage.getItem('manish_market_server_ip') || '10.73.152.182'})</span>
+            <span>Configure Server IP ({localStorage.getItem('manish_market_server_ip') || 'Not set'})</span>
           </button>
         </div>
 

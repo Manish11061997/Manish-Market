@@ -8,7 +8,8 @@ class RiskManagementEngine:
         support_price: float,
         resistance_price: float,
         is_bullish: bool = True,
-        min_rr_threshold: float = 1.8
+        min_rr_threshold: float = 1.8,
+        currency: str = "₹"
     ) -> RiskRewardPlan:
         """
         Calculates entry, stop loss, targets, risk/reward ratio, and invalidation rules.
@@ -39,7 +40,7 @@ class RiskManagementEngine:
 
             reward_per_share = round(target2 - price, 2)
             rr_ratio = round(reward_per_share / risk_per_share, 2) if risk_per_share > 0 else 1.8
-            invalidation = f"Sustained 5-min candle close below ₹{stop_loss:.2f}"
+            invalidation = f"Sustained 5-min candle close below {currency}{stop_loss:.2f}"
             allocation = "Standard (2% Risk Capacity)" if rr_ratio >= min_rr_threshold else "Reduced (R:R below threshold)"
         else:
             entry_low = round(price * 0.996, 2)
@@ -61,7 +62,7 @@ class RiskManagementEngine:
 
             reward_per_share = round(price - target2, 2)
             rr_ratio = round(reward_per_share / risk_per_share, 2) if risk_per_share > 0 else 1.8
-            invalidation = f"Sustained 5-min candle close above ₹{stop_loss:.2f}"
+            invalidation = f"Sustained 5-min candle close above {currency}{stop_loss:.2f}"
             allocation = "Standard (2% Risk Capacity)" if rr_ratio >= min_rr_threshold else "Reduced (R:R below threshold)"
 
         return RiskRewardPlan(

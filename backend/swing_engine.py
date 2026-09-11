@@ -83,7 +83,10 @@ class SwingStrategyEngine:
 
         # 2. Breakout/Pattern (20%)
         pattern_score = int(vcp_pattern.confidence * 0.20)
-        bullish_ev.append(f"Pattern Setup: {vcp_pattern.patternName}")
+        if vcp_pattern.confidence > 50:
+            bullish_ev.append(f"Pattern Setup: {vcp_pattern.patternName} (confidence: {vcp_pattern.confidence:.0f}%)")
+        else:
+            neutral_ev.append(f"Pattern Setup: {vcp_pattern.patternName} (weak signal)")
 
         # 3. Volume Expansion (15%)
         vol_score = 0
@@ -141,6 +144,12 @@ class SwingStrategyEngine:
         else:
             signal = "SHORT"
 
+        # Confidence based on score AND number of confirming signals
+        confirming_count = len(bullish_ev) if signal in ["STRONG_LONG", "LONG"] else len(bearish_ev)
+        total_evidence = len(bullish_ev) + len(bearish_ev) + len(neutral_ev)
+        evidence_ratio = confirming_count / max(total_evidence, 1)
+        confidence = round((total_score / 100.0 * 0.7 + evidence_ratio * 0.3), 2)
+
         risk_plan = RiskManagementEngine.calculate_plan(
             price=price,
             atr=indicators.atr or (price * 0.02),
@@ -173,7 +182,7 @@ class SwingStrategyEngine:
             signal=signal,
             setup=vcp_pattern.patternName,
             score=total_score,
-            confidence=round(total_score / 100.0, 2),
+            confidence=confidence,
             entryZone=risk_plan.entryZone,
             suggestedEntryPoint=suggested_entry,
             suggestedExitPoints=suggested_exits,

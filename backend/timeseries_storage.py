@@ -79,12 +79,16 @@ class TimeseriesStorageEngine:
             active["ticksCount"] += 1
 
     def get_ticks(self, symbol: str, limit: int = 200) -> List[dict]:
+        if limit <= 0:
+            return []
         sym = symbol.upper()
         if sym not in self._ticks:
             return []
         return list(self._ticks[sym])[-limit:]
 
     def get_candles(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> List[dict]:
+        if limit <= 0:
+            return []
         sym = symbol.upper()
         if sym not in self._candles:
             return []

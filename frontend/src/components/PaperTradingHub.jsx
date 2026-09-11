@@ -33,7 +33,15 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
   const [fetchError, setFetchError] = useState(null);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
-  const uid = getUserId();
+  const [userId, setUserId] = useState(getUserId);
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setUserId(getUserId());
+    };
+    window.addEventListener('manish_market_auth_change', handleAuthChange);
+    return () => window.removeEventListener('manish_market_auth_change', handleAuthChange);
+  }, []);
 
   const fetchPortfolio = () => {
     apiFetch(`/api/paper/portfolio`)
@@ -43,8 +51,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
       })
       .then(data => {
         setPortfolio(data);
-        if (uid && uid !== 'guest') {
-          saveCloudPortfolio(uid, data);
+        if (userId && userId !== 'guest') {
+          saveCloudPortfolio(userId, data);
         }
         setFetchError(null);
         setLoading(false);
@@ -58,20 +66,20 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
 
   // Real-time Cloud Firestore subscription
   useEffect(() => {
-    if (!uid || uid === 'guest') return;
-    const unsub = subscribeCloudPortfolio(uid, (cloudData) => {
+    if (!userId || userId === 'guest') return;
+    const unsub = subscribeCloudPortfolio(userId, (cloudData) => {
       if (cloudData && cloudData.summary) {
         setPortfolio(prev => ({ ...prev, ...cloudData }));
       }
     });
     return () => unsub();
-  }, [uid]);
+  }, [userId]);
 
   useEffect(() => {
     fetchPortfolio();
     const interval = setInterval(fetchPortfolio, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     setSymbol(currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS');
@@ -192,8 +200,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
           type: 'success',
           msg: `✅ PAPER ORDER FILLED: ${data.side} ${data.filledQuantity} ${data.symbol} @ ${currPrefix}${data.filledPrice} (Slippage: ${currPrefix}${data.slippage})`
         });
-        if (uid && uid !== 'guest') {
-          saveCloudOrder(uid, {
+        if (userId && userId !== 'guest') {
+          saveCloudOrder(userId, {
             orderId: data.orderId || `ord_${Date.now()}`,
             symbol: data.symbol,
             side: data.side,

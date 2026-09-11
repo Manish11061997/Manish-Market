@@ -8,6 +8,7 @@ import logging
 from instrument_master import instrument_master
 from market_session import get_market_session_status
 from circuit_limits import circuit_limits_engine
+from live_market_state import live_market_state
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,12 @@ class DedicatedRiskEngine:
         Executes strict multi-gate pre-trade risk evaluation.
         """
         symbol_clean = symbol.upper().strip().lstrip("$")
+        if price is None or price <= 0:
+            try:
+                st = live_market_state.get_state(symbol_clean)
+                price = float(st.get("price", 100.0)) if st else 100.0
+            except Exception:
+                price = 100.0
         order_value = round(quantity * price, 2)
         checks: List[RiskCheckResult] = []
         rejections: List[str] = []
@@ -132,22 +139,32 @@ class DedicatedRiskEngine:
             ))
             rejections.append("Unknown Instrument")
         else:
-            # Check lot size multiple
+            # Check lot size multiple: only enforce lot size multiples for derivative contracts (F&O)
+            # Cash equity orders can be traded in single-share increments (>= 1)
+            is_derivative = getattr(inst, 'asset_class', None) in ("DERIVATIVE", "FNO", "OPTION", "FUTURE") or getattr(inst, 'instrument_type', None) in ("OPTION", "FUTURE")
             lot = inst.lot_size
-            if quantity % lot != 0:
+            if is_derivative and lot > 1 and quantity % lot != 0:
                 checks.append(RiskCheckResult(
                     status=RiskCheckStatus.REJECTED,
                     rule_name="LOT_SIZE_VALIDATION",
                     passed=False,
-                    message=f"Quantity {quantity} must be a multiple of lot size {lot} for {symbol_clean}."
+                    message=f"Derivative quantity {quantity} must be a multiple of contract lot size {lot} for {symbol_clean}."
                 ))
                 rejections.append(f"Invalid Lot Multiple (Lot size: {lot})")
+            elif quantity <= 0:
+                checks.append(RiskCheckResult(
+                    status=RiskCheckStatus.REJECTED,
+                    rule_name="LOT_SIZE_VALIDATION",
+                    passed=False,
+                    message="Order quantity must be at least 1."
+                ))
+                rejections.append("Invalid Quantity (Must be >= 1)")
             else:
                 checks.append(RiskCheckResult(
                     status=RiskCheckStatus.APPROVED,
                     rule_name="LOT_SIZE_VALIDATION",
                     passed=True,
-                    message=f"Quantity {quantity} is a valid multiple of lot size {lot}."
+                    message=f"Quantity {quantity} is valid."
                 ))
 
         # Gate 2: Maximum Order Value Limit
@@ -185,19 +202,21 @@ class DedicatedRiskEngine:
                 message=f"Sufficient account margin available."
             ))
 
-        # Gate 4: Position Concentration Cap (Max 25% in Single Asset)
+        # Gate 4: Position Concentration Cap (Max 25% of Total Portfolio Equity/NAV)
         current_holding_val = 0.0
         if portfolio_positions and symbol_clean in portfolio_positions:
             current_holding_val = portfolio_positions[symbol_clean].get("marketValue", 0.0)
         
         post_trade_val = current_holding_val + order_value if side.upper() == "BUY" else current_holding_val
-        concentration_pct = (post_trade_val / max(account_balance, 1.0)) * 100.0
+        total_holdings_val = sum(p.get("marketValue", 0.0) for p in (portfolio_positions or {}).values())
+        total_portfolio_nav = max(account_balance + total_holdings_val, account_balance, 1.0)
+        concentration_pct = (post_trade_val / total_portfolio_nav) * 100.0
         if side.upper() == "BUY" and concentration_pct > self.max_concentration_pct:
             checks.append(RiskCheckResult(
                 status=RiskCheckStatus.REJECTED,
                 rule_name="POSITION_CONCENTRATION_CAP",
                 passed=False,
-                message=f"Post-trade concentration ({concentration_pct:.1f}%) exceeds safety cap ({self.max_concentration_pct}%)."
+                message=f"Post-trade concentration ({concentration_pct:.1f}%) exceeds safety cap ({self.max_concentration_pct}% of NAV)."
             ))
             rejections.append(f"Portfolio Concentration Limit ({self.max_concentration_pct}%) Exceeded")
         else:
@@ -208,13 +227,22 @@ class DedicatedRiskEngine:
                 message=f"Portfolio concentration ({concentration_pct:.1f}%) is within safe thresholds."
             ))
 
-        # Gate 5: Mandatory Stop-Loss Enforcement
-        if not stop_loss or stop_loss <= 0:
+        # Gate 5: Stop-Loss Policy Enforcement
+        is_closing_long = side.upper() == "SELL" and portfolio_positions and symbol_clean in portfolio_positions and portfolio_positions[symbol_clean].get("quantity", 0) > 0
+        if is_closing_long:
+            # Exiting a long position: Stop-Loss is optional and not required
+            checks.append(RiskCheckResult(
+                status=RiskCheckStatus.APPROVED,
+                rule_name="MANDATORY_STOP_LOSS",
+                passed=True,
+                message="Closing/reducing long position — stop-loss requirement exempted."
+            ))
+        elif not stop_loss or stop_loss <= 0:
             checks.append(RiskCheckResult(
                 status=RiskCheckStatus.REJECTED,
                 rule_name="MANDATORY_STOP_LOSS",
                 passed=False,
-                message="Strict risk policy requires an explicit, positive Stop-Loss on every trade setup."
+                message="Strict risk policy requires an explicit, positive Stop-Loss on new trade entries."
             ))
             rejections.append("Missing Mandatory Stop-Loss")
         else:

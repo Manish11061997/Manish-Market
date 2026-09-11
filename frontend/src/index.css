@@ -332,9 +332,9 @@ body {
 
 :root {
   /* Z-index scale */
+  --z-drawer: 900;
   --z-modal: 1000;
   --z-toast: 1300;
-  --z-drawer: 1100;
 
   /* Radius scale */
   --radius-sm: 6px;
@@ -701,7 +701,7 @@ button, a, [role="button"] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   gap: 4px;
   background: none;
   border: none;

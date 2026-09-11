@@ -9,19 +9,52 @@ class MultiTimeframeEngine:
         """
         Evaluates multi-timeframe alignment across Lower TF and Higher TF:
         Returns (alignment_status, conflict_warnings).
+        When higher_tf_indicators is not provided, uses multiple single-TF indicators
+        to approximate alignment assessment.
         """
         conflicts = []
         if higher_tf_indicators is None:
             rsi = lower_tf_indicators.rsi or 50.0
-            if rsi >= 60 and lower_tf_indicators.vwapSlope == "RISING":
+            macd_hist = lower_tf_indicators.macdHist or 0.0
+            adx = lower_tf_indicators.adx or 20.0
+            vwap_slope = lower_tf_indicators.vwapSlope or "FLAT"
+
+            # Use multiple indicators for better alignment assessment
+            bull_signals = 0
+            bear_signals = 0
+            if rsi >= 60:
+                bull_signals += 1
+            elif rsi <= 40:
+                bear_signals += 1
+            if macd_hist > 0:
+                bull_signals += 1
+            elif macd_hist < 0:
+                bear_signals += 1
+            if vwap_slope == "RISING":
+                bull_signals += 1
+            elif vwap_slope == "FALLING":
+                bear_signals += 1
+            if adx > 25:
+                # Strong trend - amplify signal
+                if bull_signals > bear_signals:
+                    bull_signals += 1
+                elif bear_signals > bull_signals:
+                    bear_signals += 1
+
+            if bull_signals >= 3:
+                conflicts.append("Note: Higher timeframe indicators not available; assessment based on single timeframe")
                 return "ALIGNED_BULLISH", conflicts
-            elif rsi >= 52:
+            elif bull_signals >= 2:
+                conflicts.append("Note: Higher timeframe indicators not available; assessment based on single timeframe")
                 return "MOSTLY_BULLISH", conflicts
-            elif rsi <= 40 and lower_tf_indicators.vwapSlope == "FALLING":
+            elif bear_signals >= 3:
+                conflicts.append("Note: Higher timeframe indicators not available; assessment based on single timeframe")
                 return "ALIGNED_BEARISH", conflicts
-            elif rsi <= 48:
+            elif bear_signals >= 2:
+                conflicts.append("Note: Higher timeframe indicators not available; assessment based on single timeframe")
                 return "MOSTLY_BEARISH", conflicts
             else:
+                conflicts.append("Note: Higher timeframe indicators not available; assessment based on single timeframe")
                 return "MIXED", conflicts
 
         ltf_rsi = lower_tf_indicators.rsi or 50.0

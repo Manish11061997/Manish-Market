@@ -15,7 +15,9 @@ class IndicatorEngine:
         volume = df['Volume']
         n = len(df)
 
-        # 1. VWAP & VWAP Slope (Anchored to recent session / last 30 candles)
+        # 1. VWAP & VWAP Slope (Anchored to session start or last 30 candles)
+        # For intraday: use full session data if available (df represents one session)
+        # For daily+: use last 30 candles as proxy
         session_len = min(30, n)
         recent_vol = volume.iloc[-session_len:]
         recent_tp = (high.iloc[-session_len:] + low.iloc[-session_len:] + close.iloc[-session_len:]) / 3
@@ -41,13 +43,26 @@ class IndicatorEngine:
         sma50 = float(close.rolling(window=min(50, n)).mean().iloc[-1])
         sma200 = float(close.rolling(window=min(200, n)).mean().iloc[-1])
 
-        # 3. RSI (14)
+        # 3. RSI (14) - Wilder's Smoothing (matches stock_agent.py)
         delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=min(14, n)).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=min(14, n)).mean()
-        rs = gain / loss.replace(0, np.nan)
-        rsi_series = 100 - (100 / (1 + rs))
-        rsi_val = float(rsi_series.iloc[-1]) if not np.isnan(rsi_series.iloc[-1]) else 50.0
+        gain = delta.where(delta > 0, 0.0)
+        loss = -delta.where(delta < 0, 0.0)
+
+        avg_gain = gain.ewm(alpha=1/14, min_periods=min(14, n), adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1/14, min_periods=min(14, n), adjust=False).mean()
+
+        last_gain = float(avg_gain.iloc[-1]) if not np.isnan(avg_gain.iloc[-1]) else 0.0
+        last_loss = float(avg_loss.iloc[-1]) if not np.isnan(avg_loss.iloc[-1]) else 0.0
+
+        if last_loss == 0.0 and last_gain > 0:
+            rsi_val = 100.0
+        elif last_gain == 0.0 and last_loss > 0:
+            rsi_val = 0.0
+        elif last_loss == 0.0 and last_gain == 0.0:
+            rsi_val = 50.0
+        else:
+            rs = last_gain / last_loss
+            rsi_val = round(100.0 - (100.0 / (1.0 + rs)), 2)
 
         if rsi_val >= 70:
             rsi_status = "OVERBOUGHT"
@@ -76,11 +91,11 @@ class IndicatorEngine:
         tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
         atr_val = float(tr.rolling(window=min(14, n)).mean().iloc[-1])
 
-        # 6. ADX (14)
-        plus_dm = high.diff()
-        minus_dm = low.diff().abs()
-        plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
-        minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
+        # 6. ADX (14) - Correct Directional Movement calculation
+        up_move = high.diff()
+        down_move = -low.diff()
+        plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+        minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
 
         tr_smooth = tr.rolling(window=min(14, n)).sum()
         plus_di = 100 * (plus_dm.rolling(window=min(14, n)).sum() / tr_smooth.replace(0, np.nan))

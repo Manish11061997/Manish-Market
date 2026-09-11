@@ -35,11 +35,23 @@ class ConnectionManager:
         logger.info(f"WebSocket Client connected. Active streams: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
+        abandoned_syms = set()
+        if websocket in self.client_subscriptions:
+            abandoned_syms = self.client_subscriptions[websocket]
+            del self.client_subscriptions[websocket]
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        if websocket in self.client_subscriptions:
-            del self.client_subscriptions[websocket]
-        logger.info("WebSocket Client disconnected.")
+
+        # Recompute currently active symbols across remaining clients
+        all_remaining = set(DEFAULT_SYMBOLS)
+        for client_subs in self.client_subscriptions.values():
+            all_remaining.update(client_subs)
+
+        unneeded = abandoned_syms - all_remaining
+        if unneeded:
+            market_gateway.unsubscribe_symbols(list(unneeded))
+
+        logger.info(f"WebSocket Client disconnected. Remaining connections: {len(self.active_connections)}")
 
     async def handle_client_message(self, websocket: WebSocket, raw_msg: str):
         try:

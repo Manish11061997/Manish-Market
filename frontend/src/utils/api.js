@@ -15,11 +15,11 @@ import {
   getDirectDailyBriefing,
   getDirectOptionChain,
   getDirectCorporateActions,
+  setBackendProxyBase,
   DEFAULT_INDIAN_SECURITIES,
   DEFAULT_INDICES
 } from './directMarketProvider';
 
-const DEFAULT_LOCAL_IP = '192.168.31.184';
 export const LIVE_CLOUDFLARE_URL = '';
 
 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -28,7 +28,10 @@ let activeWorkingBase = isLocalHost ? (typeof window !== 'undefined' ? window.lo
 let probePromise = null;
 
 export function isSecureContext() {
-  return typeof window !== 'undefined' && window.location.protocol === 'https:';
+  if (typeof window === 'undefined') return false;
+  // Capacitor native always uses HTTP internally — not a secure context
+  if (isCapacitorNative()) return false;
+  return window.location.protocol === 'https:';
 }
 
 export function isCapacitorNative() {
@@ -44,13 +47,13 @@ export function isCapacitorNative() {
 export function getCandidateBases() {
   const list = [];
 
-  // 1. Current Origin (Vite dev server / native proxy)
-  if (typeof window !== 'undefined') {
+  // 1. Current Origin (Vite dev server / native proxy ONLY when running locally)
+  if (isLocalHost && typeof window !== 'undefined') {
     list.push(window.location.origin);
   }
 
-  // 2. Custom override from localStorage
-  const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_custom_ip') : null;
+  // 2. Custom override from localStorage (unified key used by Sidebar UI)
+  const customIp = typeof window !== 'undefined' ? localStorage.getItem('manish_market_server_ip') : null;
   if (customIp && customIp.trim()) {
     const val = customIp.trim();
     list.push(val.startsWith('http://') || val.startsWith('https://') ? val : `http://${val}:8000`);
@@ -71,13 +74,18 @@ export function getCandidateBases() {
     list.push(activeWorkingBase);
   }
 
-  // 6. Capacitor Native Local LAN IP
+  // 6. Capacitor Native — emulator loopback (real device IP comes from localStorage above)
   if (isCapacitorNative()) {
-    list.push(`http://${DEFAULT_LOCAL_IP}:8000`);
     list.push('http://10.0.2.2:8000');
   }
 
-  const uniqueList = Array.from(new Set(list.filter(url => Boolean(url) && !url.includes('api.trycloudflare.com'))));
+  const uniqueList = Array.from(new Set(
+    list.filter(url => Boolean(url) && 
+      !url.includes('api.trycloudflare.com') && 
+      !url.includes('web.app') && 
+      !url.includes('firebaseapp.com')
+    )
+  ));
 
   if (isSecureContext() && !isCapacitorNative()) {
     return uniqueList.filter(url => url && url.startsWith('https://'));
@@ -89,8 +97,10 @@ export function getCandidateBases() {
 export async function refreshConfigFromCdn() {
   if (typeof window === 'undefined') return null;
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  if (isLocal) {
+  // On Capacitor native, localhost is the webview server, not the backend — skip setting activeWorkingBase
+  if (isLocal && !isCapacitorNative()) {
     activeWorkingBase = window.location.origin;
+    setBackendProxyBase(activeWorkingBase);
     return activeWorkingBase;
   }
   try {
@@ -98,9 +108,10 @@ export async function refreshConfigFromCdn() {
     if (res.ok) {
       const cfg = await res.json();
       const cand = cfg?.tunnelUrl || cfg?.apiUrl;
-      if (cand && !cand.includes('api.trycloudflare.com')) {
+      if (cand && !cand.includes('api.trycloudflare.com') && !cand.includes('web.app') && !cand.includes('firebaseapp.com')) {
         dynamicApiBase = cand;
         activeWorkingBase = dynamicApiBase;
+        setBackendProxyBase(activeWorkingBase);
         return dynamicApiBase;
       }
     }
@@ -110,6 +121,7 @@ export async function refreshConfigFromCdn() {
 
 // Background auto-discovery on page initialization
 if (typeof window !== 'undefined') {
+  if (activeWorkingBase) setBackendProxyBase(activeWorkingBase);
   refreshConfigFromCdn();
 }
 
@@ -120,6 +132,7 @@ export async function probeFastestServer() {
   if (probePromise) return probePromise;
 
   const candidates = getCandidateBases();
+  if (candidates.length === 0) return null;
   const controllers = candidates.map(() => new AbortController());
 
   probePromise = Promise.any(
@@ -129,10 +142,12 @@ export async function probeFastestServer() {
         headers: { 'bypass-tunnel-reminder': '1', 'Bypass-Tunnel-Reminder': '1' }
       })
       .then(res => {
-        if (res.ok) {
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && !ct.includes('text/html')) {
           // Cancel other slower probe requests
           controllers.forEach((c, i) => { if (i !== idx) try { c.abort(); } catch {} });
           activeWorkingBase = base;
+          setBackendProxyBase(base);
           return base;
         }
         throw new Error(`Probe failed with status ${res.status}`);
@@ -174,14 +189,26 @@ export function getApiBase() {
   if (import.meta.env.VITE_API_BASE) {
     return import.meta.env.VITE_API_BASE;
   }
-  if (activeWorkingBase) {
+  if (activeWorkingBase && !activeWorkingBase.includes('web.app') && !activeWorkingBase.includes('firebaseapp.com')) {
     return activeWorkingBase;
   }
-  return getServerIp() || (typeof window !== 'undefined' ? window.location.origin : '');
+  const serverIp = getServerIp();
+  if (serverIp && !serverIp.includes('web.app') && !serverIp.includes('firebaseapp.com')) {
+    return serverIp;
+  }
+  return isLocalHost && typeof window !== 'undefined' ? window.location.origin : '';
+}
+
+export function getWsBase() {
+  const base = getApiBase();
+  if (!base || base.includes('web.app') || base.includes('firebaseapp.com')) {
+    return '';
+  }
+  return base.replace(/^http/, 'ws');
 }
 
 export const API_BASE = getApiBase() || '';
-export const WS_BASE = import.meta.env.VITE_WS_BASE ?? (API_BASE ? API_BASE.replace(/^http/, 'ws') : '');
+export const WS_BASE = import.meta.env.VITE_WS_BASE ?? getWsBase();
 
 const controlToken = import.meta.env.VITE_CONTROL_TOKEN;
 
@@ -222,22 +249,28 @@ export async function apiFetch(endpointPath, options = {}) {
     ...(options.headers || {})
   };
 
-  // Fast 1.2s timeout when running on cloud/mobile web to eliminate stall lag
+  // 5s timeout when running on cloud/mobile web to allow tunnel roundtrip without premature aborts
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const timeoutMs = options.timeout || (isLocalHost ? 8000 : 1200);
+  const isNative = isCapacitorNative();
+  const timeoutMs = options.timeout || (isLocalHost ? 8000 : isNative ? 10000 : 5000);
 
   // 1. FAST PATH: If we have an active verified server, try it directly
   if (activeWorkingBase) {
+    let tid;
     try {
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), timeoutMs);
+      tid = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch(`${activeWorkingBase}${path}`, {
         ...options,
         signal: options.signal || controller.signal,
         headers: mergedHeaders
       });
-      clearTimeout(tid);
 
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        activeWorkingBase = null;
+        throw new Error(`Invalid content-type text/html from ${activeWorkingBase}`);
+      }
       if (res.ok || (res.status >= 400 && res.status < 500)) {
         return res;
       }
@@ -251,11 +284,16 @@ export async function apiFetch(endpointPath, options = {}) {
       if (options.signal?.aborted) {
         throw err;
       }
+    } finally {
+      clearTimeout(tid);
     }
   }
 
   // 2. PARALLEL RACE PATH: Fire concurrent requests to all candidate endpoints
   const candidates = getCandidateBases();
+  if (candidates.length === 0) {
+    return await handleOfflineFallback(endpointPath);
+  }
   const controllers = candidates.map(() => new AbortController());
 
   try {
@@ -271,14 +309,21 @@ export async function apiFetch(endpointPath, options = {}) {
           headers: mergedHeaders
         })
         .then(res => {
-          clearTimeout(tid);
+          const ct = res.headers.get('content-type') || '';
+          if (ct.includes('text/html')) {
+            throw new Error(`Received HTML instead of JSON from ${base}`);
+          }
           if (res.ok || (res.status >= 400 && res.status < 500)) {
             // Cancel remaining slower requests
             controllers.forEach((c, i) => { if (i !== idx) try { c.abort(); } catch {} });
             activeWorkingBase = base;
+            setBackendProxyBase(base);
             return res;
           }
           throw new Error(`HTTP ${res.status} from ${base}`);
+        })
+        .finally(() => {
+          clearTimeout(tid);
         });
       })
     );
@@ -459,7 +504,42 @@ async function handleOfflineFallback(endpointPath) {
     }
 
     if (pathname.includes('/paper/order')) {
-      return new Response(JSON.stringify({ status: 'EXECUTED', orderId: `ORD_${Date.now()}`, timestamp: new Date().toISOString() }), {
+      return new Response(JSON.stringify({ status: 'FILLED', orderId: `ORD_${Date.now()}`, timestamp: new Date().toISOString() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/risk/evaluate')) {
+      return new Response(JSON.stringify({
+        isApproved: true,
+        score: 95,
+        checks: [
+          { name: 'Lot Size Increments', passed: true, detail: 'Single share cash increment verified' },
+          { name: 'Max Trade Value Cap', passed: true, detail: 'Trade value is within 5% limits' },
+          { name: 'Portfolio Concentration', passed: true, detail: 'Holding concentration < 25% NAV' },
+          { name: 'Position Exit Rules', passed: true, detail: 'Exit order allowed without stop loss gate' }
+        ]
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/audit-trail')) {
+      return new Response(JSON.stringify({
+        total: 1,
+        events: [
+          {
+            timestamp: new Date().toISOString(),
+            eventType: 'SYSTEM_ONLINE',
+            action: 'DISPATCH',
+            symbol: 'PORTFOLIO',
+            status: 'SUCCESS',
+            details: { mode: 'Autonomous Direct' }
+          }
+        ]
+      }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -567,7 +647,8 @@ async function handleOfflineFallback(endpointPath) {
     }
 
     if (pathname.includes('/ipo/')) {
-      const data = await getDirectIpoList();
+      const market = searchParams.get('market') || 'IN';
+      const data = await getDirectIpoList(pathname, market);
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

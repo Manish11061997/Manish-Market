@@ -18,6 +18,20 @@ def run_strategy_backtest(ticker_symbol: str = "RELIANCE.NS", initial_capital: f
         info = {}
 
     TRANSACTION_COST_PCT = 0.05  # Brokerage + slippage per side (0.05%)
+    if initial_capital <= 0:
+        return {
+            "symbol": ticker_symbol,
+            "initialCapital": initial_capital,
+            "finalCapital": 0.0,
+            "netReturnPct": 0.0,
+            "netReturnPercent": 0.0,
+            "tradesCount": 0,
+            "totalTrades": 0,
+            "winRate": 0.0,
+            "maxDrawdownPct": 0.0,
+            "sharpeRatio": 0.0,
+            "trades": []
+        }
     capital = initial_capital
     position = None
     trades = []
@@ -40,7 +54,7 @@ def run_strategy_backtest(ticker_symbol: str = "RELIANCE.NS", initial_capital: f
     fund_score = max(10, min(95, fund_score))
 
     for i in range(35, len(df)):
-        current_date = dates[i].strftime("%Y-%m-%d")
+        current_date = dates[i].strftime("%Y-%m-%d") if hasattr(dates[i], "strftime") else str(dates[i])
         price = float(closes.iloc[i])
 
         slice_df = df.iloc[:i+1]
@@ -473,8 +487,8 @@ def run_custom_indicator_strategy(
 
             if should_enter:
                 alloc = capital * 0.95
-                qty = max(1, int(alloc // price))
-                if qty > 0:
+                qty = int(alloc // price)
+                if qty > 0 and (qty * price) <= capital:
                     capital -= (qty * price)
                     position = {
                         "entryDate": current_date,
@@ -491,22 +505,18 @@ def run_custom_indicator_strategy(
             "benchmark": round(initial_capital * (price / float(closes.iloc[35])), 2)
         })
 
-    # Close open position at the end
+    # Close any open position at the end of the simulation
     if position:
         final_price = float(closes.iloc[-1])
-        qty = position["qty"]
-        pnl = round((final_price - position["entryPrice"]) * qty, 2)
-        pnl_pct = round(((final_price - position["entryPrice"]) / position["entryPrice"]) * 100, 2)
-        capital += (qty * final_price)
-        last_date = dates[-1].strftime("%Y-%m-%d") if hasattr(dates[-1], 'strftime') else (str(df['Date'].iloc[-1])[:10] if 'Date' in df.columns else "Day-End")
+        pnl = (final_price - position["entryPrice"]) * position["qty"]
+        capital += (position["qty"] * final_price)
         trades.append({
             "entryDate": position["entryDate"],
-            "exitDate": last_date,
-            "side": "BUY",
-            "entryPrice": round(position["entryPrice"], 2),
-            "exitPrice": round(final_price, 2),
-            "pnl": pnl,
-            "pnlPct": pnl_pct,
+            "exitDate": str(df.iloc[-1].name)[:10] if hasattr(df.iloc[-1], 'name') else "Day-End",
+            "entryPrice": position["entryPrice"],
+            "exitPrice": final_price,
+            "pnl": round(pnl, 2),
+            "pnlPct": round(((final_price - position["entryPrice"]) / position["entryPrice"]) * 100, 2),
             "outcome": "WIN" if pnl > 0 else "LOSS",
             "reason": "PERIOD_END"
         })
@@ -514,11 +524,12 @@ def run_custom_indicator_strategy(
     total_trades = len(trades)
     winning_trades = sum(1 for t in trades if t["outcome"] == "WIN")
     win_rate = round((winning_trades / total_trades) * 100, 2) if total_trades > 0 else 75.0
-    net_return_pct = round(((capital - initial_capital) / initial_capital) * 100, 2)
+    safe_init = initial_capital if initial_capital > 0 else 1.0
+    net_return_pct = round(((capital - initial_capital) / safe_init) * 100, 2)
 
-    bh_start = float(closes.iloc[35])
+    bh_start = float(closes.iloc[35]) if len(closes) > 35 else float(closes.iloc[0])
     bh_end = float(closes.iloc[-1])
-    buy_hold_return_pct = round((bh_end - bh_start) / bh_start * 100, 2)
+    buy_hold_return_pct = round((bh_end - bh_start) / bh_start * 100, 2) if bh_start > 0 else 0.0
 
     gross_win = sum(t["pnl"] for t in trades if t["pnl"] > 0)
     gross_loss = abs(sum(t["pnl"] for t in trades if t["pnl"] < 0))
@@ -530,7 +541,7 @@ def run_custom_indicator_strategy(
     for v in equity_vals:
         if v > peak:
             peak = v
-        dd = (peak - v) / peak * 100
+        dd = ((peak - v) / peak * 100) if peak > 0 else 0.0
         if dd > max_dd:
             max_dd = dd
 

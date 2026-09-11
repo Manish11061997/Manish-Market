@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any, Literal
 from contextlib import asynccontextmanager
@@ -100,8 +100,12 @@ class RateLimitMiddleware:
                 await response(scope, receive, send)
                 return
             bucket.append(now)
+            # Evict oldest entries when bucket map grows too large (LRU-style)
             if len(_rate_buckets) > 10000:
-                _rate_buckets.clear()
+                now_mono = _time.monotonic()
+                expired_ips = [ip for ip, b in _rate_buckets.items() if not b or b[-1] <= now_mono - RATE_LIMIT_WINDOW_SECONDS]
+                for ip in expired_ips[:500]:  # Evict up to 500 expired entries per cycle
+                    del _rate_buckets[ip]
         await self.app(scope, receive, send)
 
 class SecurityHeadersMiddleware:
@@ -190,7 +194,7 @@ class PaperOrderRequest(BaseModel):
     symbol: str
     side: str # "BUY" or "SELL"
     quantity: int = Field(gt=0)
-    price: float = Field(gt=0)
+    price: Optional[float] = Field(default=None, gt=0)
     stopLoss: Optional[float] = Field(default=None, gt=0)
     takeProfit: Optional[float] = Field(default=None, gt=0)
     orderType: Literal["MARKET", "LIMIT"] = "MARKET"
@@ -341,20 +345,41 @@ def get_user_portfolio_endpoint(market: str = "IN", current_user: Optional[Dict[
     return paper_trading_coordinator.get_portfolio()
 
 @app.post("/api/user/order")
-def place_user_order_endpoint(req: PaperOrderRequest, market: str = "IN", current_user: Optional[Dict[str, Any]] = Depends(get_optional_user)):
-    """Place a paper order isolated to the user's private account."""
+def place_user_order_endpoint(
+    req: PaperOrderRequest,
+    market: str = "IN",
+    current_user: Optional[Dict[str, Any]] = Depends(get_optional_user),
+    x_control_token: Optional[str] = Header(default=None)
+):
+    """Place a paper order isolated to the user's private account or guest simulation."""
     if current_user:
-        order_dict = {
-            "symbol": req.symbol,
-            "side": req.side,
-            "quantity": req.quantity,
-            "price": req.price,
-            "orderType": req.orderType or "MARKET",
-            "filledPrice": req.price,
-            "status": "FILLED"
-        }
-        res = user_db.record_user_order(current_user["id"], order_dict, market=market)
-        return {"status": "FILLED", "portfolio": res, "order": order_dict}
+        try:
+            # Resolve price for market order if not provided
+            fill_p = req.price
+            if fill_p is None or fill_p <= 0:
+                clean_sym = resolve_ticker_symbol(req.symbol, market=market)
+                st = live_market_state.get_state(clean_sym)
+                fill_p = float(st.get("price", 100.0)) if st else 100.0
+
+            order_dict = {
+                "symbol": req.symbol,
+                "side": req.side,
+                "quantity": req.quantity,
+                "price": fill_p,
+                "orderType": req.orderType or "MARKET",
+                "filledPrice": fill_p,
+                "status": "FILLED"
+            }
+            res = user_db.record_user_order(current_user["id"], order_dict, market=market)
+            return {"status": "FILLED", "portfolio": res, "order": order_dict}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Error executing user order: {e}")
+            raise HTTPException(status_code=500, detail=f"Order execution error: {str(e)}")
+
+    # Gated for unauthenticated guest mutations when CONTROL_TOKEN is set
+    require_control_token(x_control_token)
     return paper_trading_coordinator.place_paper_order(
         symbol=req.symbol,
         side=req.side,
@@ -489,11 +514,17 @@ def get_paper_portfolio():
 @app.post("/api/paper/order", dependencies=[Depends(require_control_token)])
 def place_paper_order(req: PaperOrderRequest):
     """Submit simulated paper trading order through Risk Engine & OMS."""
+    fill_p = req.price
+    if fill_p is None or fill_p <= 0:
+        clean_sym = resolve_ticker_symbol(req.symbol)
+        st = live_market_state.get_state(clean_sym)
+        fill_p = float(st.get("price", 100.0)) if st else 100.0
+
     result = paper_trading_coordinator.place_paper_order(
         symbol=req.symbol,
         side=req.side,
         quantity=req.quantity,
-        price=req.price,
+        price=fill_p,
         stop_loss=req.stopLoss,
         take_profit=req.takeProfit,
         order_type=req.orderType or "MARKET"
@@ -712,8 +743,10 @@ def get_market_summary(market: str = "IN"):
             "market": market.upper(),
             "currency": "$" if market.upper() == "US" else "₹",
             "indices": {},
-            "sentiment": {"score": 50, "label": "Neutral Market Phase", "advanceDeclineRatio": "1.0"},
-            "breadth": {"advances": 25, "declines": 25, "unchanged": 0, "adRatio": 1.0, "total": 50}
+            "sentiment": {"score": 50, "label": "Data Unavailable", "advanceDeclineRatio": "N/A"},
+            "breadth": {"advances": 0, "declines": 0, "unchanged": 0, "adRatio": 0, "total": 0},
+            "_error": True,
+            "_note": "Market summary unavailable. Index data fetch failed."
         })
 
 @app.get("/api/recommendations")
@@ -784,6 +817,39 @@ def get_single_stock_analysis(symbol: str, market: str = "IN"):
     res["corporateActionsCount"] = len(actions)
     
     return JSONResponse(content=sanitize_json_data(res))
+
+@app.get("/api/proxy/yf")
+def proxy_yahoo_finance(request: Request, path: str = Query(...)):
+    """Safe backend proxy for Yahoo Finance public queries with robust unquoting and authenticated YF session."""
+    import urllib.parse
+    full_url = str(request.url)
+    idx = full_url.find("path=")
+    raw_path = full_url[idx + 5:] if idx != -1 else path
+    
+    clean_path = raw_path
+    for _ in range(3):
+        unquoted = urllib.parse.unquote(clean_path)
+        if unquoted == clean_path:
+            break
+        clean_path = unquoted
+    if not clean_path.startswith("/"):
+        clean_path = "/" + clean_path
+    
+    allowed_prefixes = ("/v8/finance/", "/v7/finance/")
+    if not any(clean_path.startswith(p) for p in allowed_prefixes):
+        return JSONResponse(status_code=400, content={"detail": "Invalid proxy path"}, headers={"Access-Control-Allow-Origin": "*"})
+    
+    import yfinance.data
+    yf_data = yfinance.data.YfData()
+    for host in ["query2.finance.yahoo.com", "query1.finance.yahoo.com"]:
+        target_url = f"https://{host}{clean_path}"
+        try:
+            resp = yf_data.get(target_url, timeout=8)
+            if resp.status_code == 200:
+                return Response(content=resp.content, status_code=200, media_type="application/json", headers={"Access-Control-Allow-Origin": "*"})
+        except Exception:
+            continue
+    return JSONResponse(status_code=502, content={"detail": "Upstream Yahoo Finance unavailable"}, headers={"Access-Control-Allow-Origin": "*"})
 
 @app.get("/api/stock/{symbol}/chart")
 def get_stock_chart_data(symbol: str, period: str = "5y", interval: str = "1d", adjusted: bool = True, market: str = "IN"):
@@ -899,21 +965,21 @@ def run_stock_screener(
     recs = get_all_recommendations()
     filtered = recs
     if sector and sector != "ALL":
-        filtered = [r for r in filtered if r["sector"].lower() == sector.lower()]
+        filtered = [r for r in filtered if str(r.get("sector", "")).lower() == sector.lower()]
     if cap and cap != "ALL":
-        filtered = [r for r in filtered if r["cap"].lower() == cap.lower()]
+        filtered = [r for r in filtered if str(r.get("cap", "")).lower() == cap.lower()]
     if signal and signal != "ALL":
-        filtered = [r for r in filtered if r["signal"].lower() == signal.lower()]
-    if maxPe:
-        filtered = [r for r in filtered if r["fundamentals"]["peRatio"] <= maxPe]
-    if minRsi:
-        filtered = [r for r in filtered if r["technicals"].get("rsi", 50) >= minRsi]
-    if maxRsi:
-        filtered = [r for r in filtered if r["technicals"].get("rsi", 50) <= maxRsi]
+        filtered = [r for r in filtered if str(r.get("signal", "")).lower() == signal.lower()]
+    if maxPe is not None:
+        filtered = [r for r in filtered if (r.get("fundamentals") or {}).get("peRatio", 999.0) <= maxPe]
+    if minRsi is not None:
+        filtered = [r for r in filtered if (r.get("technicals") or {}).get("rsi", 50.0) >= minRsi]
+    if maxRsi is not None:
+        filtered = [r for r in filtered if (r.get("technicals") or {}).get("rsi", 50.0) <= maxRsi]
 
     return {"count": len(filtered), "results": filtered}
 
-@app.api_route("/api/copilot/chat", methods=["GET", "POST"])
+@app.api_route("/api/copilot/chat", methods=["GET", "POST"], dependencies=[Depends(require_control_token)])
 async def copilot_chat_handler(request: Request):
     msg = ""
     if request.method == "POST":
@@ -946,41 +1012,33 @@ def get_stock_financials_endpoint(symbol: str):
 
 @app.get("/api/stock/{symbol}/delivery")
 def get_stock_delivery_endpoint(symbol: str):
+    # Delivery data is not available from Yahoo Finance; return empty data
     return JSONResponse(content={
         "symbol": symbol,
-        "deliveryQuantity": 1450000,
-        "deliveryPercentage": 61.4,
-        "institutionalActivity": "ACCUMULATION",
-        "institutionalScore": 84
+        "deliveryQuantity": None,
+        "deliveryPercentage": None,
+        "institutionalActivity": None,
+        "institutionalScore": None,
+        "note": "Delivery data not available from current data provider. NSE/BSE delivery data requires direct exchange access.",
+        "available": False
     })
 
 @app.get("/api/stock/{symbol}/corporate-actions")
-@app.get("/api/corporate-actions/{symbol}")
 def get_stock_corporate_actions_endpoint(symbol: str):
-    return JSONResponse(content={
-        "symbol": symbol,
-        "dividends": [{"date": "2026-08-15", "amount": 10.0, "type": "FINAL"}],
-        "bonuses": [],
-        "splits": []
-    })
+    return get_corporate_actions(symbol)
 
 @app.get("/api/stock/{symbol}/circuit-limits")
-@app.get("/api/circuit-limits/{symbol}")
 def get_stock_circuit_limits_endpoint(symbol: str):
-    from data_fetcher import fetch_stock_info
-    info = fetch_stock_info(symbol)
-    price = info.get("currentPrice", 100.0)
-    return JSONResponse(content={
-        "symbol": symbol,
-        "upperCircuit": round(price * 1.10, 2),
-        "lowerCircuit": round(price * 0.90, 2),
-        "band": "10%"
-    })
+    return get_circuit_limits(symbol)
 
 @app.get("/api/backtest")
 def get_backtest_results(symbol: str = "RELIANCE.NS", initial_capital: float = 100000.0, market: str = "IN"):
     real_sym = resolve_ticker_symbol(symbol, market=market)
-    res = run_strategy_backtest(real_sym, initial_capital=initial_capital, market=market)
+    try:
+        init_cap = float(initial_capital) if float(initial_capital) > 0 else 100000.0
+    except (ValueError, TypeError):
+        init_cap = 100000.0
+    res = run_strategy_backtest(real_sym, initial_capital=init_cap, market=market)
     return res
 
 @app.get("/api/strategies/library")
@@ -992,10 +1050,22 @@ def get_strategies_library():
 def run_custom_backtest(payload: dict):
     """Execute dynamic backtest based on user-defined indicator rules."""
     sym = payload.get("symbol", "RELIANCE.NS")
-    initial_cap = float(payload.get("initialCapital", 100000.0))
+    try:
+        initial_cap = float(payload.get("initialCapital", 100000.0))
+        if initial_cap <= 0:
+            initial_cap = 100000.0
+    except (ValueError, TypeError):
+        initial_cap = 100000.0
+
     entry_rules = payload.get("entryRules", [])
-    tp_pct = float(payload.get("takeProfitPct", 6.0))
-    sl_pct = float(payload.get("stopLossPct", 3.0))
+    try:
+        tp_pct = float(payload.get("takeProfitPct", 6.0))
+    except (ValueError, TypeError):
+        tp_pct = 6.0
+    try:
+        sl_pct = float(payload.get("stopLossPct", 3.0))
+    except (ValueError, TypeError):
+        sl_pct = 3.0
     trailing = bool(payload.get("trailingStop", False))
     market = payload.get("market", "IN")
 

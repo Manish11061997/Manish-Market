@@ -35,19 +35,22 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
   const prevPricesRef = useRef({});
   const searchTimeoutRef = useRef(null);
 
-  const symbols = activeList?.symbols || [];
+  const rawSymbols = activeList?.symbols;
+  const symbolsKey = useMemo(() => (Array.isArray(rawSymbols) ? rawSymbols.slice().sort().join(',') : ''), [rawSymbols]);
+  const symbols = useMemo(() => (Array.isArray(rawSymbols) ? rawSymbols : []), [symbolsKey]);
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
 
   // 1. Subscribe to WebSocket for all symbols in the active watchlist
   useEffect(() => {
     if (!symbols.length) return;
-    wsClient.subscribe(symbols);
+    const currentSubscribed = [...symbols];
+    wsClient.subscribe(currentSubscribed);
 
     const unsub = wsClient.onTick((payload) => {
       if (payload.type === 'TICK_STREAM' && payload.ticks) {
         setLiveTicks(prev => {
           const updated = { ...prev };
-          symbols.forEach(sym => {
+          currentSubscribed.forEach(sym => {
             const tick = findTick(payload.ticks, sym);
             if (tick && tick.price !== undefined) {
               const newPrice = Number(tick.price);
@@ -73,8 +76,11 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
       }
     });
 
-    return () => unsub();
-  }, [symbols]);
+    return () => {
+      unsub();
+      wsClient.unsubscribe(currentSubscribed);
+    };
+  }, [symbolsKey]);
 
   // 2. Fetch stock data/scores for watchlisted symbols
   useEffect(() => {
@@ -106,7 +112,7 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
       });
 
     return () => { isMounted = false; };
-  }, [currentMarket, symbols]);
+  }, [currentMarket, symbolsKey]);
 
   // 3. Instant local results + debounced API fetch for "Add to Watchlist"
   const localResults = useMemo(() => {
@@ -760,8 +766,9 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
                 key={stock.symbol}
                 role="button"
                 tabIndex={0}
+                data-testid="stock-card"
                 onClick={() => onSelectStock?.(stock.symbol)}
-                className="pro-card-glass native-stock-row"
+                className="pro-card-glass native-stock-row stock-card"
                 style={{
                   padding: '16px',
                   borderRadius: '16px',

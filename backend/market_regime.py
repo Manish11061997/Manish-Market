@@ -19,11 +19,11 @@ class MarketRegimeEngine:
             return "UNCERTAIN"
 
         price = float(df['Close'].iloc[-1])
-        ema20 = indicators.ema20 or price
-        ema50 = indicators.ema50 or price
-        ema200 = indicators.ema200 or price
-        adx = indicators.adx or 20.0
-        atr = indicators.atr or (price * 0.02)
+        ema20 = indicators.ema20 if indicators.ema20 is not None else price
+        ema50 = indicators.ema50 if indicators.ema50 is not None else price
+        ema200 = indicators.ema200 if indicators.ema200 is not None else price
+        adx = indicators.adx if indicators.adx is not None else 20.0
+        atr = indicators.atr if indicators.atr is not None else (price * 0.02)
         atr_pct = (atr / price) * 100 if price > 0 else 2.0
 
         # Check high volatility environment

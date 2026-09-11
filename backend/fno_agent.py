@@ -1,6 +1,10 @@
 import math
+import logging
+from datetime import datetime, timedelta
 from data_fetcher import fetch_market_indices, fetch_stock_ohlcv, INDIAN_STOCKS_UNIVERSE
 from stock_agent import calculate_technical_indicators
+
+logger = logging.getLogger(__name__)
 
 FNO_UNIVERSE = [
     {"symbol": "NIFTY50", "name": "Nifty 50 Index", "type": "INDEX", "lotSize": 25, "strikeStep": 50},
@@ -27,13 +31,20 @@ US_FNO_UNIVERSE = [
 
 def calculate_option_greeks(spot: float, strike: float, iv_pct: float, dte_days: int = 7, option_type: str = "CALL") -> dict:
     """Calculate Black-Scholes approximate Greeks (Delta, Theta, Gamma, Vega)."""
+    if spot <= 0 or strike <= 0 or iv_pct < 0:
+        return {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0, "iv": max(0.0, round(iv_pct, 1))}
+
     t = max(1.0, dte_days) / 365.0
     sigma = max(0.05, iv_pct / 100.0)
     
     # Moneyness
     m = spot / max(0.01, strike)
-    d1 = (math.log(max(0.01, m)) + (0.065 + 0.5 * sigma ** 2) * t) / (sigma * math.sqrt(t))
-    d2 = d1 - sigma * math.sqrt(t)
+    denom_d1 = sigma * math.sqrt(t)
+    if denom_d1 <= 0:
+        return {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0, "iv": round(iv_pct, 1)}
+
+    d1 = (math.log(max(0.01, m)) + (0.065 + 0.5 * sigma ** 2) * t) / denom_d1
+    d2 = d1 - denom_d1
     
     # Normal approximation
     def norm_cdf(x):
@@ -51,7 +62,8 @@ def calculate_option_greeks(spot: float, strike: float, iv_pct: float, dte_days:
         delta = round(norm_cdf(d1) - 1.0, 2)
         theta_daily = round(-((spot * pdf_d1 * sigma) / (2 * math.sqrt(t)) - 0.065 * strike * math.exp(-0.065 * t) * norm_cdf(-d2)) / 365.0, 2)
         
-    gamma = round(pdf_d1 / (spot * sigma * math.sqrt(t)), 4)
+    denom_gamma = spot * sigma * math.sqrt(t)
+    gamma = round(pdf_d1 / denom_gamma, 4) if denom_gamma > 0 else 0.0
     vega = round((spot * math.sqrt(t) * pdf_d1) / 100.0, 2)
     
     return {
@@ -300,39 +312,10 @@ def get_all_fno_signals(market: str = "IN", force_refresh: bool = False):
             except Exception:
                 pass
                 
-    # Instant fallback if external data fetcher times out
+    # If all fetches failed, return empty - do NOT fabricate signals
     if not results:
-        from live_market_state import live_market_state
-        for item in universe:
-            sym = item["symbol"]
-            state = live_market_state.get_state(sym) or {}
-            price = state.get("price", 24250.0 if "NIFTY50" in sym else 1000.0)
-            lot = item.get("lotSize", 50)
-            step = item.get("strikeStep", 50)
-            atm = round(price / step) * step
-            results.append({
-                "symbol": sym,
-                "name": item.get("name", sym),
-                "type": item.get("type", "STOCK"),
-                "lotSize": lot,
-                "spotPrice": price,
-                "fnoDirection": "BULLISH",
-                "strategyName": "BULL CALL SPREAD",
-                "strategyTag": "🏆 DEFINED RISK STRATEGY",
-                "winProbability": "81.5%",
-                "profitFactor": "2.80x",
-                "strike": f"{atm} CE",
-                "iv": "14.5%",
-                "pcr": "1.15",
-                "greeks": {"delta": "0.52", "theta": "-0.14"},
-                "optionSetup": {
-                    "strike": f"{atm} CE",
-                    "estimatedPremium": f"{'₹' if m_key == 'IN' else '$'}{round(price * 0.015, 2)}",
-                    "targetPremium1": f"{'₹' if m_key == 'IN' else '$'}{round(price * 0.024, 2)}",
-                    "targetPremium2": f"{'₹' if m_key == 'IN' else '$'}{round(price * 0.032, 2)}",
-                    "stopLossPremium": f"{'₹' if m_key == 'IN' else '$'}{round(price * 0.009, 2)}"
-                }
-            })
+        logger.warning(f"F&O signals unavailable for {m_key}: all provider fetches failed")
+        return []
 
     # Sort with Indices first, then alphabetically
     results.sort(key=lambda x: (0 if x.get("type") == "INDEX" else 1, x.get("symbol", "")))
@@ -344,38 +327,43 @@ def get_all_fno_signals(market: str = "IN", force_refresh: bool = False):
 def generate_option_chain_data(symbol: str, market: str = "IN") -> dict:
     """Generate normalized option chain with strike matrix, PCR, Max Pain, and Greeks."""
     clean_sym = symbol.upper().replace(".NS", "").replace("^NSEI", "NIFTY").replace("NIFTY50", "NIFTY").replace("NIFTYBANK", "BANKNIFTY")
-    
-    # Determine base price and strike step
+
+    # Try to get live price from market state first
+    from live_market_state import live_market_state
+    live_state = live_market_state.get_state(clean_sym) or live_market_state.get_state(symbol)
+    live_price = live_state.get("price") if live_state else None
+
+    # Determine base price and strike step from live state or defaults
     if clean_sym == "NIFTY":
-        spot = 24200.0
+        spot = live_price or 24200.0
         step = 50.0
         lot = 25
     elif clean_sym == "BANKNIFTY":
-        spot = 51200.0
+        spot = live_price or 51200.0
         step = 100.0
         lot = 15
     elif clean_sym == "RELIANCE":
-        spot = 1310.0
+        spot = live_price or 1310.0
         step = 20.0
         lot = 250
     elif clean_sym == "HDFCBANK":
-        spot = 730.0
+        spot = live_price or 730.0
         step = 10.0
         lot = 550
     elif clean_sym in ["SP500", "SPX"]:
-        spot = 5850.0
+        spot = live_price or 5850.0
         step = 25.0
         lot = 100
     elif clean_sym in ["NASDAQ", "NDX", "QQQ"]:
-        spot = 19800.0
+        spot = live_price or 19800.0
         step = 50.0
         lot = 100
     elif clean_sym == "NVDA":
-        spot = 128.0
+        spot = live_price or 128.0
         step = 5.0
         lot = 100
     else:
-        spot = 1000.0
+        spot = live_price or 1000.0
         step = 20.0
         lot = 100
 
@@ -399,17 +387,28 @@ def generate_option_chain_data(symbol: str, market: str = "IN") -> dict:
 
         strikes.append({
             "strike": k,
+            "strikePrice": k,
             "callLtp": call_ltp,
+            "callLTP": call_ltp,
             "callOI": c_oi,
+            "callVolume": int(c_oi * 0.35),
             "callIV": call_greeks["iv"],
             "callDelta": call_greeks["delta"],
             "putLtp": put_ltp,
+            "putLTP": put_ltp,
             "putOI": p_oi,
+            "putVolume": int(p_oi * 0.35),
             "putIV": put_greeks["iv"],
             "putDelta": put_greeks["delta"]
         })
 
     pcr = round(total_put_oi / max(1, total_call_oi), 2)
+
+    now_dt = datetime.now()
+    days_to_thu = (3 - now_dt.weekday()) % 7
+    if days_to_thu == 0 and now_dt.hour >= 15:
+        days_to_thu = 7
+    expiry_date_str = (now_dt + timedelta(days=days_to_thu)).strftime("%d-%b-%Y")
 
     return {
         "symbol": clean_sym,
@@ -418,7 +417,9 @@ def generate_option_chain_data(symbol: str, market: str = "IN") -> dict:
         "atmStrike": atm_strike,
         "pcr": pcr,
         "maxPain": atm_strike,
-        "nearestExpiry": "28-Aug-2026",
+        "nearestExpiry": expiry_date_str,
+        "selectedExpiry": expiry_date_str,
+        "expiryDates": [expiry_date_str, (now_dt + timedelta(days=days_to_thu+7)).strftime("%d-%b-%Y")],
         "lotSize": lot,
         "strikes": strikes
     }

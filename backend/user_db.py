@@ -395,10 +395,14 @@ class UserDatabaseManager:
 
                 trade_value = filled_price * qty
                 if side == "BUY":
+                    avail_cash = cash_in if market == 'IN' else cash_us
+                    if avail_cash < trade_value:
+                        raise ValueError(f"Insufficient funds: Required ₹{trade_value:,.2f}, Available: ₹{avail_cash:,.2f}")
+
                     if market == 'IN':
-                        cash_in = max(0.0, cash_in - trade_value)
+                        cash_in -= trade_value
                     else:
-                        cash_us = max(0.0, cash_us - trade_value)
+                        cash_us -= trade_value
 
                     curr_pos = positions.get(symbol, {"quantity": 0, "avgPrice": 0.0, "totalCost": 0.0})
                     new_qty = curr_pos["quantity"] + qty
@@ -412,13 +416,16 @@ class UserDatabaseManager:
                         "market": market
                     }
                 elif side == "SELL":
+                    curr_pos = positions.get(symbol, {"quantity": 0, "avgPrice": 0.0, "totalCost": 0.0})
+                    if curr_pos.get("quantity", 0) < qty:
+                        raise ValueError(f"Insufficient holdings to sell {qty} shares of {symbol}. You currently own {curr_pos.get('quantity', 0)} shares.")
+
                     if market == 'IN':
                         cash_in += trade_value
                     else:
                         cash_us += trade_value
 
-                    curr_pos = positions.get(symbol, {"quantity": 0, "avgPrice": 0.0, "totalCost": 0.0})
-                    new_qty = max(0, curr_pos["quantity"] - qty)
+                    new_qty = curr_pos["quantity"] - qty
                     if new_qty == 0:
                         positions.pop(symbol, None)
                     else:

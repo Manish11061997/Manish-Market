@@ -29,7 +29,7 @@ _http_session.mount("http://", _http_adapter)
 def _env_flag_enabled(name: str) -> bool:
     return os.environ.get(name, "true").strip().lower() not in ("false", "0", "no")
 
-ALLOW_SYNTHETIC_DATA = _env_flag_enabled("ALLOW_SYNTHETIC_DATA")
+ALLOW_SYNTHETIC_DATA = os.environ.get("ALLOW_SYNTHETIC_DATA", "false").strip().lower() in ("true", "1", "yes")
 
 # ---------------- TTL response cache (reduces outbound hammering) ----------------
 import threading as _threading
@@ -215,6 +215,11 @@ def get_stock_universe(market: str = "IN"):
 
 def fetch_market_indices(market: str = "IN"):
     """Fetch 100% authentic current prices and daily change for key market indices directly from exchange API."""
+    cache_key = f"market_indices_{market.upper()}"
+    cached = _ttl_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     indices_data = {}
     ticker_map = US_INDEX_TICKERS if market.upper() == "US" else INDEX_TICKERS
     headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
@@ -262,6 +267,7 @@ def fetch_market_indices(market: str = "IN"):
         else:
             logger.warning(f"No authentic data for index {key} and synthetic fallback disabled (ALLOW_SYNTHETIC_DATA=false).")
         
+    _ttl_cache_set(cache_key, indices_data, ttl=60)
     return indices_data
 
 def search_stocks_by_name(query: str, market: str = "IN") -> list:
@@ -687,8 +693,8 @@ def fetch_stock_ohlcv(symbol: str, period: str = "2y", interval: str = "1d", mar
     try:
         base_price = 1000.0
         try:
-            from market_state import live_market_state
-            live_st = live_market_state.get(clean_sym) or live_market_state.get(symbol)
+            from live_market_state import live_market_state
+            live_st = live_market_state.get_state(clean_sym) or live_market_state.get_state(symbol)
             if live_st and live_st.get("price"):
                 base_price = float(live_st["price"])
         except Exception:

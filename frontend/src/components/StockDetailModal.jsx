@@ -378,7 +378,7 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
               </div>
             </div>
 
-            {viewTab === 'CHART' && (
+            <div style={{ display: viewTab === 'CHART' ? 'block' : 'none' }}>
               <TradingViewCandleChart
                 symbol={rawSym}
                 timeframe={timeframe}
@@ -386,7 +386,7 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
                 currentMarket={currentMarket}
                 isAdjusted={isAdjustedPrice}
               />
-            )}
+            </div>
 
             {loading && viewTab !== 'CHART' && (
               <div style={{

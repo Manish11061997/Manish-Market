@@ -110,46 +110,8 @@ const DEFAULT_BRIEFING = {
 };
 
 export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }) {
-  // Initialize from localStorage price cache so first render shows real prices
-  const [briefing, setBriefing] = useState(() => {
-    try {
-      const raw = localStorage.getItem('mm_price_cache_v2');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const cache = parsed?.data;
-        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
-          // Patch DEFAULT_BRIEFING with cached real prices
-          const patched = JSON.parse(JSON.stringify(DEFAULT_BRIEFING));
-          if (patched.topDailyBuys) {
-            patched.topDailyBuys = patched.topDailyBuys.map(b => {
-              const cleanSym = b.symbol.replace('.NS', '');
-              const c = cache[b.symbol] || cache[cleanSym];
-              if (c?.price) return { ...b, currentPrice: c.price, spotPrice: c.price };
-              return b;
-            });
-          }
-          if (patched.topDailySells) {
-            patched.topDailySells = patched.topDailySells.map(b => {
-              const cleanSym = b.symbol.replace('.NS', '');
-              const c = cache[b.symbol] || cache[cleanSym];
-              if (c?.price) return { ...b, currentPrice: c.price, spotPrice: c.price };
-              return b;
-            });
-          }
-          if (patched.topFnoSetups) {
-            patched.topFnoSetups = patched.topFnoSetups.map(b => {
-              const cleanSym = b.symbol.replace('.NS', '');
-              const c = cache[b.symbol] || cache[cleanSym];
-              if (c?.price) return { ...b, spotPrice: c.price };
-              return b;
-            });
-          }
-          return patched;
-        }
-      }
-    } catch { /* fallback to default */ }
-    return DEFAULT_BRIEFING;
-  });
+  // Initialize empty - will be populated from API
+  const [briefing, setBriefing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -159,19 +121,22 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
 
   const fetchBriefing = useCallback((force = false) => {
     if (force) setScanning(true);
+    setFetchError(null);
 
     apiFetch(`/api/daily-briefing?market=${currentMarket}${force ? '&force=true' : ''}`)
       .then(async res => {
         const data = typeof res?.json === 'function' ? await res.json() : res;
         if (data && (data.topDailyBuys || data.topFnoSetups)) {
           setBriefing(data);
+        } else {
+          setFetchError('Daily advisory data unavailable. No signals found from stock universe scan.');
         }
-        setFetchError(null);
         setLoading(false);
         setScanning(false);
       })
       .catch(err => {
-        console.warn("Daily briefing background fetch notice:", err);
+        console.warn("Daily briefing fetch error:", err);
+        setFetchError('Failed to fetch daily advisory. Backend may be offline or market data unavailable.');
         setLoading(false);
         setScanning(false);
       });

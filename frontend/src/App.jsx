@@ -194,17 +194,19 @@ export default function App() {
       })
       .catch(e => {
         console.warn("Market summary fetch fallback:", e);
+        setFetchErrors(prev => [...prev, 'Market Summary (offline fallback)']);
         setMarketData({
           market: currentMarket,
-          marketStatus: "LIVE_ACTIVE",
+          marketStatus: "STALE_OFFLINE",
           indices: {
-            NIFTY50: { name: "Nifty 50", price: 24065.25, change: -110.40, pChange: -0.46, status: "NEUTRAL" },
-            SENSEX: { name: "BSE Sensex", price: 77034.69, change: -229.82, pChange: -0.30, status: "NEUTRAL" },
-            NIFTYBANK: { name: "Nifty Bank", price: 57417.10, change: -79.20, pChange: -0.14, status: "NEUTRAL" },
-            CNXIT: { name: "Nifty IT", price: 30896.30, change: -385.40, pChange: -1.23, status: "BEARISH" }
-          }
+            NIFTY50: { name: "Nifty 50", price: 0, change: 0, pChange: 0, status: "STALE" },
+            SENSEX: { name: "BSE Sensex", price: 0, change: 0, pChange: 0, status: "STALE" },
+            NIFTYBANK: { name: "Nifty Bank", price: 0, change: 0, pChange: 0, status: "STALE" },
+            CNXIT: { name: "Nifty IT", price: 0, change: 0, pChange: 0, status: "STALE" }
+          },
+          _isOfflineFallback: true
         });
-        checkDone('Market Summary', true);
+        checkDone('Market Summary', false);
       });
 
     apiFetch(`/api/market-breadth?market=${currentMarket}`)
@@ -219,8 +221,8 @@ export default function App() {
       })
       .catch(e => {
         console.warn("Market breadth fetch fallback:", e);
-        setBreadthData({ market: currentMarket, advances: 16, declines: 9, adRatio: 1.78 });
-        checkDone('Market Breadth', true);
+        setBreadthData({ market: currentMarket, advances: 0, declines: 0, adRatio: 0, _isOfflineFallback: true });
+        checkDone('Market Breadth', false);
       });
 
     apiFetch(`/api/recommendations?market=${currentMarket}`)
@@ -240,12 +242,10 @@ export default function App() {
         setRecommendations({
           market: currentMarket,
           currency: currentMarket === 'US' ? '$' : '₹',
-          all: [
-            { symbol: currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS', name: currentMarket === 'US' ? 'NVIDIA Corp' : 'Reliance Industries', sector: 'Energy/Tech', currentPrice: currentMarket === 'US' ? 219.95 : 1277.00, signal: 'BULLISH_BREAKOUT', action: 'STRONG BUY', overallScore: 92, tradePlan: { target1: currentMarket === 'US' ? 245.0 : 1405.0, stopLoss: currentMarket === 'US' ? 190.0 : 1245.0, suggestedAllocation: '15%' }, rationale: ['5-Pillar Confluence Score: 92/100', '20-EMA Breakout with Volume Confirmation'] },
-            { symbol: currentMarket === 'US' ? 'AAPL' : 'TCS.NS', name: currentMarket === 'US' ? 'Apple Inc' : 'Tata Consultancy Services', sector: 'IT/Tech', currentPrice: currentMarket === 'US' ? 315.30 : 2399.30, signal: 'BULLISH', action: 'BUY', overallScore: 88, tradePlan: { target1: currentMarket === 'US' ? 350.0 : 2580.0, stopLoss: currentMarket === 'US' ? 290.0 : 2310.0, suggestedAllocation: '12%' }, rationale: ['RSI Bullish Momentum > 60', 'Institutional Delivery Accumulation'] }
-          ]
+          all: [],
+          _isOfflineFallback: true
         });
-        checkDone('Recommendations', true);
+        checkDone('Recommendations', false);
       });
 
   }, [currentMarket]);
@@ -391,7 +391,11 @@ export default function App() {
         // 4. Double tap back on Home screen to exit app safely
         const now = Date.now();
         if (now - lastBackTap < 2000) {
-          CapApp.exitApp();
+          if (typeof CapApp.exitApp === 'function') {
+            CapApp.exitApp();
+          } else {
+            window.history.back();
+          }
         } else {
           lastBackTap = now;
           setActiveToasts(prev => [...prev, {

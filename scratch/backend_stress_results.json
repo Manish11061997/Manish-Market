@@ -1,0 +1,130 @@
+[
+  {
+    "severity": "Critical",
+    "endpoint": "/health",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/health",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/health/market-data",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/market-summary",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/market-summary",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/market/overview",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/RELIANCE.NS",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/NVDA",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/INVALID_STOCK_XYZ",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/RELIANCE.NS/chart",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/RELIANCE.NS/chart",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/RELIANCE.NS/chart",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/stock/RELIANCE.NS/chart-reading",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/fno-signals",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/backtest",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Critical",
+    "endpoint": "/api/backtest",
+    "status": "TIMEOUT_OR_CRASH",
+    "description": "Request exception: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)",
+    "response": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=5.0)"
+  },
+  {
+    "severity": "Medium",
+    "endpoint": "/api/paper/order",
+    "status": 422,
+    "latency_ms": 178.3,
+    "description": "Execute Market BUY paper order",
+    "response": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"price\"],\"msg\":\"Field required\",\"input\":{\"symbol\":\"RELIANCE.NS\",\"side\":\"BUY\",\"order_type\":\"MARKET\",\"quantity\":1,\"market\":\"IN\"}}]}"
+  },
+  {
+    "severity": "Medium",
+    "endpoint": "/api/paper/order",
+    "status": 422,
+    "latency_ms": 488.9,
+    "description": "Execute Market SELL paper order",
+    "response": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"price\"],\"msg\":\"Field required\",\"input\":{\"symbol\":\"RELIANCE.NS\",\"side\":\"SELL\",\"order_type\":\"MARKET\",\"quantity\":1,\"market\":\"IN\"}}]}"
+  }
+]

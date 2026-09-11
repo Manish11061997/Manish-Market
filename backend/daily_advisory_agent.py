@@ -1,10 +1,13 @@
 import math
 import time
+import logging
 from datetime import datetime
 from data_fetcher import INDIAN_STOCKS_UNIVERSE, US_STOCKS_UNIVERSE, fetch_market_indices
 from stock_agent import analyze_stock
 from fno_agent import get_all_fno_signals
 from market_session import get_market_session_status
+
+logger = logging.getLogger(__name__)
 
 _DAILY_BRIEFING_CACHE = {
     "IN": None,
@@ -50,7 +53,7 @@ def generate_daily_advisory_briefing(market: str = "IN", force_refresh: bool = F
         main_idx_sym = "NIFTY50"
         main_idx_name = "Nifty 50"
         
-    main_idx = indices_raw.get(main_idx_sym, {"price": 5850.0 if m_key == "US" else 24100.0, "change": 25.0, "pChange": 0.35})
+    main_idx = indices_raw.get(main_idx_sym, {"price": 0, "change": 0, "pChange": 0})
     market_bias = "BULLISH_EXPANSION" if main_idx.get("pChange", 0) > 0.2 else ("BEARISH_CORRECTION" if main_idx.get("pChange", 0) < -0.2 else "RANGEBOUND_NEUTRAL")
 
     # 2. Scan Stocks for Daily Top Conviction Buys & Sells in Parallel
@@ -109,81 +112,18 @@ def generate_daily_advisory_briefing(market: str = "IN", force_refresh: bool = F
             except Exception:
                 pass
 
-    # Ensure robust high-conviction defaults if network timed out
-    if len(equity_buys) < 2:
-        default_buys = [
-            {
-                "symbol": "HAL.NS" if m_key == "IN" else "NVDA",
-                "name": "Hindustan Aeronautics" if m_key == "IN" else "NVIDIA Corp",
-                "sector": "Defense & Aerospace" if m_key == "IN" else "Semiconductors",
-                "currentPrice": 4850.0 if m_key == "IN" else 218.0,
-                "signal": "STRONG_BUY",
-                "action": "BUY",
-                "score": 92,
-                "strategyName": "Triple-Confluence Alpha",
-                "strategyTag": "🏆 BEST QUANT STRATEGY",
-                "winRate": "84.2%",
-                "profitFactor": "2.95x",
-                "entryRange": f"{curr_prefix}4820 - {curr_prefix}4860" if m_key == "IN" else f"{curr_prefix}215 - {curr_prefix}219",
-                "target1": 5120.0 if m_key == "IN" else 235.0,
-                "target1ETA": "5 - 12 Days",
-                "target2": 5350.0 if m_key == "IN" else 250.0,
-                "stopLoss": 4680.0 if m_key == "IN" else 208.0,
-                "riskRewardRatio": "1:2.8",
-                "horizon": "Swing Trade (2-4 Weeks)",
-                "thesis": "Strong order book expansion and accelerating EPS momentum holding above rising 20 EMA."
-            },
-            {
-                "symbol": "RELIANCE.NS" if m_key == "IN" else "AAPL",
-                "name": "Reliance Industries" if m_key == "IN" else "Apple Inc",
-                "sector": "Energy & Retail" if m_key == "IN" else "Consumer Tech",
-                "currentPrice": 1316.0 if m_key == "IN" else 225.0,
-                "signal": "BUY",
-                "action": "BUY",
-                "score": 85,
-                "strategyName": "VCP Volatility Compression",
-                "strategyTag": "⚡ MOMENTUM EXPANSION",
-                "winRate": "79.8%",
-                "profitFactor": "2.40x",
-                "entryRange": f"{curr_prefix}1300 - {curr_prefix}1320" if m_key == "IN" else f"{curr_prefix}220 - {curr_prefix}226",
-                "target1": 1420.0 if m_key == "IN" else 245.0,
-                "target1ETA": "8 - 15 Days",
-                "target2": 1480.0 if m_key == "IN" else 255.0,
-                "stopLoss": 1260.0 if m_key == "IN" else 212.0,
-                "riskRewardRatio": "1:2.5",
-                "horizon": "Swing Trade (2-4 Weeks)",
-                "thesis": "Consolidation breakout above key resistance with strong institutional accumulation."
-            }
-        ]
-        equity_buys.extend(default_buys)
+    # If no buy signals found from scan, return empty - do NOT inject fabricated recommendations
+    if len(equity_buys) < 1:
+        logger.warning(f"Daily advisory: No valid buy signals found for {m_key} market. All universe stocks may have failed to fetch.")
+        equity_buys = []
 
     # Sort buys by highest quantitative score
     equity_buys.sort(key=lambda x: x["score"], reverse=True)
     top_daily_buys = equity_buys[:5]
 
+    # If no sell signals found, return empty - do NOT inject fabricated recommendations
     if len(equity_sells) < 1:
-        default_sell = {
-            "symbol": "PAYTM.NS" if m_key == "IN" else "INTC",
-            "name": "One97 Communications" if m_key == "IN" else "Intel Corp",
-            "sector": "FinTech" if m_key == "IN" else "Semiconductors",
-            "currentPrice": 650.0 if m_key == "IN" else 20.5,
-            "signal": "SELL",
-            "action": "SELL",
-            "score": 28,
-            "strategyName": "Bearish Breakdown Filter",
-            "strategyTag": "⚠️ DOWNSIDE RISK",
-            "winRate": "72.1%",
-            "profitFactor": "2.10x",
-            "entryRange": f"{curr_prefix}640 - {curr_prefix}660" if m_key == "IN" else f"{curr_prefix}20 - {curr_prefix}21",
-            "target1": 580.0 if m_key == "IN" else 17.5,
-            "target1ETA": "4 - 10 Days",
-            "target2": 540.0 if m_key == "IN" else 15.0,
-            "stopLoss": 690.0 if m_key == "IN" else 22.5,
-            "riskRewardRatio": "1:2.2",
-            "horizon": "Short Position (1-3 Weeks)",
-            "thesis": "Breach of key 50 DMA support with accelerating institutional money outflow (CMF < -0.15)."
-        }
-        equity_sells.append(default_sell)
+        equity_sells = []
 
     # Sort sells by lowest score (highest risk)
     equity_sells.sort(key=lambda x: x["score"])

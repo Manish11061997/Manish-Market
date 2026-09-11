@@ -266,6 +266,8 @@ export default function StockScreener({ recommendations, onSelectStock, currentM
                   key={stock.symbol}
                   role="button"
                   tabIndex={0}
+                  className="screener-row"
+                  data-testid="screener-row"
                   onClick={() => onSelectStock(stock.symbol)}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectStock(stock.symbol)}
                   style={{ borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', transition: 'background-color 0.15s ease' }}
@@ -278,22 +280,22 @@ export default function StockScreener({ recommendations, onSelectStock, currentM
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontFamily: 'sans-serif' }}>{stock.sector}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                    {stock.symbol.endsWith('.NS') || stock.symbol.startsWith('^') ? '₹' : '$'}{stock.currentPrice?.toLocaleString('en-US')}
+                    {(stock?.symbol?.endsWith?.('.NS') || stock?.symbol?.startsWith?.('^')) ? '₹' : '$'}{stock?.currentPrice != null ? stock.currentPrice.toLocaleString('en-US') : '—'}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <span style={{
                       padding: '2px 8px',
                       borderRadius: '6px',
                       fontWeight: 800,
-                      backgroundColor: stock.technicals?.rsi < 35 ? 'var(--accent-green-bg)' : (stock.technicals?.rsi > 70 ? 'var(--accent-red-bg)' : 'var(--bg-elevated)'),
-                      color: stock.technicals?.rsi < 35 ? 'var(--accent-green)' : (stock.technicals?.rsi > 70 ? 'var(--accent-red)' : 'var(--text-secondary)'),
-                      border: stock.technicals?.rsi < 35 ? '1px solid var(--accent-green-border)' : (stock.technicals?.rsi > 70 ? '1px solid var(--accent-red-border)' : '1px solid var(--border-subtle)')
+                      backgroundColor: (stock.technicals?.rsi ?? 50) < 35 ? 'var(--accent-green-bg)' : ((stock.technicals?.rsi ?? 50) > 70 ? 'var(--accent-red-bg)' : 'var(--bg-elevated)'),
+                      color: (stock.technicals?.rsi ?? 50) < 35 ? 'var(--accent-green)' : ((stock.technicals?.rsi ?? 50) > 70 ? 'var(--accent-red)' : 'var(--text-secondary)'),
+                      border: (stock.technicals?.rsi ?? 50) < 35 ? '1px solid var(--accent-green-border)' : ((stock.technicals?.rsi ?? 50) > 70 ? '1px solid var(--accent-red-border)' : '1px solid var(--border-subtle)')
                     }}>
-                      {stock.technicals?.rsi}
+                      {stock.technicals?.rsi ?? '—'}
                     </span>
                   </td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{stock.fundamentals?.peRatio}</td>
-                  <td style={{ padding: '14px 16px', color: 'var(--accent-green)', fontWeight: 800 }}>{stock.fundamentals?.roe}%</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{stock.fundamentals?.peRatio ?? '—'}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--accent-green)', fontWeight: 800 }}>{stock.fundamentals?.roe != null ? `${stock.fundamentals.roe}%` : '—'}</td>
                   <td style={{ padding: '14px 16px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-gold)' }}>{stock.overallScore}/100</span>
                   </td>

@@ -45,7 +45,7 @@ export function calculateBollingerBands(data, period = 20, multiplier = 2) {
   for (let i = period - 1; i < data.length; i++) {
     const slice = data.slice(i - period + 1, i + 1);
     const mean = slice.reduce((acc, c) => acc + c.close, 0) / period;
-    const variance = slice.reduce((acc, c) => acc + Math.pow(c.close - mean, 2), 0) / period;
+    const variance = slice.reduce((acc, c) => acc + Math.pow(c.close - mean, 2), 0) / (period - 1);
     const sd = Math.sqrt(variance);
     const t = data[i].time;
 

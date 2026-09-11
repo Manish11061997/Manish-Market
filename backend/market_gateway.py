@@ -84,8 +84,11 @@ class MarketDataGateway:
             self.is_failover_active = True
             data_reconciler.reconcile_on_provider_switch(self.active_symbols, old_name, self.current_provider.name)
             self.current_provider.connect()
+            # Wait briefly for provider to establish connection before subscribing
+            import time as _time
+            _time.sleep(0.1)
             self.current_provider.subscribe(list(self.active_symbols))
-            logger.warning(f"🚨 PROVIDER FAILOVER ENGAGED: Switched to {self.current_provider.name}")
+            logger.warning(f"PROVIDER FAILOVER ENGAGED: Switched to {self.current_provider.name}")
 
     def restore_primary(self):
         """Restore primary feed once connection recovers."""
@@ -158,9 +161,9 @@ class MarketDataGateway:
             self.events_count += len(valid_ticks)
             self.last_event_time = time.time()
 
-            # 4. Compute Live Market Breadth
-            breadth_in = market_breadth_engine.compute_breadth(valid_ticks, market="IN")
-            breadth_us = market_breadth_engine.compute_breadth(valid_ticks, market="US")
+            # 4. Compute Live Market Breadth (use all fetched ticks for accurate breadth counting)
+            breadth_in = market_breadth_engine.compute_breadth(ticks, market="IN")
+            breadth_us = market_breadth_engine.compute_breadth(ticks, market="US")
 
             # 5. Evaluate Price Alerts
             triggered_alerts = alerts_engine.evaluate_ticks(valid_ticks)

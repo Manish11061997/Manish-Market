@@ -142,6 +142,8 @@ class AuditTrailRegistry:
             res = [r for r in res if sym_clean in r.symbol.upper()]
         if event_type:
             res = [r for r in res if r.event_type.value == event_type.upper()]
+        if limit <= 0:
+            return []
         return [r.to_dict() for r in reversed(res[-limit:])]
 
 # Global Audit Trail Singleton

@@ -5,6 +5,14 @@
   "server": {
     "cleartext": true,
     "allowNavigation": ["*"],
-    "androidScheme": "http"
+    "androidScheme": "http",
+    "livereload": {
+      "enabled": true,
+      "url": "http://192.168.31.236:5173",
+      "androidScheme": "http"
+    }
+  },
+  "android": {
+    "allowMixedContent": true
   }
 }

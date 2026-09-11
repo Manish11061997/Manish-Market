@@ -829,109 +829,135 @@ export default function TradingViewCandleChart({
             return Math.floor(tsSec / tfSec) * tfSec;
           };
 
-          setCandles(prev => {
-            if (!prev.length) return prev;
-            const updated = [...prev];
-            const last = { ...updated[updated.length - 1] };
-            const prevClose = last.close || last.open;
+          const prev = candlesRef.current;
+          if (!prev || !prev.length) return;
+          const updated = [...prev];
+          const last = { ...updated[updated.length - 1] };
+          const prevClose = last.close || last.open;
 
-            // Outlier & Aberrant Tick Filter:
-            // If livePrice deviates by > 20% from previous close, reject it to prevent artificial chart spikes/drops!
-            if (prevClose > 0) {
-              const dev = Math.abs(livePrice - prevClose) / prevClose;
-              if (dev > 0.20) {
-                return prev;
-              }
+          // Outlier & Aberrant Tick Filter:
+          // If livePrice deviates by > 35% from previous close, reject it to prevent artificial chart spikes/drops.
+          // Using 35% to allow legitimate circuit limit moves (Indian stocks can move ±20% daily)
+          if (prevClose > 0) {
+            const dev = Math.abs(livePrice - prevClose) / prevClose;
+            if (dev > 0.35) {
+              return;
             }
+          }
 
-            const bucketTs = getBucketTime(nowSec, timeframe);
-            const lastBucketTs = getBucketTime(last.time, timeframe);
+          const bucketTs = getBucketTime(nowSec, timeframe);
+          const lastBucketTs = getBucketTime(last.time, timeframe);
 
-            if (bucketTs <= lastBucketTs || bucketTs === last.time) {
-              // Smoothly update current forming candle body and wicks
+          if (bucketTs <= lastBucketTs || bucketTs === last.time) {
+            // Smoothly update current forming candle body and wicks
+            last.high = Math.max(last.high, livePrice);
+            last.low = Math.min(last.low, livePrice);
+            last.close = livePrice;
+            updated[updated.length - 1] = last;
+          } else {
+            const tfSec = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : 86400;
+            // If active trading interval, append discrete bar
+            if (nowSec - last.time < tfSec * 2.5) {
+              const newBar = {
+                time: bucketTs,
+                open: last.close || livePrice,
+                high: Math.max(last.close || livePrice, livePrice),
+                low: Math.min(last.close || livePrice, livePrice),
+                close: livePrice,
+                volume: 0
+              };
+              updated.push(newBar);
+            } else {
+              // When market is closed, update last bar's closing level
               last.high = Math.max(last.high, livePrice);
               last.low = Math.min(last.low, livePrice);
               last.close = livePrice;
               updated[updated.length - 1] = last;
-            } else {
-              const tfSec = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : 86400;
-              // If active trading interval, append discrete bar
-              if (nowSec - last.time < tfSec * 2.5) {
-                const newBar = {
-                  time: bucketTs,
-                  open: last.close || livePrice,
-                  high: Math.max(last.close || livePrice, livePrice),
-                  low: Math.min(last.close || livePrice, livePrice),
-                  close: livePrice,
-                  volume: 0
-                };
-                updated.push(newBar);
-              } else {
-                // When market is closed, update last bar's closing level
-                last.high = Math.max(last.high, livePrice);
-                last.low = Math.min(last.low, livePrice);
-                last.close = livePrice;
-                updated[updated.length - 1] = last;
-              }
             }
+          }
 
-            candlesRef.current = updated;
-            const cur = updated[updated.length - 1];
-            setLastCandle(cur);
+          candlesRef.current = updated;
+          const cur = updated[updated.length - 1];
 
-            // 1. Update primary chart candle series
-            if (candleSeriesRef.current) {
-              try {
-                candleSeriesRef.current.update({
+          // 1. Update primary chart candle series
+          if (candleSeriesRef.current) {
+            try {
+              candleSeriesRef.current.update({
+                time: cur.time,
+                open: cur.open,
+                high: cur.high,
+                low: cur.low,
+                close: cur.close
+              });
+            } catch (e) {
+              console.warn("Candle update notice:", e);
+            }
+          }
+
+          // 2. Update primary chart indicators with actual recalculated values
+          const iStore = indicatorSeriesRef.current;
+          if (iStore) {
+            try {
+              if (iStore.volume) {
+                iStore.volume.update({
                   time: cur.time,
-                  open: cur.open,
-                  high: cur.high,
-                  low: cur.low,
-                  close: cur.close
+                  value: cur.volume || 1000,
+                  color: cur.close >= cur.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)'
                 });
-              } catch (e) {
-                console.warn("Candle update notice:", e);
               }
-            }
-
-            // 2. Update primary chart indicators
-            const iStore = indicatorSeriesRef.current;
-            if (iStore) {
-              try {
-                if (iStore.volume) {
-                  iStore.volume.update({
-                    time: cur.time,
-                    value: cur.volume || 1000,
-                    color: cur.close >= cur.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)'
-                  });
+              const allCandles = candlesRef.current;
+              if (allCandles && allCandles.length >= 20) {
+                if (iStore.ema20) {
+                  const ema20Data = calculateEMA(allCandles, 20);
+                  if (ema20Data.length > 0) iStore.ema20.update({ time: cur.time, value: ema20Data[ema20Data.length - 1].value });
                 }
-                if (iStore.ema20) iStore.ema20.update({ time: cur.time, value: cur.close });
-                if (iStore.ema50) iStore.ema50.update({ time: cur.time, value: cur.close });
-                if (iStore.ema200) iStore.ema200.update({ time: cur.time, value: cur.close });
-                if (iStore.sma20) iStore.sma20.update({ time: cur.time, value: cur.close });
-                if (iStore.vwap) iStore.vwap.update({ time: cur.time, value: cur.close });
-              } catch (e) {
-                console.warn("Indicator update notice:", e);
+                if (iStore.ema50) {
+                  const ema50Data = calculateEMA(allCandles, 50);
+                  if (ema50Data.length > 0) iStore.ema50.update({ time: cur.time, value: ema50Data[ema50Data.length - 1].value });
+                }
+                if (iStore.ema200 && allCandles.length >= 200) {
+                  const ema200Data = calculateEMA(allCandles, 200);
+                  if (ema200Data.length > 0) iStore.ema200.update({ time: cur.time, value: ema200Data[ema200Data.length - 1].value });
+                }
+                if (iStore.sma20) {
+                  const sma20Data = calculateSMA(allCandles, 20);
+                  if (sma20Data.length > 0) iStore.sma20.update({ time: cur.time, value: sma20Data[sma20Data.length - 1].value });
+                }
+                if (iStore.vwap) {
+                  const vwapData = calculateVWAP(allCandles);
+                  if (vwapData.length > 0) iStore.vwap.update({ time: cur.time, value: vwapData[vwapData.length - 1].value });
+                }
+                if (iStore.bbUpper && iStore.bbMiddle && iStore.bbLower) {
+                  const bbData = calculateBollingerBands(allCandles, 20, 2);
+                  if (bbData.upper.length > 0) {
+                    iStore.bbUpper.update({ time: cur.time, value: bbData.upper[bbData.upper.length - 1].value });
+                    iStore.bbMiddle.update({ time: cur.time, value: bbData.middle[bbData.middle.length - 1].value });
+                    iStore.bbLower.update({ time: cur.time, value: bbData.lower[bbData.lower.length - 1].value });
+                  }
+                }
               }
+            } catch (e) {
+              console.warn("Indicator update notice:", e);
             }
+          }
 
-            // 3. Update fullscreen candle series
-            if (fullCandleSeriesRef.current) {
-              try {
-                fullCandleSeriesRef.current.update({
-                  time: cur.time,
-                  open: cur.open,
-                  high: cur.high,
-                  low: cur.low,
-                  close: cur.close
-                });
-              } catch (e) {
-                console.warn("Full candle update notice:", e);
-              }
+          // 3. Update fullscreen candle series
+          if (fullCandleSeriesRef.current) {
+            try {
+              fullCandleSeriesRef.current.update({
+                time: cur.time,
+                open: cur.open,
+                high: cur.high,
+                low: cur.low,
+                close: cur.close
+              });
+            } catch (e) {
+              console.warn("Full candle update notice:", e);
             }
+          }
 
-            return updated;
-          });
+          setCandles(updated);
+          setLastCandle(cur);
         }
       }
     });
@@ -947,6 +973,8 @@ export default function TradingViewCandleChart({
     let chart = null;
     let isMounted = true;
     let resizeObserver = null;
+    let handleRangeChange = null;
+    let handleCrosshairMove = null;
 
     async function initPrimary() {
       if (!chartContainerRef.current) return;
@@ -1034,18 +1062,32 @@ export default function TradingViewCandleChart({
         }
 
         // Real-time synchronization of drawing overlay with pan, zoom and scroll
-        chart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
-        chart.timeScale().subscribeVisibleTimeRangeChange(() => setViewportKey(k => k + 1));
-        chart.subscribeCrosshairMove(() => setViewportKey(k => k + 1));
+        try {
+          handleRangeChange = () => {
+            if (!isMounted) return;
+            setViewportKey(k => k + 1);
+          };
+          handleCrosshairMove = () => {
+            if (!isMounted) return;
+            setViewportKey(k => k + 1);
+          };
+
+          chart.timeScale().subscribeVisibleLogicalRangeChange(handleRangeChange);
+          chart.timeScale().subscribeVisibleTimeRangeChange(handleRangeChange);
+          chart.subscribeCrosshairMove(handleCrosshairMove);
+        } catch {}
 
         resizeObserver = new ResizeObserver((entries) => {
+          if (!isMounted || !chartInstanceRef.current) return;
           for (const entry of entries) {
-            if (entry.contentRect && chart) {
+            if (entry.contentRect && chart && chartInstanceRef.current) {
               const newW = Math.floor(entry.contentRect.width);
               const newH = Math.floor(entry.contentRect.height) || 340;
               if (newW > 0) {
-                chart.applyOptions({ width: newW, height: newH });
-                setViewportKey(k => k + 1);
+                try {
+                  chart.applyOptions({ width: newW, height: newH });
+                  setViewportKey(k => k + 1);
+                } catch {}
               }
             }
           }
@@ -1061,12 +1103,25 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
-      if (resizeObserver) resizeObserver.disconnect();
+      if (resizeObserver) {
+        try { resizeObserver.disconnect(); } catch {}
+      }
       if (chart) {
-        try { chart.remove(); } catch {}
+        try {
+          if (handleRangeChange) {
+            chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleRangeChange);
+            chart.timeScale().unsubscribeVisibleTimeRangeChange(handleRangeChange);
+          }
+          if (handleCrosshairMove) {
+            chart.unsubscribeCrosshairMove(handleCrosshairMove);
+          }
+        } catch {}
       }
       chartInstanceRef.current = null;
       candleSeriesRef.current = null;
+      if (chart) {
+        try { chart.remove(); } catch {}
+      }
     };
   }, []);
 
@@ -1084,6 +1139,8 @@ export default function TradingViewCandleChart({
     let fullChart = null;
     let isMounted = true;
     let resizeObserver = null;
+    let handleFullRangeChange = null;
+    let handleFullCrosshairMove = null;
 
     async function initFullScreen() {
       if (!fullChartContainerRef.current) return;
@@ -1108,25 +1165,25 @@ export default function TradingViewCandleChart({
             fontFamily: 'JetBrains Mono, monospace'
           },
           grid: {
-            vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-            horzLines: { color: 'rgba(255, 255, 255, 0.05)' }
+            vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.04)' }
           },
           crosshair: {
             mode: lc.CrosshairMode.Normal
           },
           rightPriceScale: { 
-            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.08)',
             scaleMargins: { top: 0.08, bottom: 0.08 }
           },
           timeScale: { 
-            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.08)',
             timeVisible: true,
             shiftVisibleRangeOnNewBar: false,
             allowBoldLabels: true,
             minBarSpacing: 0.1,
             maxBarSpacing: 80,
-            rightOffset: 15,
-            barSpacing: 9,
+            rightOffset: 12,
+            barSpacing: 8,
             fixLeftEdge: false,
             fixRightEdge: false
           },
@@ -1170,18 +1227,32 @@ export default function TradingViewCandleChart({
           syncCandlesToCharts(candlesRef.current, true);
         }
 
-        fullChart.timeScale().subscribeVisibleLogicalRangeChange(() => setViewportKey(k => k + 1));
-        fullChart.timeScale().subscribeVisibleTimeRangeChange(() => setViewportKey(k => k + 1));
-        fullChart.subscribeCrosshairMove(() => setViewportKey(k => k + 1));
+        try {
+          handleFullRangeChange = () => {
+            if (!isMounted) return;
+            setViewportKey(k => k + 1);
+          };
+          handleFullCrosshairMove = () => {
+            if (!isMounted) return;
+            setViewportKey(k => k + 1);
+          };
+
+          fullChart.timeScale().subscribeVisibleLogicalRangeChange(handleFullRangeChange);
+          fullChart.timeScale().subscribeVisibleTimeRangeChange(handleFullRangeChange);
+          fullChart.subscribeCrosshairMove(handleFullCrosshairMove);
+        } catch {}
 
         resizeObserver = new ResizeObserver((entries) => {
+          if (!isMounted || !fullChartInstanceRef.current) return;
           for (const entry of entries) {
-            if (entry.contentRect && fullChart) {
+            if (entry.contentRect && fullChart && fullChartInstanceRef.current) {
               const newW = Math.floor(entry.contentRect.width);
               const newH = Math.floor(entry.contentRect.height) || (window.innerHeight - 60);
               if (newW > 0) {
-                fullChart.applyOptions({ width: newW, height: newH });
-                setViewportKey(k => k + 1);
+                try {
+                  fullChart.applyOptions({ width: newW, height: newH });
+                  setViewportKey(k => k + 1);
+                } catch {}
               }
             }
           }
@@ -1196,12 +1267,25 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
-      if (resizeObserver) resizeObserver.disconnect();
+      if (resizeObserver) {
+        try { resizeObserver.disconnect(); } catch {}
+      }
       if (fullChart) {
-        try { fullChart.remove(); } catch {}
+        try {
+          if (handleFullRangeChange) {
+            fullChart.timeScale().unsubscribeVisibleLogicalRangeChange(handleFullRangeChange);
+            fullChart.timeScale().unsubscribeVisibleTimeRangeChange(handleFullRangeChange);
+          }
+          if (handleFullCrosshairMove) {
+            fullChart.unsubscribeCrosshairMove(handleFullCrosshairMove);
+          }
+        } catch {}
       }
       fullChartInstanceRef.current = null;
       fullCandleSeriesRef.current = null;
+      if (fullChart) {
+        try { fullChart.remove(); } catch {}
+      }
     };
   }, [isFullScreen, isLandscape]);
 
@@ -1213,14 +1297,16 @@ export default function TradingViewCandleChart({
     }
     if (fullChartInstanceRef.current) {
       setupIndicatorSeries(fullChartInstanceRef.current, true);
-      if (candlesRef.current.length) syncCandlesToCharts(candlesRef.current, false);
+      if (candlesRef.current.length) syncCandlesToCharts(candlesRef.current, true);
     }
   }, [activeIndicators]);
 
-  // 4. Mount Synchronized RSI (14) Oscillator Sub-Pane
+  // 5. Mount Synchronized RSI Oscillator Sub-Pane
   useEffect(() => {
     let rsiChart = null;
     let isMounted = true;
+    let attachedMainTs = null;
+    let rangeHandler = null;
     if (!activeIndicators.RSI_14 || !rsiChartContainerRef.current) return;
 
     async function initRsi() {
@@ -1287,13 +1373,14 @@ export default function TradingViewCandleChart({
         }
 
         if (chartInstanceRef.current) {
-          const mainTs = chartInstanceRef.current.timeScale();
-          mainTs.subscribeVisibleLogicalRangeChange(range => {
+          attachedMainTs = chartInstanceRef.current.timeScale();
+          rangeHandler = (range) => {
             if (isMounted && range && rsiChartInstanceRef.current === rsiChart) {
               try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch {}
             }
-          });
-          const currRange = mainTs.getVisibleLogicalRange();
+          };
+          attachedMainTs.subscribeVisibleLogicalRangeChange(rangeHandler);
+          const currRange = attachedMainTs.getVisibleLogicalRange();
           if (currRange && isMounted && rsiChartInstanceRef.current === rsiChart) {
             try { rsiChart.timeScale().setVisibleLogicalRange(currRange); } catch {}
           }
@@ -1306,6 +1393,9 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
+      if (attachedMainTs && rangeHandler) {
+        try { attachedMainTs.unsubscribeVisibleLogicalRangeChange(rangeHandler); } catch {}
+      }
       rsiChartInstanceRef.current = null;
       rsiSeriesRef.current = null;
       if (rsiChart) {
@@ -1318,6 +1408,8 @@ export default function TradingViewCandleChart({
   useEffect(() => {
     let macdChart = null;
     let isMounted = true;
+    let attachedMainTs = null;
+    let rangeHandler = null;
     if (!activeIndicators.MACD || !macdChartContainerRef.current) return;
 
     async function initMacd() {
@@ -1408,13 +1500,14 @@ export default function TradingViewCandleChart({
         }
 
         if (chartInstanceRef.current) {
-          const mainTs = chartInstanceRef.current.timeScale();
-          mainTs.subscribeVisibleLogicalRangeChange(range => {
+          attachedMainTs = chartInstanceRef.current.timeScale();
+          rangeHandler = (range) => {
             if (isMounted && range && macdChartInstanceRef.current === macdChart) {
               try { macdChart.timeScale().setVisibleLogicalRange(range); } catch {}
             }
-          });
-          const currRange = mainTs.getVisibleLogicalRange();
+          };
+          attachedMainTs.subscribeVisibleLogicalRangeChange(rangeHandler);
+          const currRange = attachedMainTs.getVisibleLogicalRange();
           if (currRange && isMounted && macdChartInstanceRef.current === macdChart) {
             try { macdChart.timeScale().setVisibleLogicalRange(currRange); } catch {}
           }
@@ -1427,6 +1520,9 @@ export default function TradingViewCandleChart({
 
     return () => {
       isMounted = false;
+      if (attachedMainTs && rangeHandler) {
+        try { attachedMainTs.unsubscribeVisibleLogicalRangeChange(rangeHandler); } catch {}
+      }
       macdChartInstanceRef.current = null;
       macdSeriesRef.current = null;
       macdSignalSeriesRef.current = null;

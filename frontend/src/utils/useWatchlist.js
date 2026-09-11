@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiFetch, getAuthToken } from './api';
 import { saveCloudWatchlist, subscribeCloudWatchlist } from './firebaseStore';
 
@@ -181,11 +181,13 @@ export function useWatchlist(currentMarket = 'IN') {
     }
   }, [currentMarket, marketLists, activeListId]);
 
-  const activeList = marketLists.find(l => l.id === activeListId) || marketLists[0] || {
-    id: `custom_${Date.now()}`,
-    name: '⭐ My Watchlist',
-    symbols: []
-  };
+  const activeList = useMemo(() => {
+    return marketLists.find(l => l.id === activeListId) || marketLists[0] || {
+      id: 'default_fallback_list',
+      name: '⭐ My Watchlist',
+      symbols: []
+    };
+  }, [marketLists, activeListId]);
 
   const isWatchlisted = useCallback((symbol, targetListId = null) => {
     if (!symbol) return false;
@@ -276,11 +278,13 @@ export function useWatchlist(currentMarket = 'IN') {
   }, [allLists, currentMarket, activeListId, marketLists]);
 
   const createList = useCallback((name) => {
-    if (!name || !name.trim()) return;
+    if (!name || typeof name !== 'string' || !name.trim()) return;
+    const sanitizedName = name.trim().slice(0, 40).replace(/[<>]/g, '');
+    if (!sanitizedName) return;
     const newId = `list_${Date.now()}`;
     const newList = {
       id: newId,
-      name: name.trim(),
+      name: sanitizedName,
       isDefault: false,
       symbols: []
     };

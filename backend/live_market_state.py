@@ -19,6 +19,8 @@ class LiveMarketStateContextStore:
     def __init__(self):
         self._states: Dict[str, dict] = {}
         self._stale_threshold_sec = 15.0
+        self._cum_vol: Dict[str, float] = {}
+        self._cum_tp_vol: Dict[str, float] = {}
 
     def update_from_tick(self, tick: dict):
         """Update live market state from incoming normalized tick event."""
@@ -34,6 +36,20 @@ class LiveMarketStateContextStore:
         close = price
         typical_price = round((high + low + close) / 3.0, 2)
         prev_close = float(tick.get("prevClose", price))
+        vol = int(tick.get("volume", 0))
+
+        # Compute proper VWAP: cumulative (typical_price * volume) / cumulative volume
+        # Reset at session boundary (new trading day)
+        today_str = time.strftime("%Y-%m-%d")
+        prev_state = self._states.get(sym)
+        prev_date = prev_state.get("_sessionDate", "") if prev_state else ""
+        if prev_date != today_str:
+            self._cum_vol[sym] = 0.0
+            self._cum_tp_vol[sym] = 0.0
+
+        self._cum_vol[sym] = self._cum_vol.get(sym, 0.0) + vol
+        self._cum_tp_vol[sym] = self._cum_tp_vol.get(sym, 0.0) + (typical_price * vol)
+        vwap_val = round(self._cum_tp_vol[sym] / self._cum_vol[sym], 2) if self._cum_vol[sym] > 0 else typical_price
 
         # Circuit limit data
         circuits = tick.get("circuitLimits")
@@ -69,10 +85,11 @@ class LiveMarketStateContextStore:
             "bidSize": int(tick.get("bidSize", 100)),
             "askSize": int(tick.get("askSize", 100)),
             "spread": round(float(tick.get("ask", price)) - float(tick.get("bid", price)), 2),
-            "vwap": typical_price,
+            "vwap": vwap_val,
             "circuitLimits": circuits,
             "lastUpdatedMs": now_ms,
-            "isStale": False
+            "isStale": False,
+            "_sessionDate": today_str
         }
 
         self._states[sym] = state

@@ -18,22 +18,22 @@ import {
   fetchBatchQuotesV7, INDEX_SYMBOLS, US_INDEX_SYMBOLS 
 } from './directMarketProvider';
 
-const DEFAULT_LOCAL_IP = '192.168.31.184';
 const wsToken = import.meta.env.VITE_CONTROL_TOKEN;
 
 function getDynamicWsUrl(attempt = 0) {
-  const candidates = getCandidateBases();
+  const candidates = (getCandidateBases() || []).filter(b => !b.includes('web.app') && !b.includes('firebaseapp.com'));
   if (!candidates || candidates.length === 0) return null;
   let base = getApiBase();
+  if (!base || base.includes('web.app') || base.includes('firebaseapp.com')) {
+    base = candidates[0];
+  }
   if (attempt > 0 && candidates.length > 0) {
     base = candidates[(attempt - 1) % candidates.length];
   }
-  if (!base) return null;
-  if (attempt >= 3 && isCapacitorNative()) {
-    base = `http://${DEFAULT_LOCAL_IP}:8000`;
-  }
+  if (!base || base.includes('web.app') || base.includes('firebaseapp.com')) return null;
   let wsScheme = base.startsWith('https') ? 'wss' : 'ws';
-  if (isSecureContext() && !isCapacitorNative()) {
+  // Only force wss if the base URL itself is HTTPS (not just because isSecureContext on localhost)
+  if (base.startsWith('https') && isSecureContext() && !isCapacitorNative()) {
     wsScheme = 'wss';
   }
   const cleanHost = base.replace(/^https?:\/\//, '');
@@ -43,7 +43,7 @@ function getDynamicWsUrl(attempt = 0) {
 class WebSocketClient {
   constructor() {
     this.ws = null;
-    this.status = 'LIVE'; // Default to LIVE so UI is green from millisecond 0
+    this.status = 'DISCONNECTED'; // Start disconnected, will transition to LIVE on successful connect
     this.mode = 'LIVE';
     this.subscribedSymbols = new Set();
     this.listeners = new Set();
@@ -174,8 +174,8 @@ class WebSocketClient {
 
       this.ws.onclose = () => {
         this.stopHeartbeat();
-        this.startSyntheticFallback();
         if (!this.intentionalClose) {
+          this.startSyntheticFallback();
           this.scheduleReconnect();
         }
       };
@@ -666,14 +666,15 @@ class WebSocketClient {
   }
 
   close() {
+    this.intentionalClose = true;
     this.clearReconnectTimer();
     this.stopHeartbeat();
+    this.stopSyntheticFallback();
     if (this.staleTimer) {
       clearTimeout(this.staleTimer);
       this.staleTimer = null;
     }
     if (this.ws) {
-      this.intentionalClose = true;
       try { this.ws.close(); } catch {}
       this.ws = null;
     }
@@ -681,6 +682,7 @@ class WebSocketClient {
 
   destroy() {
     this.close();
+    this.stopSyntheticFallback();
     this.listeners.clear();
     this.statusListeners.clear();
     this.healthListeners.clear();

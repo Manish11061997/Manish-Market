@@ -90,48 +90,14 @@ const DEFAULT_CHAIN_DATA_IN = {
 export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
   const [fnoTab, setFnoTab] = useState('SETUPS'); // 'SETUPS' or 'CHAIN'
 
-  // Initialize spot prices from localStorage cache — no stale hardcoded prices
-  const [fnoData, setFnoData] = useState(() => {
-    try {
-      const raw = localStorage.getItem('mm_price_cache_v2');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const cache = parsed?.data;
-        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
-          return DEFAULT_FNO_SIGNALS_IN.map(item => {
-            const cleanSym = item.symbol.replace('.NS', '');
-            const c = cache[item.symbol] || cache[cleanSym];
-            if (c?.price) return { ...item, spotPrice: c.price };
-            return item;
-          });
-        }
-      }
-    } catch { /* fallback */ }
-    return DEFAULT_FNO_SIGNALS_IN;
-  });
+  // Initialize empty - will be populated from API
+  const [fnoData, setFnoData] = useState([]);
+  const [chainData, setChainData] = useState(null);
 
   const [filterDirection, setFilterDirection] = useState('ALL');
   const [selectedChainSymbol, setSelectedChainSymbol] = useState(currentMarket === 'US' ? 'SP500' : 'NIFTY50');
-
-  // Initialize option chain underlying price from localStorage cache
-  const [chainData, setChainData] = useState(() => {
-    try {
-      const raw = localStorage.getItem('mm_price_cache_v2');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const cache = parsed?.data;
-        if (cache && Date.now() - parsed.ts < 24 * 3600_000) {
-          const niftyPrice = cache['NIFTY50']?.price || cache['^NSEI']?.price;
-          if (niftyPrice) {
-            return { ...DEFAULT_CHAIN_DATA_IN, underlyingValue: niftyPrice };
-          }
-        }
-      }
-    } catch { /* fallback */ }
-    return DEFAULT_CHAIN_DATA_IN;
-  });
-
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
 
@@ -153,14 +119,20 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
 
   const fetchFnoSignals = useCallback(() => {
     setIsRefreshing(true);
+    setFetchError(null);
     apiFetch(`/api/fno-signals?market=${currentMarket}`)
       .then(async res => {
         const data = typeof res?.json === 'function' ? await res.json() : res;
         const list = Array.isArray(data?.signals) ? data.signals : (Array.isArray(data?.setups) ? data.setups : (Array.isArray(data) ? data : []));
-        if (list && list.length > 0) setFnoData(list);
+        if (list && list.length > 0) {
+          setFnoData(list);
+        } else {
+          setFetchError('No F&O signals available. Data source may be unreachable.');
+        }
         setIsRefreshing(false);
       })
       .catch(() => {
+        setFetchError('Failed to fetch F&O signals. Backend may be offline.');
         setIsRefreshing(false);
       });
   }, [currentMarket]);

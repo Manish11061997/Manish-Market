@@ -1,6 +1,6 @@
 {
-  "apiUrl": "https://summary-over-observations-bottom.trycloudflare.com",
-  "tunnelUrl": "https://summary-over-observations-bottom.trycloudflare.com",
-  "buildTime": "2026-09-04T08:05:00Z",
+  "apiUrl": "https://api.trycloudflare.com",
+  "tunnelUrl": "https://api.trycloudflare.com",
+  "buildTime": "2026-09-07T01:42:18Z",
   "status": "ONLINE"
 }

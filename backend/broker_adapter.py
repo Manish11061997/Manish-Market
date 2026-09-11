@@ -78,7 +78,55 @@ class PaperBrokerAdapter(BaseBrokerAdapter):
         sym = order_req["symbol"]
         side = order_req["side"].upper()
         qty = int(order_req["quantity"])
-        req_price = float(order_req.get("price", 100.0))
+        order_type = str(order_req.get("orderType") or "MARKET").upper()
+        req_price = float(order_req.get("price") or 0.0)
+
+        # Check current market price from live market state or stock analyzer
+        from live_market_state import live_market_state
+        st = live_market_state.get_state(sym)
+        current_market_price = None
+        if st and st.get("price"):
+            current_market_price = float(st["price"])
+        else:
+            try:
+                from stock_agent import analyze_stock
+                s_res = analyze_stock(sym)
+                if s_res and s_res.get("currentPrice"):
+                    current_market_price = float(s_res["currentPrice"])
+            except Exception:
+                pass
+        if not current_market_price or current_market_price <= 0:
+            current_market_price = req_price if req_price > 0 else 100.0
+
+        if req_price <= 0:
+            req_price = current_market_price
+
+        # Check limit condition
+        is_limit_filled = True
+        if order_type == "LIMIT":
+            if side == "BUY" and current_market_price > req_price:
+                is_limit_filled = False
+            elif side == "SELL" and current_market_price < req_price:
+                is_limit_filled = False
+
+        if not is_limit_filled:
+            resp = BrokerOrderResponse(
+                order_id=order_id,
+                broker_order_id=broker_order_id,
+                symbol=sym,
+                side=side,
+                quantity=qty,
+                price=req_price,
+                status="OPEN",
+                fill_price=0.0,
+                fill_quantity=0,
+                slippage=0.0,
+                broker_message=f"Limit order resting in order book at {req_price} (LTP: {current_market_price})",
+                timestamp=time.strftime("%H:%M:%S")
+            )
+            self._orders[order_id] = resp
+            logger.info(f"PAPER LIMIT ORDER OPEN: {side} {qty} {sym} @ ₹/${req_price} (Current LTP: {current_market_price})")
+            return resp
 
         # Realistic market fill slippage (0.02% to 0.05%)
         slippage_pct = 0.0003

@@ -128,8 +128,17 @@ class IntradayStrategyEngine:
         # 7. Multi-Timeframe Score (5%)
         mtf_score = 5 if alignment in ["ALIGNED_BULLISH", "MOSTLY_BULLISH"] else 2
 
-        # 8. Volatility Score (5%)
-        volatility_score = 5
+        # 8. Volatility Score (5%) - Based on ATR and market conditions
+        atr_pct = (indicators.atr / price * 100) if indicators.atr and price > 0 else 2.0
+        if atr_pct < 1.0:
+            volatility_score = 2
+            neutral_ev.append(f"Low volatility environment (ATR: {atr_pct:.1f}%)")
+        elif atr_pct < 2.5:
+            volatility_score = 5
+            neutral_ev.append(f"Normal volatility (ATR: {atr_pct:.1f}%)")
+        else:
+            volatility_score = 3
+            bearish_ev.append(f"High volatility environment (ATR: {atr_pct:.1f}%)")
 
         total_score = pa_score + vol_score + regime_score + vwap_score + mom_score + sr_score + mtf_score + volatility_score
 
@@ -144,6 +153,12 @@ class IntradayStrategyEngine:
             signal = "NEUTRAL"
         else:
             signal = "SHORT"
+
+        # Confidence based on score AND number of confirming signals
+        confirming_count = len(bullish_ev) if signal in ["STRONG_LONG", "LONG"] else len(bearish_ev)
+        total_evidence = len(bullish_ev) + len(bearish_ev) + len(neutral_ev)
+        evidence_ratio = confirming_count / max(total_evidence, 1)
+        confidence = round((total_score / 100.0 * 0.7 + evidence_ratio * 0.3), 2)
 
         # Risk Plan
         risk_plan = RiskManagementEngine.calculate_plan(
@@ -178,7 +193,7 @@ class IntradayStrategyEngine:
             signal=signal,
             setup=orb_pattern.patternName,
             score=total_score,
-            confidence=round(total_score / 100.0, 2),
+            confidence=confidence,
             entryZone=risk_plan.entryZone,
             suggestedEntryPoint=suggested_entry,
             suggestedExitPoints=suggested_exits,

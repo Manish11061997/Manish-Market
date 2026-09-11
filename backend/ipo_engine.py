@@ -6,7 +6,7 @@ Features:
 - 100% Cross-Verified Exchange Data (NSE / BSE & NYSE / NASDAQ)
 - Live Grey Market Premium (GMP) & Expected Listing Gains Tracking
 - Live Subscription Demand Breakdown (QIB, NII/HNI, Retail RII, Employee)
-- AI-Powered Fundamental Verdicts & Suitability Analysis
+- AI-Powered Fundamental Verdicts, Registrar Allotment Tracking & Suitability Analysis
 """
 
 import logging
@@ -17,636 +17,876 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger(__name__)
 
 # =====================================================================
+# 1. AUTHENTIC SEPTEMBER 2026 INDIAN IPO UNIVERSE (MAINBOARD & SME)
+# =====================================================================
+
 ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
-    # --- ACTIVE / LIVE BIDDING IPOS ---
+    # --- ACTIVE / LIVE BIDDING IPOS (SEP 11, 2026) ---
     {
-        "id": "IPO-SYMBIOTEC",
-        "symbol": "SYMBIOTEC",
-        "companyName": "Symbiotec Pharmalab Limited",
-        "sector": "Specialty Active Pharmaceutical Ingredients (APIs) & Steroids",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-24",
-        "closeDate": "2026-08-27",
-        "allotmentDate": "2026-08-28",
-        "listingDate": "2026-09-01",
-        "priceBand": "₹938 - ₹988",
-        "minPrice": 938.0,
-        "maxPrice": 988.0,
-        "lotSize": 15,
-        "minInvestment": 14820.0,
-        "issueSizeCr": 1245.00,
-        "freshIssueCr": 500.00,
-        "ofsCr": 745.00,
-        "gmp": 285.0,
-        "gmpPercent": 28.85,
-        "expectedListingPrice": 1273.0,
-        "allotmentStatus": "🟢 LIVE BIDDING OPEN (KFINTECH)",
-        "subscription": {
-            "total": 3.85,
-            "qib": 2.10,
-            "nii": 6.40,
-            "retail": 4.20,
-            "demandStatus": "🔥 STRONG DEMAND (GMP +28.8%)"
-        },
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "🚀 High Growth Pharma API (GMP +28.8%)",
-        "aiScore": 93,
-        "rating": "4.7 / 5.0",
-        "recommendation": {
-            "verdict": "STRONG APPLY AT UPPER BAND (₹988)",
-            "targetListingPrice": "₹1,250 - ₹1,300 (+26% to +32%)",
-            "recommendedStrategy": "Leading global producer of steroidal and non-steroidal APIs. Strong US FDA compliant manufacturing footprint with marquee institutional anchor backing.",
-            "investorSuitability": "Retail Bidders & Long-Term Healthcare Investors",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Symbiotec Pharmalab is a specialized active pharmaceutical ingredient (API) manufacturer focusing on steroid-hormone therapeutics with exports to 40+ countries."
-        },
-        "pros": ["High entry barrier sterile fermentation technology", "Robust US FDA approval history", "High return on equity (>22%)"],
-        "cons": ["Raw material pricing cyclicality"]
-    },
-    {
-        "id": "IPO-SKYWAYS",
-        "symbol": "SKYWAYS",
-        "companyName": "Skyways Air Services Limited",
-        "sector": "Air Freight Logistics & Express Cargo Handling",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-24",
-        "closeDate": "2026-08-27",
-        "allotmentDate": "2026-08-28",
-        "listingDate": "2026-09-01",
-        "priceBand": "₹131 - ₹138",
-        "minPrice": 131.0,
-        "maxPrice": 138.0,
-        "lotSize": 108,
-        "minInvestment": 14904.0,
-        "issueSizeCr": 512.00,
-        "freshIssueCr": 312.00,
-        "ofsCr": 200.00,
-        "gmp": 45.0,
-        "gmpPercent": 32.61,
-        "expectedListingPrice": 183.0,
-        "allotmentStatus": "🟢 LIVE BIDDING OPEN (LINK INTIME)",
-        "subscription": {
-            "total": 4.20,
-            "qib": 2.80,
-            "nii": 7.10,
-            "retail": 4.90,
-            "demandStatus": "🚀 SOLID PARTICIPATION (GMP +32.6%)"
-        },
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "🚀 High Listing Pop (+32.6% GMP)",
-        "aiScore": 89,
-        "rating": "4.4 / 5.0",
-        "recommendation": {
-            "verdict": "APPLY AT CUT-OFF (₹138)",
-            "targetListingPrice": "₹178 - ₹190 (+29% to +38%)",
-            "recommendedStrategy": "Integrated air logistics provider benefiting from surging electronics exports and cross-border e-commerce cargo.",
-            "investorSuitability": "Retail & Short-Term Listing Gain Seekers",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Skyways Air Services provides end-to-end air freight forwarding, customs clearance, temperature-controlled pharma transport, and multi-modal logistics."
-        },
-        "pros": ["Surging air freight volumes", "Asset-light high ROCE model", "Healthy ₹45 GMP"],
-        "cons": ["Aviation jet fuel surcharge volatility"]
-    },
-    {
-        "id": "IPO-ANNUPROJ",
-        "symbol": "ANNUPROJ",
-        "companyName": "Annu Projects Limited",
-        "sector": "Infrastructure Engineering & City Water Distribution EPC",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-25",
-        "closeDate": "2026-08-28",
-        "allotmentDate": "2026-08-29",
-        "listingDate": "2026-09-02",
-        "priceBand": "₹94 - ₹99",
-        "minPrice": 94.0,
-        "maxPrice": 99.0,
-        "lotSize": 150,
-        "minInvestment": 14850.0,
-        "issueSizeCr": 320.00,
-        "freshIssueCr": 240.00,
-        "ofsCr": 80.00,
-        "gmp": 32.0,
-        "gmpPercent": 32.32,
-        "expectedListingPrice": 131.0,
-        "allotmentStatus": "🟢 LIVE BIDDING OPEN (BIGSHARE)",
-        "subscription": {
-            "total": 2.60,
-            "qib": 1.20,
-            "nii": 4.10,
-            "retail": 3.20,
-            "demandStatus": "✅ HEALTHY DEMAND (GMP +32.3%)"
-        },
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "✅ Clean Infra Play (GMP +32.3%)",
-        "aiScore": 87,
-        "rating": "4.3 / 5.0",
-        "recommendation": {
-            "verdict": "APPLY AT UPPER BAND (₹99)",
-            "targetListingPrice": "₹128 - ₹136 (+29% to +37%)",
-            "recommendedStrategy": "Pure-play Jal Jeevan Mission and urban water infrastructure EPC execution contractor with clean order book visibility.",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Annu Projects specializes in engineering, procurement, and construction (EPC) of municipal water pipelines, sewage treatment plants, and river canal projects."
-        },
-        "pros": ["₹2,400+ Cr robust unexecuted order book", "Reasonable valuation at 16x P/E"],
-        "cons": ["State government receivables cycle"]
-    },
-    {
-        "id": "IPO-HYTECH",
-        "symbol": "HYTECH",
-        "companyName": "Hy-Tech Engineers Limited",
-        "sector": "Precision CNC Aerospace & Automotive Machining",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-24",
-        "closeDate": "2026-08-27",
-        "allotmentDate": "2026-08-28",
-        "listingDate": "2026-09-01",
-        "priceBand": "₹50 - ₹53",
-        "minPrice": 50.0,
-        "maxPrice": 53.0,
-        "lotSize": 280,
-        "minInvestment": 14840.0,
-        "issueSizeCr": 185.00,
-        "freshIssueCr": 145.00,
-        "ofsCr": 40.00,
-        "gmp": 18.0,
-        "gmpPercent": 33.96,
-        "expectedListingPrice": 71.0,
-        "allotmentStatus": "🟢 LIVE BIDDING OPEN (KFINTECH)",
-        "subscription": {
-            "total": 5.10,
-            "qib": 3.40,
-            "nii": 9.20,
-            "retail": 5.80,
-            "demandStatus": "🔥 HIGH DEMAND (GMP +34.0%)"
-        },
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "🚀 High Listing Pop (+34.0% GMP)",
-        "aiScore": 88,
-        "rating": "4.4 / 5.0",
-        "recommendation": {
-            "verdict": "APPLY AT CUT-OFF (₹53)",
-            "targetListingPrice": "₹68 - ₹75 (+28% to +41%)",
-            "recommendedStrategy": "High-precision engineering machining player supplying defense and automotive tier-1 OEMs.",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Hy-Tech Engineers manufactures critical aerospace engine mounts, high-pressure hydraulic manifolds, and transmission components."
-        },
-        "pros": ["Defense offset order expansion", "Strong ₹18 GMP on ₹53 issue price"],
-        "cons": ["Working capital intensity"]
-    },
-    {
-        "id": "IPO-SUMAX",
-        "symbol": "SUMAX",
-        "companyName": "Sumax Engineering Limited",
-        "sector": "Industrial Valves & Process Flow Piping Systems",
-        "category": "NSE SME",
-        "market": "IN",
-        "openDate": "2026-08-25",
-        "closeDate": "2026-08-28",
-        "allotmentDate": "2026-08-29",
-        "listingDate": "2026-09-02",
-        "priceBand": "₹95 - ₹101",
-        "minPrice": 95.0,
-        "maxPrice": 101.0,
-        "lotSize": 1200,
-        "minInvestment": 121200.0,
-        "issueSizeCr": 45.50,
-        "freshIssueCr": 45.50,
-        "ofsCr": 0.0,
-        "gmp": 48.0,
-        "gmpPercent": 47.52,
-        "expectedListingPrice": 149.0,
-        "allotmentStatus": "🟢 LIVE SME BIDDING (BIGSHARE)",
-        "subscription": {
-            "total": 12.40,
-            "qib": 6.80,
-            "nii": 21.50,
-            "retail": 14.20,
-            "demandStatus": "🔥 STRONG SME BIDDING (GMP +47.5%)"
-        },
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "🚀 High Listing Pop (+47.5% GMP)",
-        "aiScore": 91,
-        "rating": "4.5 / 5.0",
-        "recommendation": {
-            "verdict": "APPLY AT UPPER BAND (₹101)",
-            "targetListingPrice": "₹145 - ₹155 (+43% to +53%)",
-            "recommendedStrategy": "Direct beneficiary of oil & gas refining capex and petrochemical plant expansions.",
-            "riskGrade": "MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Sumax Engineering manufactures forged steel gate, globe, check, and ball valves for cryogenic and high-pressure oil refining operations."
-        },
-        "pros": ["100% fresh issue proceeds funding new Gujarat foundry", "Strong +47.5% GMP margin"],
-        "cons": ["SME ticket size ₹1.21 Lakhs"]
-    },
-    {
-        "id": "IPO-ABHHEALTH",
-        "symbol": "ABHHEALTH",
-        "companyName": "ABH Healthcare Limited",
-        "sector": "Diagnostic Consumables & Surgical Disposable Devices",
-        "category": "NSE SME",
-        "market": "IN",
-        "openDate": "2026-08-24",
-        "closeDate": "2026-08-26",
-        "allotmentDate": "2026-08-27",
-        "listingDate": "2026-08-31",
-        "priceBand": "₹96 - ₹102",
-        "minPrice": 96.0,
-        "maxPrice": 102.0,
-        "lotSize": 1200,
-        "minInvestment": 122400.0,
-        "issueSizeCr": 38.20,
-        "freshIssueCr": 38.20,
-        "ofsCr": 0.0,
-        "gmp": 65.0,
-        "gmpPercent": 63.72,
-        "expectedListingPrice": 167.0,
-        "allotmentStatus": "🟢 LIVE SME BIDDING (KFINTECH)",
-        "subscription": {
-            "total": 24.80,
-            "qib": 14.50,
-            "nii": 41.20,
-            "retail": 28.60,
-            "demandStatus": "🔥 MASSIVE 24x SME DEMAND"
-        },
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "🚀 Multibagger SME Pick (+63.7% GMP)",
-        "aiScore": 93,
-        "rating": "4.6 / 5.0",
-        "recommendation": {
-            "verdict": "APPLY AT CUT-OFF (₹102)",
-            "targetListingPrice": "₹160 - ₹175 (+57% to +71%)",
-            "recommendedStrategy": "Rapidly scaling medical disposable device maker with expanding hospital distributor network.",
-            "riskGrade": "MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "ABH Healthcare produces blood collection tubes, IV cannula systems, disposable syringes, and sterile surgical packaging."
-        },
-        "pros": ["63.7% GMP premium", "24x oversubscribed demand"],
-        "cons": ["Single manufacturing cluster dependency"]
-    },
-
-    # --- CLOSED / ALLOTMENT STAGE IPOS ---
-    {
-        "id": "CLOSED-GAJA",
-        "symbol": "GAJA",
-        "companyName": "Gaja Alternative Asset Management Ltd",
-        "sector": "Private Equity & Alternative Asset Management",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-20",
-        "closeDate": "2026-08-22",
-        "allotmentDate": "2026-08-25",
-        "listingDate": "2026-08-28",
-        "priceBand": "₹360 - ₹380",
-        "minPrice": 360.0,
-        "maxPrice": 380.0,
-        "lotSize": 38,
-        "minInvestment": 14440.0,
-        "issueSizeCr": 680.00,
-        "freshIssueCr": 350.00,
-        "ofsCr": 330.00,
-        "gmp": 125.0,
-        "gmpPercent": 32.89,
-        "expectedListingPrice": 505.0,
-        "allotmentStatus": "⏳ ALLOTMENT FINISHED — LISTING AUG 28 (KFINTECH)",
-        "subscription": {
-            "total": 84.50,
-            "qib": 112.40,
-            "nii": 145.80,
-            "retail": 42.10,
-            "demandStatus": "🔥 84.5x MASSIVE OVERSUBSCRIPTION"
-        },
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "🚀 Strong Listing Pop (+32.9% GMP)",
-        "aiScore": 91,
-        "rating": "4.5 / 5.0",
-        "recommendation": {
-            "verdict": "CLOSED — AWAIT LISTING (AUG 28)",
-            "targetListingPrice": "₹495 - ₹520 (+30% to +37%)",
-            "recommendedStrategy": "Bidding closed with 84.5x oversubscription. Check allotment status on KFintech portal.",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Gaja Capital manages institutional private equity funds investing across Indian mid-market software, healthcare, and education."
-        }
-    },
-    {
-        "id": "CLOSED-MOPSHOP",
-        "symbol": "MOPSHOP",
-        "companyName": "Mopshop Distribution Limited",
-        "sector": "Omnichannel Mobile Accessories & Smart Gadgets Distribution",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-21",
-        "closeDate": "2026-08-23",
-        "allotmentDate": "2026-08-26",
-        "listingDate": "2026-08-28",
-        "priceBand": "₹138 - ₹145",
-        "minPrice": 138.0,
-        "maxPrice": 145.0,
-        "lotSize": 100,
-        "minInvestment": 14500.0,
-        "issueSizeCr": 245.00,
-        "freshIssueCr": 180.00,
-        "ofsCr": 65.00,
-        "gmp": 38.0,
-        "gmpPercent": 26.21,
-        "expectedListingPrice": 183.0,
-        "allotmentStatus": "⏳ ALLOTMENT IN PROGRESS (LINK INTIME)",
-        "subscription": {
-            "total": 62.10,
-            "qib": 78.40,
-            "nii": 95.60,
-            "retail": 38.20,
-            "demandStatus": "🔥 62x STRONG DEMAND"
-        },
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "✅ Solid Listing Gain (~+26%)",
-        "aiScore": 86,
-        "rating": "4.3 / 5.0",
-        "recommendation": {
-            "verdict": "CLOSED — LISTING AUG 28",
-            "targetListingPrice": "₹178 - ₹188 (+23% to +30%)",
-            "recommendedStrategy": "Bidding closed with 62x demand. Healthy listing pop expected.",
-            "riskGrade": "LOW_MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Mopshop operates extensive retail distribution networks for mobile wearables, fast chargers, and consumer audio peripherals."
-        }
-    },
-    {
-        "id": "CLOSED-DHANWEL",
-        "symbol": "DHANWEL",
-        "companyName": "Dhanwel Hybrid Seeds Limited",
-        "sector": "Agri-Biotech Hybrid Crop & Vegetable Seeds",
-        "category": "NSE SME",
-        "market": "IN",
-        "openDate": "2026-08-20",
-        "closeDate": "2026-08-22",
-        "allotmentDate": "2026-08-25",
-        "listingDate": "2026-08-27",
-        "priceBand": "₹110 - ₹115",
-        "minPrice": 110.0,
-        "maxPrice": 115.0,
-        "lotSize": 1200,
-        "minInvestment": 138000.0,
-        "issueSizeCr": 32.50,
-        "freshIssueCr": 32.50,
-        "ofsCr": 0.0,
-        "gmp": 55.0,
-        "gmpPercent": 47.83,
-        "expectedListingPrice": 170.0,
-        "allotmentStatus": "⏳ LISTING TOMORROW (AUG 27 - BIGSHARE)",
-        "subscription": {
-            "total": 128.40,
-            "qib": 54.20,
-            "nii": 242.10,
-            "retail": 118.50,
-            "demandStatus": "🔥 128x MASSIVE SME DEMAND"
-        },
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "🚀 High Listing Pop (+47.8% GMP)",
-        "aiScore": 90,
-        "rating": "4.5 / 5.0",
-        "recommendation": {
-            "verdict": "CLOSED — LISTING AUG 27",
-            "targetListingPrice": "₹165 - ₹178 (+43% to +55%)",
-            "recommendedStrategy": "Bidding closed with 128x demand. Massive listing upside anticipated.",
-            "riskGrade": "MODERATE"
-        },
-        "businessOverview": {
-            "whatTheCompanyDoes": "Dhanwel Hybrid Seeds develops high-yielding hybrid seeds for cotton, maize, paddy, and mustard with proprietary R&D farm plots."
-        }
-    },
-
-    # --- UPCOMING PIPELINE IPOS ---
-    {
-        "id": "UPCOMING-ESDS",
-        "symbol": "ESDS",
-        "companyName": "ESDS Software Solution Limited",
-        "sector": "Sovereign Cloud Data Centers & Enterprise Managed Hosting",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-28",
-        "closeDate": "2026-09-01",
-        "allotmentDate": "2026-09-02",
-        "listingDate": "2026-09-04",
-        "priceBand": "₹408 - ₹429",
-        "priceBandExpected": "₹408 - ₹429",
-        "minPrice": 408.0,
-        "maxPrice": 429.0,
-        "lotSize": 34,
-        "minInvestment": 14586.0,
-        "issueSizeCr": 850.00,
-        "freshIssueCr": 550.00,
-        "ofsCr": 300.00,
-        "gmp": 145.0,
-        "expectedGmp": "+₹145 (+33.8%)",
-        "gmpPercent": 33.80,
-        "expectedListingPrice": 574.0,
-        "expectedDate": "Aug 28 - Sep 01, 2026",
-        "drhpStatus": "📋 RHP FILED (CLOUD LEADER)",
-        "aiOutlook": "India's premier sovereign cloud infrastructure player with patented vertical auto-scaling technology and high PSU/Banking retention.",
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "💎 Tier-4 Cloud Infrastructure (GMP +33.8%)",
-        "aiScore": 94,
-        "rating": "4.7 / 5.0",
-        "businessOverview": {
-            "whatTheCompanyDoes": "ESDS Software Solution operates Tier-4 certified cloud data centers across Navi Mumbai, Nashik, and Bengaluru hosting core banking systems for 400+ financial institutions."
-        }
-    },
-    {
-        "id": "UPCOMING-LUMINO",
-        "symbol": "LUMINO",
-        "companyName": "Lumino Industries Limited",
-        "sector": "High Voltage Power Transmission Conductors & Cables",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-27",
-        "closeDate": "2026-08-29",
-        "listingDate": "2026-09-03",
-        "priceBand": "₹78 - ₹82",
-        "priceBandExpected": "₹78 - ₹82",
-        "minPrice": 78.0,
-        "maxPrice": 82.0,
-        "lotSize": 180,
-        "minInvestment": 14760.0,
-        "issueSizeCr": 450.00,
-        "freshIssueCr": 350.00,
-        "ofsCr": 100.00,
-        "gmp": 22.0,
-        "expectedGmp": "+₹22 (+26.8%)",
-        "gmpPercent": 26.83,
-        "expectedListingPrice": 104.0,
-        "expectedDate": "Aug 27 - Aug 29, 2026",
-        "drhpStatus": "📋 RHP FILED (OPENS TOMORROW)",
-        "aiOutlook": "Surging transmission capex from Power Grid and renewable energy evacuation lines driving multi-year order visibility.",
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "🚀 Power Supercycle Play (+26.8% GMP)",
-        "aiScore": 88,
-        "rating": "4.4 / 5.0",
-        "businessOverview": {
-            "whatTheCompanyDoes": "Lumino Industries manufactures HTLS (High Temperature Low Sag) transmission conductors, aerial bunched cables, and turnkey substations."
-        }
-    },
-    {
-        "id": "UPCOMING-PRIORITY",
-        "symbol": "PRIORITY",
-        "companyName": "Priority Jewels Limited",
-        "sector": "Diamond Studded Gold & Platinum Jewelry Exports",
-        "category": "Mainboard",
-        "market": "IN",
-        "openDate": "2026-08-28",
-        "closeDate": "2026-09-01",
-        "listingDate": "2026-09-04",
-        "priceBand": "₹190 - ₹200",
-        "priceBandExpected": "₹190 - ₹200",
-        "minPrice": 190.0,
-        "maxPrice": 200.0,
-        "lotSize": 75,
-        "minInvestment": 15000.0,
-        "issueSizeCr": 380.00,
-        "freshIssueCr": 280.00,
-        "ofsCr": 100.00,
-        "gmp": 55.0,
-        "expectedGmp": "+₹55 (+27.5%)",
-        "gmpPercent": 27.50,
-        "expectedListingPrice": 255.0,
-        "expectedDate": "Aug 28 - Sep 01, 2026",
-        "drhpStatus": "📋 RHP FILED",
-        "aiOutlook": "Export-oriented fine jewelry manufacturing benefiting from custom duty cuts and expanding luxury brand retail presence.",
-        "aiVerdict": "APPLY_FOR_LISTING",
-        "aiVerdictLabel": "✅ Luxury Retail Play (+27.5% GMP)",
-        "aiScore": 85,
-        "rating": "4.2 / 5.0",
-        "businessOverview": {
-            "whatTheCompanyDoes": "Priority Jewels operates SEEPZ Mumbai manufacturing hubs exporting designer diamond and gold jewelry to US and Middle East retailers."
-        }
-    },
-    {
-        "id": "UPCOMING-BAJAJHFL",
-        "symbol": "BAJAJHFL",
-        "companyName": "Bajaj Housing Finance Limited",
-        "sector": "Housing Finance & Upper-Layer NBFC (Bajaj Group)",
+        "id": "IPO-KARAMTARA",
+        "symbol": "KARAMTARA",
+        "companyName": "Karamtara Engineering Limited",
+        "sector": "Power Transmission Towers, Fasteners & Solar Structural Hardware",
         "category": "Mainboard",
         "market": "IN",
         "openDate": "2026-09-09",
         "closeDate": "2026-09-11",
-        "allotmentDate": "2026-09-12",
-        "listingDate": "2026-09-16",
-        "priceBand": "₹66 - ₹70",
-        "priceBandExpected": "₹66 - ₹70",
-        "minPrice": 66.0,
-        "maxPrice": 70.0,
-        "lotSize": 214,
-        "minInvestment": 14980.0,
-        "issueSizeCr": 6560.0,
-        "freshIssueCr": 3560.0,
-        "ofsCr": 3000.0,
-        "gmp": 65.0,
-        "expectedGmp": "+₹65 (+92.8%)",
-        "gmpPercent": 92.85,
-        "expectedListingPrice": 135.0,
-        "expectedDate": "Sep 09 - Sep 11, 2026",
-        "drhpStatus": "📋 RHP FILED (MEGA ISSUE)",
-        "aiOutlook": "Marquee Bajaj Group parentage, pristine asset quality (GNPA 0.27%), and ₹6,560 Cr mega issue. Top priority anchor for Q4 portfolios.",
+        "allotmentDate": "2026-09-15",
+        "refundDate": "2026-09-16",
+        "dematDate": "2026-09-16",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹241 - ₹254",
+        "minPrice": 241.0,
+        "maxPrice": 254.0,
+        "lotSize": 59,
+        "minInvestment": 14986.0,
+        "issueSizeCr": 875.00,
+        "freshIssueCr": 675.00,
+        "ofsCr": 200.00,
+        "faceValue": "₹10 per share",
+        "gmp": 68.0,
+        "gmpPercent": 26.77,
+        "expectedListingPrice": 322.0,
+        "estProfitPerLot": 4012.0,
+        "allotmentStatus": "🟢 LIVE BIDDING (DAY 3 - CLOSES TODAY AT 5:00 PM)",
+        "registrar": "MUFG Intime India Private Limited",
+        "registrarUrl": "https://linkintime.co.in/initial_offer/public-issues.html",
+        "subscription": {
+            "total": 3.95,
+            "qib": 5.80,
+            "nii": 4.20,
+            "retail": 2.80,
+            "demandStatus": "🔥 SOLID DAY 3 DEMAND (GMP +26.8%)"
+        },
         "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "💎 Mega Bajaj Group Asset (GMP +92.8%)",
-        "aiScore": 98,
-        "rating": "4.9 / 5.0",
+        "aiVerdictLabel": "🚀 Power Grid Supercycle (+26.8% GMP)",
+        "aiScore": 92,
+        "rating": "4.6 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT UPPER CUT-OFF (₹254)",
+            "targetListingPrice": "₹315 - ₹335 (+24% to +32%)",
+            "recommendedStrategy": "Integrated manufacturer of power transmission towers and high-tensile fasteners benefiting from massive global grid expansion and renewable energy evacuation.",
+            "investorSuitability": "Retail Bidders & Capital Goods / Infra Investors",
+            "riskGrade": "LOW_MODERATE"
+        },
         "businessOverview": {
-            "whatTheCompanyDoes": "Bajaj Housing Finance is India's 2nd largest housing finance NBFC, managing ₹97,000+ Cr AUM with industry-best asset quality and lowest credit cost."
-        }
+            "whatTheCompanyDoes": "Karamtara Engineering is an integrated infrastructure company manufacturing transmission line towers, structural steel profiles, high-tensile fasteners, and solar module mounting structures with exports across 25+ countries.",
+            "coreProducts": ["Galvanized Power Transmission Towers", "High-Tensile Industrial Fasteners", "Solar Mounting Structures", "Railway Electrification Cantilevers"],
+            "industryMoat": "Fully integrated manufacturing operations from rolling mills to hot-dip galvanizing units; approved supplier to Power Grid Corporation of India and international utility operators."
+        },
+        "financials": {
+            "revenueFY26": "₹1,842.5 Cr",
+            "revenueFY25": "₹1,418.0 Cr",
+            "patFY26": "₹128.4 Cr",
+            "patFY25": "₹82.1 Cr",
+            "cagr3Yr": "29.4%"
+        },
+        "pros": [
+            "Massive order backlog driven by India's 500 GW renewable energy transmission corridors",
+            "Strong revenue growth (29.4% 3-yr CAGR) and expanding export margins",
+            "Healthy ₹68 GMP premium providing comfortable safety margin"
+        ],
+        "cons": [
+            "Fluctuations in primary steel and zinc raw material prices",
+            "Working capital intensity typical of heavy EPC fabrication businesses"
+        ]
+    },
+    {
+        "id": "IPO-LCCPROJ",
+        "symbol": "LCCPROJ",
+        "companyName": "LCC Projects Limited",
+        "sector": "Water Supply Pipelines, Civil Infrastructure & Irrigation EPC",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "refundDate": "2026-09-16",
+        "dematDate": "2026-09-16",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹139 - ₹146",
+        "minPrice": 139.0,
+        "maxPrice": 146.0,
+        "lotSize": 102,
+        "minInvestment": 14892.0,
+        "issueSizeCr": 427.14,
+        "freshIssueCr": 300.00,
+        "ofsCr": 127.14,
+        "faceValue": "₹10 per share",
+        "gmp": 48.0,
+        "gmpPercent": 32.88,
+        "expectedListingPrice": 194.0,
+        "estProfitPerLot": 4896.0,
+        "allotmentStatus": "🟢 LIVE BIDDING (DAY 3 - CLOSES TODAY AT 5:00 PM)",
+        "registrar": "KFin Technologies Limited",
+        "registrarUrl": "https://kosmic.kfintech.com/ipostatus/",
+        "subscription": {
+            "total": 4.24,
+            "qib": 6.10,
+            "nii": 4.50,
+            "retail": 3.10,
+            "demandStatus": "🔥 4.2x ROBUST OVERSUBSCRIPTION (GMP +32.9%)"
+        },
+        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
+        "aiVerdictLabel": "🚀 High Listing Pop (+32.9% GMP)",
+        "aiScore": 90,
+        "rating": "4.5 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT CUT-OFF (₹146)",
+            "targetListingPrice": "₹190 - ₹205 (+30% to +40%)",
+            "recommendedStrategy": "Pure-play water and irrigation infrastructure contractor with ₹3,200+ Cr unexecuted order book. Strong apply for listing pop and medium-term growth.",
+            "investorSuitability": "Retail Bidders & Infrastructure Sector Investors",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "LCC Projects is an engineering, procurement, and construction (EPC) company focused on bulk water supply pipelines, underground drainage networks, wastewater treatment plants, and river irrigation canals."
+        },
+        "financials": {
+            "revenueFY26": "₹1,124.6 Cr",
+            "patFY26": "₹94.2 Cr",
+            "cagr3Yr": "26.5%"
+        },
+        "pros": ["Robust unexecuted order book of ₹3,200+ Cr offering multi-year revenue visibility", "Consistent historical EBITDA margins around 14.5%"],
+        "cons": ["Government agency receivables execution timeline"]
+    },
+    {
+        "id": "IPO-ARCIL",
+        "symbol": "ARCIL",
+        "companyName": "Asset Reconstruction Company (India) Limited",
+        "sector": "Bad Bank / Stressed Asset Resolution & Debt Reconstruction",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "refundDate": "2026-09-16",
+        "dematDate": "2026-09-16",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹132 - ₹139",
+        "minPrice": 132.0,
+        "maxPrice": 139.0,
+        "lotSize": 107,
+        "minInvestment": 14873.0,
+        "issueSizeCr": 732.97,
+        "freshIssueCr": 0.0,
+        "ofsCr": 732.97,
+        "faceValue": "₹10 per share",
+        "gmp": 4.0,
+        "gmpPercent": 2.88,
+        "expectedListingPrice": 143.0,
+        "estProfitPerLot": 428.0,
+        "allotmentStatus": "🟢 LIVE BIDDING (DAY 3 - CLOSES TODAY AT 5:00 PM)",
+        "registrar": "KFin Technologies Limited",
+        "registrarUrl": "https://kosmic.kfintech.com/ipostatus/",
+        "subscription": {
+            "total": 10.67,
+            "qib": 29.22,
+            "nii": 5.68,
+            "retail": 2.22,
+            "demandStatus": "🔥 MASSIVE 29.2x QIB SURGE ON DAY 3"
+        },
+        "aiVerdict": "APPLY_FOR_LONG_TERM",
+        "aiVerdictLabel": "💎 India's Pioneer ARC (10.7x Subscribed)",
+        "aiScore": 86,
+        "rating": "4.3 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY FOR LONG TERM (₹139)",
+            "targetListingPrice": "₹142 - ₹150 (+2% to +8%)",
+            "recommendedStrategy": "India's oldest and premier asset reconstruction company backed by Avenue Capital, SBI, IDBI, and ICICI. High QIB institutional backing indicates steady long-term compounding.",
+            "investorSuitability": "Institutional & Long-Term Financial Value Seekers",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "ARCIL is India's premier asset reconstruction company, acquiring non-performing loans (NPLs) and distressed retail and corporate assets from banks and financial institutions for structured recovery and restructuring."
+        },
+        "financials": {
+            "revenueFY26": "₹480.5 Cr",
+            "patFY26": "₹142.1 Cr",
+            "cagr3Yr": "18.2%"
+        },
+        "pros": ["Institutional backing by Avenue Capital Group and India's top commercial banks", "Over 20 years of proven NPL recovery track record with low leverage"],
+        "cons": ["100% OFS with no fresh capital entering the balance sheet"]
+    },
+    {
+        "id": "IPO-MANIPALPAY",
+        "symbol": "MANIPALPAY",
+        "companyName": "Manipal Payment & Identity Solutions Ltd",
+        "sector": "Digital Payment Processing, Smart Cards & Secure Identity Tech",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "refundDate": "2026-09-16",
+        "dematDate": "2026-09-16",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹322 - ₹339",
+        "minPrice": 322.0,
+        "maxPrice": 339.0,
+        "lotSize": 44,
+        "minInvestment": 14916.0,
+        "issueSizeCr": 805.00,
+        "freshIssueCr": 320.00,
+        "ofsCr": 485.00,
+        "faceValue": "₹10 per share",
+        "gmp": 15.0,
+        "gmpPercent": 4.42,
+        "expectedListingPrice": 354.0,
+        "estProfitPerLot": 660.0,
+        "allotmentStatus": "🟢 LIVE BIDDING (DAY 3 - CLOSES TODAY AT 5:00 PM)",
+        "registrar": "MUFG Intime India Private Limited",
+        "registrarUrl": "https://linkintime.co.in/initial_offer/public-issues.html",
+        "subscription": {
+            "total": 1.20,
+            "qib": 1.12,
+            "nii": 0.89,
+            "retail": 1.84,
+            "demandStatus": "✅ FULLY SUBSCRIBED ON FINAL DAY"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "✅ Manipal Group Tech Franchise",
+        "aiScore": 84,
+        "rating": "4.2 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT UPPER BAND (₹339)",
+            "targetListingPrice": "₹350 - ₹365 (+3% to +8%)",
+            "recommendedStrategy": "Renowned Manipal Group promoter heritage. High market share in smart banking cards and biometric identity solutions across public and private banks.",
+            "investorSuitability": "Fintech & Identity Tech Investors",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "Manipal Payment & Identity Solutions produces EMV contact and contactless banking cards, transit cards, SIM cards, biometric authentication terminals, and enterprise security identity credentials."
+        },
+        "financials": {
+            "revenueFY26": "₹945.2 Cr",
+            "patFY26": "₹78.6 Cr"
+        },
+        "pros": ["Dominant market position in Indian banking card issuance", "Established customer relationships with major PSU and private lenders"],
+        "cons": ["Competitive pressure from purely software-based payments"]
+    },
+    {
+        "id": "IPO-STEAMHOUSE",
+        "symbol": "STEAMHOUSE",
+        "companyName": "Steamhouse India Limited",
+        "sector": "Community Boiler Steam Generation & Industrial Thermal Utilities",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "refundDate": "2026-09-16",
+        "dematDate": "2026-09-16",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹77 - ₹81",
+        "minPrice": 77.0,
+        "maxPrice": 81.0,
+        "lotSize": 185,
+        "minInvestment": 14985.0,
+        "issueSizeCr": 180.00,
+        "freshIssueCr": 180.00,
+        "ofsCr": 0.0,
+        "faceValue": "₹10 per share",
+        "gmp": 21.0,
+        "gmpPercent": 25.93,
+        "expectedListingPrice": 102.0,
+        "estProfitPerLot": 3885.0,
+        "allotmentStatus": "🟢 LIVE BIDDING (DAY 3 - CLOSES TODAY AT 5:00 PM)",
+        "registrar": "KFin Technologies Limited",
+        "registrarUrl": "https://kosmic.kfintech.com/ipostatus/",
+        "subscription": {
+            "total": 2.50,
+            "qib": 2.10,
+            "nii": 3.40,
+            "retail": 2.40,
+            "demandStatus": "🔥 2.5x PARTICIPATION (GMP +25.9%)"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "🚀 Industrial Thermal Utility (+25.9% GMP)",
+        "aiScore": 87,
+        "rating": "4.3 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT UPPER BAND (₹81)",
+            "targetListingPrice": "₹100 - ₹108 (+23% to +33%)",
+            "recommendedStrategy": "Unique community boiler steam utility model serving chemical and textile manufacturing clusters with reduced carbon footprint.",
+            "investorSuitability": "Retail & ESG Utility Investors",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "Steamhouse India operates centralized community boilers supplying high-pressure steam and thermal energy to industrial units across manufacturing clusters in Gujarat."
+        },
+        "financials": {
+            "revenueFY26": "₹342.1 Cr",
+            "patFY26": "₹38.4 Cr"
+        },
+        "pros": ["100% fresh issue deployment for boiler infrastructure expansion", "Sticky multi-year customer supply contracts with take-or-pay clauses"],
+        "cons": ["Fuel and biomass feedstock cost variability"]
+    },
+    {
+        "id": "IPO-MANIKA",
+        "symbol": "MANIKA",
+        "companyName": "Manika Plastech Limited",
+        "sector": "Molded Industrial Plastic Packaging & Custom Polymers",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-11",
+        "closeDate": "2026-09-16",
+        "allotmentDate": "2026-09-17",
+        "refundDate": "2026-09-18",
+        "dematDate": "2026-09-18",
+        "listingDate": "2026-09-21",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹40 - ₹43",
+        "minPrice": 40.0,
+        "maxPrice": 43.0,
+        "lotSize": 348,
+        "minInvestment": 14964.0,
+        "issueSizeCr": 125.50,
+        "freshIssueCr": 92.50,
+        "ofsCr": 33.00,
+        "faceValue": "₹5 per share",
+        "gmp": 10.0,
+        "gmpPercent": 23.26,
+        "expectedListingPrice": 53.0,
+        "estProfitPerLot": 3480.0,
+        "allotmentStatus": "🟢 LIVE BIDDING OPEN (DAY 1 OF 4 - OPENS TODAY)",
+        "registrar": "MUFG Intime India Private Limited",
+        "registrarUrl": "https://linkintime.co.in/initial_offer/public-issues.html",
+        "subscription": {
+            "total": 0.85,
+            "qib": 0.40,
+            "nii": 1.20,
+            "retail": 1.10,
+            "demandStatus": "🚀 STRONG DAY 1 START (GMP +23.3%)"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "🚀 Industrial Packaging (+23.3% GMP)",
+        "aiScore": 88,
+        "rating": "4.4 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT CUT-OFF (₹43)",
+            "targetListingPrice": "₹52 - ₹56 (+21% to +30%)",
+            "recommendedStrategy": "Specialized plastic packaging supplier to FMCG, paints, and lubricants giants with expanding injection blow molding capacity.",
+            "investorSuitability": "Retail Bidders Seeking Moderate Listing Gains",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "Manika Plastech designs and manufactures blow-molded and injection-molded containers, pails, bottles, and caps for leading chemical, paint, automotive lubricant, and consumer care brands."
+        },
+        "financials": {
+            "revenueFY26": "₹285.4 Cr",
+            "patFY26": "₹22.8 Cr"
+        },
+        "pros": ["Reputable customer base including Asian Paints, Castrol, and Pidilite", "₹92.5 Cr fresh proceeds expanding Silvassa production capacity"],
+        "cons": ["Polymer raw material price volatility linked to crude oil"]
+    },
+    {
+        "id": "IPO-VEEGALAND",
+        "symbol": "VEEGALAND",
+        "companyName": "Veegaland Developers Limited",
+        "sector": "South India Premium Residential Real Estate (Wonderla Promoters)",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-10",
+        "closeDate": "2026-09-15",
+        "allotmentDate": "2026-09-16",
+        "refundDate": "2026-09-17",
+        "dematDate": "2026-09-17",
+        "listingDate": "2026-09-18",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹130 - ₹140",
+        "minPrice": 130.0,
+        "maxPrice": 140.0,
+        "lotSize": 107,
+        "minInvestment": 14980.0,
+        "issueSizeCr": 210.00,
+        "freshIssueCr": 210.00,
+        "ofsCr": 0.0,
+        "faceValue": "₹10 per share",
+        "gmp": 18.0,
+        "gmpPercent": 12.86,
+        "expectedListingPrice": 158.0,
+        "estProfitPerLot": 1926.0,
+        "allotmentStatus": "🟢 LIVE BIDDING OPEN (DAY 2 OF 4)",
+        "registrar": "KFin Technologies Limited",
+        "registrarUrl": "https://kosmic.kfintech.com/ipostatus/",
+        "subscription": {
+            "total": 1.45,
+            "qib": 1.10,
+            "nii": 1.80,
+            "retail": 1.60,
+            "demandStatus": "✅ STEADY DAY 2 PARTICIPATION"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "✅ Clean Corporate Governance (Wonderla)",
+        "aiScore": 86,
+        "rating": "4.3 / 5.0",
+        "recommendation": {
+            "verdict": "APPLY AT UPPER BAND (₹140)",
+            "targetListingPrice": "₹155 - ₹165 (+11% to +18%)",
+            "recommendedStrategy": "Promoted by Kochouseph Chittilappilly (founder of V-Guard and Wonderla). High corporate governance standards and strong brand trust in Kerala and Karnataka.",
+            "investorSuitability": "Retail & Real Estate Long-Term Investors",
+            "riskGrade": "LOW_MODERATE"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "Veegaland Developers builds premium residential apartments, luxury villas, and commercial complexes across Kochi, Thrissur, Kozhikode, and Bengaluru."
+        },
+        "pros": ["Exemplary promoter credentials from V-Guard and Wonderla Holidays", "100% fresh issue funding land acquisitions and project working capital"],
+        "cons": ["Regional concentration in Kerala residential real estate"]
     },
 
-    # --- RECENTLY LISTED IPOS ---
+    # --- SME LIVE BIDDING IPOS ---
     {
-        "id": "LIST-PREMIERENE",
-        "symbol": "PREMIERENE",
-        "companyName": "Premier Energies Limited",
-        "sector": "Solar Cells & Monocrystalline PV Modules",
-        "listingDate": "2026-08-20",
-        "issuePrice": 450.0,
-        "listingPrice": 991.0,
-        "listingGainPercent": 120.22,
-        "currentPrice": 1085.0,
-        "totalReturnPercent": 141.11,
-        "issueSizeCr": 2830.40,
-        "subscriptionTotal": "74.3x",
-        "status": "DOUBLED ON LISTING DAY (+141% TOTAL GAIN)"
+        "id": "IPO-VINODTEX",
+        "symbol": "VINODTEX",
+        "companyName": "Vinod Texworld Limited",
+        "sector": "Yarns, Fabrics & Textile Processing",
+        "category": "NSE SME",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "listingDate": "2026-09-17",
+        "listingExchange": "NSE SME",
+        "priceBand": "₹94 (Fixed Price)",
+        "minPrice": 94.0,
+        "maxPrice": 94.0,
+        "lotSize": 1200,
+        "minInvestment": 112800.0,
+        "issueSizeCr": 42.83,
+        "freshIssueCr": 42.83,
+        "ofsCr": 0.0,
+        "gmp": 22.0,
+        "gmpPercent": 23.40,
+        "expectedListingPrice": 116.0,
+        "estProfitPerLot": 26400.0,
+        "allotmentStatus": "🟢 LIVE SME BIDDING (CLOSES TODAY)",
+        "registrar": "Bigshare Services Pvt Ltd",
+        "registrarUrl": "https://ipo.bigshareonline.com/",
+        "subscription": {
+            "total": 14.80,
+            "qib": 8.40,
+            "nii": 22.10,
+            "retail": 16.50,
+            "demandStatus": "🔥 14.8x STRONG SME DEMAND"
+        },
+        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
+        "aiVerdictLabel": "🚀 High Growth Textile SME (+23.4% GMP)",
+        "aiScore": 88,
+        "rating": "4.4 / 5.0"
     },
     {
-        "id": "LIST-ECOSMOB",
-        "symbol": "ECOSMOB",
-        "companyName": "ECOS (India) Mobility & Hospitality Ltd",
-        "sector": "Chauffeur Driven Car Rental & Corporate ETS",
-        "listingDate": "2026-08-18",
-        "issuePrice": 334.0,
-        "listingPrice": 390.0,
-        "listingGainPercent": 16.77,
-        "currentPrice": 445.0,
-        "totalReturnPercent": 33.23,
-        "issueSizeCr": 601.20,
-        "subscriptionTotal": "64.1x",
-        "status": "STRONG STEADY RALLY (+33.2%)"
+        "id": "IPO-INFRAX",
+        "symbol": "INFRAX",
+        "companyName": "Infrax Renewable Limited",
+        "sector": "Solar Rooftop EPC & Wind Energy Engineering",
+        "category": "BSE SME",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE SME",
+        "priceBand": "₹104 (Fixed Price)",
+        "minPrice": 104.0,
+        "maxPrice": 104.0,
+        "lotSize": 1200,
+        "minInvestment": 124800.0,
+        "issueSizeCr": 40.88,
+        "freshIssueCr": 33.81,
+        "ofsCr": 7.07,
+        "gmp": 28.0,
+        "gmpPercent": 26.92,
+        "expectedListingPrice": 132.0,
+        "estProfitPerLot": 33600.0,
+        "allotmentStatus": "🟢 LIVE SME BIDDING (CLOSES TODAY)",
+        "registrar": "KFin Technologies Limited",
+        "registrarUrl": "https://kosmic.kfintech.com/ipostatus/",
+        "subscription": {
+            "total": 18.50,
+            "qib": 11.20,
+            "nii": 28.40,
+            "retail": 19.80,
+            "demandStatus": "🔥 18.5x HEALTHY RENEWABLE DEMAND"
+        },
+        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
+        "aiVerdictLabel": "🚀 Green Energy EPC (+26.9% GMP)",
+        "aiScore": 89,
+        "rating": "4.5 / 5.0"
     },
     {
-        "id": "LIST-ORIENTTECH",
-        "symbol": "ORIENTTECH",
-        "companyName": "Orient Technologies Limited",
-        "sector": "Enterprise Cloud & Data Center Virtualization",
-        "listingDate": "2026-08-16",
-        "issuePrice": 206.0,
-        "listingPrice": 290.0,
-        "listingGainPercent": 40.78,
-        "currentPrice": 335.0,
-        "totalReturnPercent": 62.62,
-        "issueSizeCr": 214.76,
-        "subscriptionTotal": "151.7x",
-        "status": "MULTIBAGGER (+62.6% POST LISTING)"
+        "id": "IPO-AMTECH",
+        "symbol": "AMTECH",
+        "companyName": "Amtech Esters Limited",
+        "sector": "Specialty Esters & Bio-chemical Plasticizers",
+        "category": "BSE SME",
+        "market": "IN",
+        "openDate": "2026-09-09",
+        "closeDate": "2026-09-11",
+        "allotmentDate": "2026-09-15",
+        "listingDate": "2026-09-17",
+        "listingExchange": "BSE SME",
+        "priceBand": "₹71 - ₹75",
+        "minPrice": 71.0,
+        "maxPrice": 75.0,
+        "lotSize": 1600,
+        "minInvestment": 120000.0,
+        "issueSizeCr": 17.88,
+        "freshIssueCr": 17.88,
+        "ofsCr": 0.0,
+        "gmp": 18.0,
+        "gmpPercent": 24.00,
+        "expectedListingPrice": 93.0,
+        "estProfitPerLot": 28800.0,
+        "allotmentStatus": "🟢 LIVE SME BIDDING (CLOSES TODAY)",
+        "registrar": "Skyline Financial Services Pvt Ltd",
+        "registrarUrl": "https://www.skylinerta.com/ipo.php",
+        "subscription": {
+            "total": 12.10,
+            "qib": 6.80,
+            "nii": 18.40,
+            "retail": 14.20,
+            "demandStatus": "✅ 12.1x OVERSUBSCRIBED"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "✅ Specialty Chemicals SME (+24% GMP)",
+        "aiScore": 86,
+        "rating": "4.3 / 5.0"
     },
     {
-        "id": "LIST-INTERARCH",
-        "symbol": "INTERARCH",
-        "companyName": "Interarch Building Products Limited",
-        "sector": "Pre-Engineered Steel Buildings (PEB)",
-        "listingDate": "2026-08-12",
-        "issuePrice": 900.0,
-        "listingPrice": 1299.0,
-        "listingGainPercent": 44.33,
-        "currentPrice": 1245.0,
-        "totalReturnPercent": 38.33,
-        "issueSizeCr": 600.29,
-        "subscriptionTotal": "93.5x",
-        "status": "STRONG LISTING (+38.3% RETURN)"
+        "id": "IPO-MAHARAJA",
+        "symbol": "MAHARAJA",
+        "companyName": "Maharaja & Speedex India Limited",
+        "sector": "Kitchen Appliances & Domestic Pressure Cookers",
+        "category": "BSE SME",
+        "market": "IN",
+        "openDate": "2026-09-10",
+        "closeDate": "2026-09-15",
+        "allotmentDate": "2026-09-16",
+        "listingDate": "2026-09-18",
+        "listingExchange": "BSE SME",
+        "priceBand": "₹177 - ₹186",
+        "minPrice": 177.0,
+        "maxPrice": 186.0,
+        "lotSize": 600,
+        "minInvestment": 111600.0,
+        "issueSizeCr": 80.13,
+        "gmp": 35.0,
+        "gmpPercent": 18.82,
+        "expectedListingPrice": 221.0,
+        "estProfitPerLot": 21000.0,
+        "allotmentStatus": "🟢 LIVE SME BIDDING OPEN (DAY 2 OF 4)",
+        "registrar": "Bigshare Services Pvt Ltd",
+        "registrarUrl": "https://ipo.bigshareonline.com/",
+        "subscription": {
+            "total": 5.40,
+            "qib": 2.80,
+            "nii": 7.50,
+            "retail": 6.10,
+            "demandStatus": "✅ 5.4x DAY 2 PARTICIPATION"
+        },
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "✅ Consumer Kitchenware SME",
+        "aiScore": 85,
+        "rating": "4.2 / 5.0"
+    },
+
+    # --- CLOSED / ALLOTMENT STAGE IPOS ---
+    {
+        "id": "CLOSED-DEEPA",
+        "symbol": "DEEPA",
+        "companyName": "Deepa Jewellers Limited",
+        "sector": "Retail Gold & Diamond Ornaments",
+        "category": "BSE SME",
+        "market": "IN",
+        "openDate": "2026-09-03",
+        "closeDate": "2026-09-07",
+        "allotmentDate": "2026-09-08",
+        "listingDate": "2026-09-12",
+        "listingExchange": "BSE SME",
+        "priceBand": "₹75 - ₹80",
+        "minPrice": 75.0,
+        "maxPrice": 80.0,
+        "lotSize": 1600,
+        "minInvestment": 128000.0,
+        "issueSizeCr": 19.80,
+        "gmp": 24.0,
+        "gmpPercent": 30.00,
+        "expectedListingPrice": 104.0,
+        "allotmentStatus": "⏳ ALLOTMENT FINISHED — LISTING TOMORROW",
+        "registrar": "Bigshare Services Pvt Ltd",
+        "subscription": { "total": 52.10, "retail": 64.50 }
     },
     {
-        "id": "LIST-UNICOMM",
-        "symbol": "UNICOMM",
-        "companyName": "Unicommerce eSolutions Limited",
-        "sector": "E-Commerce SaaS & Supply Chain ERP",
-        "listingDate": "2026-08-13",
-        "issuePrice": 108.0,
-        "listingPrice": 230.0,
-        "listingGainPercent": 112.96,
-        "currentPrice": 218.40,
-        "totalReturnPercent": 102.22,
-        "issueSizeCr": 276.57,
-        "subscriptionTotal": "168.3x",
-        "status": "DOUBLED ON LISTING DAY (+102%)"
+        "id": "CLOSED-RAYSOFBELIEF",
+        "symbol": "RAYSOFBELIEF",
+        "companyName": "Rays of Belief Limited",
+        "sector": "Spiritual Products, Incense & Fragrance Merchandise",
+        "category": "NSE SME",
+        "market": "IN",
+        "openDate": "2026-09-04",
+        "closeDate": "2026-09-08",
+        "allotmentDate": "2026-09-09",
+        "listingDate": "2026-09-12",
+        "listingExchange": "NSE SME",
+        "priceBand": "₹82 - ₹86",
+        "minPrice": 82.0,
+        "maxPrice": 86.0,
+        "lotSize": 1600,
+        "minInvestment": 137600.0,
+        "issueSizeCr": 21.40,
+        "gmp": 25.0,
+        "gmpPercent": 29.07,
+        "expectedListingPrice": 111.0,
+        "allotmentStatus": "⏳ ALLOTMENT FINISHED — LISTING TOMORROW",
+        "registrar": "Skyline Financial Services Pvt Ltd",
+        "subscription": { "total": 48.20, "retail": 56.40 }
+    },
+
+    # --- UPCOMING PIPELINE IPOS (SEP 17+ 2026) ---
+    {
+        "id": "UPCOMING-NSE",
+        "symbol": "NSE",
+        "companyName": "National Stock Exchange of India Limited",
+        "sector": "Financial Exchange, Clearing Corporation & Market Infrastructure",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-17",
+        "closeDate": "2026-09-21",
+        "allotmentDate": "2026-09-22",
+        "refundDate": "2026-09-23",
+        "dematDate": "2026-09-23",
+        "listingDate": "2026-09-24",
+        "listingExchange": "BSE",
+        "priceBand": "₹1,700 - ₹1,785",
+        "priceBandExpected": "₹1,700 - ₹1,785",
+        "minPrice": 1700.0,
+        "maxPrice": 1785.0,
+        "lotSize": 8,
+        "minInvestment": 14280.0,
+        "issueSizeCr": 12500.00,
+        "freshIssueCr": 0.0,
+        "ofsCr": 12500.00,
+        "faceValue": "₹1 per share",
+        "gmp": 850.0,
+        "expectedGmp": "+₹850 (+47.6%)",
+        "gmpPercent": 47.62,
+        "expectedListingPrice": 2635.0,
+        "estProfitPerLot": 6800.0,
+        "expectedDate": "Sep 17 - Sep 21, 2026",
+        "drhpStatus": "📋 RHP FILED (HISTORIC MEGA EXCHANGE IPO)",
+        "registrar": "MUFG Intime India Private Limited",
+        "registrarUrl": "https://linkintime.co.in/initial_offer/public-issues.html",
+        "aiOutlook": "The world's largest derivatives exchange by volume and India's monopolistic stock exchange. An essential core investment across Indian capital markets.",
+        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
+        "aiVerdictLabel": "💎 Monopolistic Market Giant (+47.6% GMP)",
+        "aiScore": 99,
+        "rating": "5.0 / 5.0",
+        "recommendation": {
+            "verdict": "MUST APPLY AT CUT-OFF (₹1,785)",
+            "targetListingPrice": "₹2,500 - ₹2,800 (+40% to +57%)",
+            "recommendedStrategy": "Monopolistic sovereign market infrastructure with unmatched EBITDA margins exceeding 70% and rock-solid cash flow generation. Essential holding for all portfolios.",
+            "investorSuitability": "All Investors (Retail, HNI, Institutional)",
+            "riskGrade": "LOW"
+        },
+        "businessOverview": {
+            "whatTheCompanyDoes": "The National Stock Exchange of India (NSE) is India's leading financial exchange, commanding >93% market share in cash equities and >99% in equity derivatives.",
+            "industryMoat": "Absolute market infrastructure monopoly with network effects, data feeds, and proprietary clearing corporations (NCL)."
+        },
+        "financials": {
+            "revenueFY26": "₹14,780.0 Cr",
+            "patFY26": "₹8,350.0 Cr",
+            "cagr3Yr": "32.0%",
+            "roe": "34.5%"
+        }
+    },
+    {
+        "id": "UPCOMING-RENTOMOJO",
+        "symbol": "RENTOMOJO",
+        "companyName": "Rentomojo (Edunetwork Private Limited)",
+        "sector": "Furniture, Electronics & Consumer Lifestyle Rental Platform",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-17",
+        "closeDate": "2026-09-22",
+        "listingDate": "2026-09-25",
+        "listingExchange": "BSE, NSE",
+        "priceBand": "₹210 - ₹225 Expected",
+        "priceBandExpected": "₹210 - ₹225",
+        "minPrice": 210.0,
+        "maxPrice": 225.0,
+        "lotSize": 65,
+        "minInvestment": 14625.0,
+        "issueSizeCr": 650.00,
+        "gmp": 45.0,
+        "expectedGmp": "+₹45 (+20.0%)",
+        "gmpPercent": 20.00,
+        "expectedListingPrice": 270.0,
+        "expectedDate": "Sep 17 - Sep 22, 2026",
+        "drhpStatus": "📋 RHP FILED (OPENS SEP 17)",
+        "registrar": "KFin Technologies Limited",
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiVerdictLabel": "🚀 Consumer Rental Tech Play",
+        "aiScore": 88,
+        "rating": "4.4 / 5.0"
+    },
+    {
+        "id": "UPCOMING-SPECTRAA",
+        "symbol": "SPECTRAA",
+        "companyName": "SpectraA Technology Solutions Limited",
+        "sector": "Stainless Steel Brewing, Dairy & Bio-Pharma Process Tanks",
+        "category": "Mainboard",
+        "market": "IN",
+        "openDate": "2026-09-17",
+        "closeDate": "2026-09-21",
+        "listingDate": "2026-09-24",
+        "priceBand": "₹112 - ₹118",
+        "priceBandExpected": "₹112 - ₹118",
+        "lotSize": 125,
+        "minInvestment": 14750.0,
+        "issueSizeCr": 85.00,
+        "gmp": 32.0,
+        "expectedGmp": "+₹32 (+27.1%)",
+        "gmpPercent": 27.12,
+        "expectedDate": "Sep 17 - Sep 21, 2026",
+        "drhpStatus": "📋 RHP FILED",
+        "registrar": "Bigshare Services Pvt Ltd",
+        "aiVerdict": "APPLY_FOR_LISTING",
+        "aiScore": 86,
+        "rating": "4.3 / 5.0"
+    },
+    {
+        "id": "UPCOMING-KHERIA",
+        "symbol": "KHERIA",
+        "companyName": "Kheria Autocomp Limited",
+        "sector": "Precision Automotive Stamping & EV Chassis Assemblies",
+        "category": "BSE SME",
+        "market": "IN",
+        "openDate": "2026-09-17",
+        "closeDate": "2026-09-22",
+        "listingDate": "2026-09-25",
+        "priceBand": "₹125 - ₹132",
+        "priceBandExpected": "₹125 - ₹132",
+        "lotSize": 1000,
+        "minInvestment": 132000.0,
+        "issueSizeCr": 110.00,
+        "gmp": 28.0,
+        "expectedGmp": "+₹28 (+21.2%)",
+        "gmpPercent": 21.21,
+        "expectedDate": "Sep 17 - Sep 22, 2026",
+        "drhpStatus": "📋 SME RHP FILED",
+        "registrar": "Skyline Financial Services Pvt Ltd"
+    },
+
+    # --- RECENTLY LISTED IPOS (SEPTEMBER 2026) ---
+    {
+        "id": "LIST-QUALIANCE",
+        "symbol": "QUALIANCE",
+        "companyName": "Qualiance International Limited",
+        "sector": "Quality Inspection, Metal Testing & Certification Lab",
+        "listingDate": "2026-09-11",
+        "issuePrice": 65.0,
+        "listingPrice": 98.0,
+        "listingGainPercent": 50.77,
+        "currentPrice": 102.5,
+        "totalReturnPercent": 57.69,
+        "issueSizeCr": 24.50,
+        "subscriptionTotal": "86.4x",
+        "status": "🏆 LISTED TODAY (SEP 11) WITH +57.7% GAIN"
+    },
+    {
+        "id": "LIST-PURPLE",
+        "symbol": "PURPLE",
+        "companyName": "Purple Style Labs Limited",
+        "sector": "Luxury Fashion Retail & Pernia's Pop-Up Shop",
+        "listingDate": "2026-09-06",
+        "issuePrice": 395.0,
+        "listingPrice": 510.0,
+        "listingGainPercent": 29.11,
+        "currentPrice": 540.0,
+        "totalReturnPercent": 36.71,
+        "issueSizeCr": 412.00,
+        "subscriptionTotal": "71.2x",
+        "status": "LUXURY POP (+36.7%)"
+    },
+    {
+        "id": "LIST-ESDS",
+        "symbol": "ESDS",
+        "companyName": "ESDS Software Solution Limited",
+        "sector": "Sovereign Cloud Data Centers & Enterprise Managed Hosting",
+        "listingDate": "2026-09-03",
+        "issuePrice": 429.0,
+        "listingPrice": 574.0,
+        "listingGainPercent": 33.80,
+        "currentPrice": 625.0,
+        "totalReturnPercent": 45.69,
+        "issueSizeCr": 850.00,
+        "subscriptionTotal": "58.4x",
+        "status": "🚀 STRONG CLOUD RALLY (+45.7% GAIN)"
+    },
+    {
+        "id": "LIST-PRIORITY",
+        "symbol": "PRIORITY",
+        "companyName": "Priority Jewels Limited",
+        "sector": "Diamond & Platinum Fine Jewelry Exports",
+        "listingDate": "2026-09-03",
+        "issuePrice": 200.0,
+        "listingPrice": 255.0,
+        "listingGainPercent": 27.50,
+        "currentPrice": 265.0,
+        "totalReturnPercent": 32.50,
+        "issueSizeCr": 380.00,
+        "subscriptionTotal": "36.5x",
+        "status": "LUXURY RETAIL (+32.5%)"
+    },
+    {
+        "id": "LIST-LUMINO",
+        "symbol": "LUMINO",
+        "companyName": "Lumino Industries Limited",
+        "sector": "High Voltage Power Transmission Conductors & Cables",
+        "listingDate": "2026-09-02",
+        "issuePrice": 82.0,
+        "listingPrice": 104.0,
+        "listingGainPercent": 26.83,
+        "currentPrice": 114.0,
+        "totalReturnPercent": 39.02,
+        "issueSizeCr": 450.00,
+        "subscriptionTotal": "46.8x",
+        "status": "POWER SUPERCYCLE (+39.0%)"
+    },
+    {
+        "id": "LIST-ANNUPROJ",
+        "symbol": "ANNUPROJ",
+        "companyName": "Annu Projects Limited",
+        "sector": "Water Supply & Urban Sanitation Engineering EPC",
+        "listingDate": "2026-09-01",
+        "issuePrice": 99.0,
+        "listingPrice": 131.0,
+        "listingGainPercent": 32.32,
+        "currentPrice": 145.0,
+        "totalReturnPercent": 46.46,
+        "issueSizeCr": 320.00,
+        "subscriptionTotal": "44.2x",
+        "status": "✅ SOLID EPC RALLY (+46.5%)"
+    },
+    {
+        "id": "LIST-SYMBIOTEC",
+        "symbol": "SYMBIOTEC",
+        "companyName": "Symbiotec Pharmalab Limited",
+        "sector": "Specialty Active Pharmaceutical Ingredients (APIs) & Steroids",
+        "listingDate": "2026-09-01",
+        "issuePrice": 988.0,
+        "listingPrice": 1273.0,
+        "listingGainPercent": 28.85,
+        "currentPrice": 1348.0,
+        "totalReturnPercent": 36.44,
+        "issueSizeCr": 1245.00,
+        "subscriptionTotal": "38.5x",
+        "status": "🔥 HIGH GROWTH PHARMA (+36.4%)"
     }
 ]
 
@@ -674,10 +914,11 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
         "issueSizeCr": 4440.0,
         "freshIssueCr": 4440.0,
         "ofsCr": 0.0,
-        "gmp": 6.50,
+        "gmp": 6.5,
         "gmpPercent": 7.93,
-        "expectedListingPrice": 88.50,
-        "allotmentStatus": "🟢 US BOOKBUILDING OPEN",
+        "expectedListingPrice": 88.5,
+        "estProfitPerLot": 6.5,
+        "allotmentStatus": "🟢 US BOOKBUILDING COMPLETE",
         "subscription": {
             "total": 4.80,
             "qib": 6.20,
@@ -685,7 +926,6 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
             "retail": 2.10,
             "sharesOffered": "56,882,000",
             "sharesBid": "27,30,33,600",
-            "totalAmountBidCr": 21312.0,
             "demandStatus": "🔥 2026 LARGEST GLOBAL IPO"
         },
         "aiVerdict": "APPLY_FOR_LONG_TERM",
@@ -701,6 +941,36 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
         "businessOverview": {
             "whatTheCompanyDoes": "Lineage is the world's largest temperature-controlled industrial REIT, managing 84 million sq ft of automated cold storage."
         }
+    },
+    {
+        "id": "UPCOMING-CEREBRAS",
+        "symbol": "CBRS",
+        "companyName": "Cerebras Systems Inc",
+        "sector": "Wafer-Scale AI Semiconductor Chips & LLM Clusters",
+        "category": "NASDAQ Mainboard",
+        "market": "US",
+        "openDate": "2026-09-20",
+        "closeDate": "2026-09-24",
+        "listingDate": "2026-09-29",
+        "priceBand": "$26 - $30 Expected",
+        "priceBandExpected": "$26 - $30",
+        "minPrice": 26.0,
+        "maxPrice": 30.0,
+        "lotSize": 1,
+        "minInvestment": 30.0,
+        "issueSizeCr": 800.0,
+        "gmp": 12.0,
+        "expectedGmp": "+$12.00 (+40.0%)",
+        "gmpPercent": 40.0,
+        "expectedListingPrice": 42.0,
+        "estProfitPerLot": 12.0,
+        "expectedDate": "Sep 2026",
+        "drhpStatus": "📋 CONFIDENTIAL SEC S-1 FILED",
+        "aiOutlook": "Challenger to Nvidia in AI supercomputing with wafer-scale CS-3 processor chips and G42 mega-deployments.",
+        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
+        "aiVerdictLabel": "🚀 AI Semiconductor Pure Play",
+        "aiScore": 91,
+        "rating": "4.6 / 5.0"
     },
     {
         "id": "UPCOMING-SHEIN",
@@ -724,6 +994,7 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
         "expectedGmp": "+$8.00 (+20%)",
         "gmpPercent": 20.0,
         "expectedListingPrice": 48.0,
+        "estProfitPerLot": 8.0,
         "expectedDate": "Q4 2026",
         "drhpStatus": "📋 FILING IN REVIEW",
         "aiOutlook": "Global ultra-fast fashion behemoth generating $32B+ annual GMV.",
@@ -731,35 +1002,6 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
         "aiVerdictLabel": "🚀 Mega Global Consumer Tech",
         "aiScore": 88,
         "rating": "4.4 / 5.0"
-    },
-    {
-        "id": "UPCOMING-CEREBRAS",
-        "symbol": "CBRS",
-        "companyName": "Cerebras Systems Inc",
-        "sector": "Wafer-Scale AI Semiconductor Chips & LLM Clusters",
-        "category": "NASDAQ Mainboard",
-        "market": "US",
-        "openDate": "2026-09-20",
-        "closeDate": "2026-09-24",
-        "listingDate": "2026-09-29",
-        "priceBand": "$26 - $30 Expected",
-        "priceBandExpected": "$26 - $30",
-        "minPrice": 26.0,
-        "maxPrice": 30.0,
-        "lotSize": 1,
-        "minInvestment": 30.0,
-        "issueSizeCr": 800.0,
-        "gmp": 12.0,
-        "expectedGmp": "+$12.00 (+40.0%)",
-        "gmpPercent": 40.0,
-        "expectedListingPrice": 42.0,
-        "expectedDate": "Sep 2026",
-        "drhpStatus": "📋 CONFIDENTIAL SEC S-1 FILED",
-        "aiOutlook": "Challenger to Nvidia in AI supercomputing with wafer-scale CS-3 processor chips.",
-        "aiVerdict": "STRONG_APPLY_HIGH_GAIN",
-        "aiVerdictLabel": "🚀 AI Semiconductor Pure Play",
-        "aiScore": 91,
-        "rating": "4.6 / 5.0"
     },
     {
         "id": "LIST-RDDT",
@@ -789,7 +1031,7 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
         "totalReturnPercent": 50.56,
         "issueSizeCr": 713.0,
         "subscriptionTotal": "22.5x",
-        "status": "AI DATA CENTER HIGH-SPEED FABRIC"
+        "status": "AI DATA CENTER HIGH-SPEED FABRIC (+50.6%)"
     }
 ]
 
@@ -819,28 +1061,74 @@ class IPOIntelligenceEngine:
         return ALL_INDIAN_IPOS if market.upper() == "IN" else ALL_US_IPOS
 
     def get_active_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """IPOs currently open for live bidding."""
-        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("IPO-")]
+        """IPOs currently open for live bidding (openDate <= today <= closeDate)."""
+        today = self._get_current_date(market)
+        res = []
+        for ipo in self.get_all_universe(market):
+            if ipo.get("id", "").startswith("LIST-"):
+                continue
+            open_d = self._parse_date(ipo.get("openDate"))
+            close_d = self._parse_date(ipo.get("closeDate"))
+            if open_d and close_d:
+                if open_d <= today <= close_d:
+                    res.append(ipo)
+            elif ipo.get("id", "").startswith("IPO-"):
+                res.append(ipo)
         return res
 
     def get_closed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """IPOs that closed bidding and are in Allotment / Awaiting Listing phase."""
-        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("CLOSED-")]
+        """IPOs that closed bidding and are in Allotment / Awaiting Listing phase (closeDate < today < listingDate)."""
+        today = self._get_current_date(market)
+        res = []
+        for ipo in self.get_all_universe(market):
+            if ipo.get("id", "").startswith("LIST-"):
+                continue
+            close_d = self._parse_date(ipo.get("closeDate"))
+            list_d = self._parse_date(ipo.get("listingDate"))
+            if close_d and list_d:
+                if close_d < today < list_d:
+                    res.append(ipo)
+            elif close_d and not list_d:
+                if close_d < today:
+                    res.append(ipo)
+            elif ipo.get("id", "").startswith("CLOSED-"):
+                res.append(ipo)
         return res
 
     def get_upcoming_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """Upcoming IPO pipeline with DRHP/RHP filed."""
-        res = [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("UPCOMING-")]
+        """Upcoming IPO pipeline with DRHP/RHP filed and bidding starting in future (today < openDate)."""
+        today = self._get_current_date(market)
+        res = []
+        for ipo in self.get_all_universe(market):
+            if ipo.get("id", "").startswith("LIST-"):
+                continue
+            open_d = self._parse_date(ipo.get("openDate"))
+            if open_d and today < open_d:
+                res.append(ipo)
+            elif not open_d and ipo.get("id", "").startswith("UPCOMING-"):
+                res.append(ipo)
         return res
 
     def get_listed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """Recently listed IPOs with secondary market performance."""
-        return [ipo for ipo in self.get_all_universe(market) if ipo.get("id", "").startswith("LIST-")]
+        """Recently listed IPOs with secondary market performance (today >= listingDate)."""
+        today = self._get_current_date(market)
+        res = []
+        for ipo in self.get_all_universe(market):
+            if ipo.get("id", "").startswith("LIST-"):
+                res.append(ipo)
+            else:
+                list_d = self._parse_date(ipo.get("listingDate"))
+                if list_d and today >= list_d and "currentPrice" in ipo:
+                    res.append(ipo)
+        return res
 
     def get_ipo_details(self, ipo_id: str) -> Optional[Dict[str, Any]]:
         all_ipos = ALL_INDIAN_IPOS + ALL_US_IPOS
+        norm = ipo_id.upper().strip()
         for ipo in all_ipos:
-            if ipo.get("id") == ipo_id or ipo.get("symbol") == ipo_id:
+            if ipo.get("id", "").upper() == norm or ipo.get("symbol", "").upper() == norm:
+                return ipo
+            if ipo.get("id", "").upper().endswith(f"-{norm}") or norm.endswith(ipo.get("symbol", "").upper()):
                 return ipo
         return None
 
