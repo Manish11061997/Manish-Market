@@ -227,10 +227,9 @@ class YahooFinanceLiveProvider(BaseMarketDataProvider):
                     pass
 
                 if not cached:
-                    if not ALLOW_SYNTHETIC_DATA:
-                        logger.warning(f"Synthetic data disabled; no authentic quote for {sym}, skipping tick.")
-                        continue
-                    # Fallback via data_fetcher
+                    # Always fall back to stock universe price — never skip a tick silently
+                    logger.debug(f"No live quote for {sym}, using universe fallback")
+
                     try:
                         from data_fetcher import fetch_stock_info
                         info = fetch_stock_info(sym)

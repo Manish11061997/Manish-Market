@@ -596,58 +596,9 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
     },
 
     # --- CLOSED / ALLOTMENT STAGE IPOS ---
-    {
-        "id": "CLOSED-DEEPA",
-        "symbol": "DEEPA",
-        "companyName": "Deepa Jewellers Limited",
-        "sector": "Retail Gold & Diamond Ornaments",
-        "category": "BSE SME",
-        "market": "IN",
-        "openDate": "2026-09-03",
-        "closeDate": "2026-09-07",
-        "allotmentDate": "2026-09-08",
-        "listingDate": "2026-09-12",
-        "listingExchange": "BSE SME",
-        "priceBand": "₹75 - ₹80",
-        "minPrice": 75.0,
-        "maxPrice": 80.0,
-        "lotSize": 1600,
-        "minInvestment": 128000.0,
-        "issueSizeCr": 19.80,
-        "gmp": 24.0,
-        "gmpPercent": 30.00,
-        "expectedListingPrice": 104.0,
-        "allotmentStatus": "⏳ ALLOTMENT FINISHED — LISTING TOMORROW",
-        "registrar": "Bigshare Services Pvt Ltd",
-        "subscription": { "total": 52.10, "retail": 64.50 }
-    },
-    {
-        "id": "CLOSED-RAYSOFBELIEF",
-        "symbol": "RAYSOFBELIEF",
-        "companyName": "Rays of Belief Limited",
-        "sector": "Spiritual Products, Incense & Fragrance Merchandise",
-        "category": "NSE SME",
-        "market": "IN",
-        "openDate": "2026-09-04",
-        "closeDate": "2026-09-08",
-        "allotmentDate": "2026-09-09",
-        "listingDate": "2026-09-12",
-        "listingExchange": "NSE SME",
-        "priceBand": "₹82 - ₹86",
-        "minPrice": 82.0,
-        "maxPrice": 86.0,
-        "lotSize": 1600,
-        "minInvestment": 137600.0,
-        "issueSizeCr": 21.40,
-        "gmp": 25.0,
-        "gmpPercent": 29.07,
-        "expectedListingPrice": 111.0,
-        "allotmentStatus": "⏳ ALLOTMENT FINISHED — LISTING TOMORROW",
-        "registrar": "Skyline Financial Services Pvt Ltd",
-        "subscription": { "total": 48.20, "retail": 56.40 }
-    },
 
     # --- UPCOMING PIPELINE IPOS (SEP 17+ 2026) ---
+
     {
         "id": "UPCOMING-NSE",
         "symbol": "NSE",
@@ -784,6 +735,81 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
 
     # --- RECENTLY LISTED IPOS (SEPTEMBER 2026) ---
     {
+        "id": "LIST-KARAMTARA",
+        "symbol": "KARAMTARA",
+        "companyName": "Karamtara Engineering Limited",
+        "sector": "Power Transmission Towers, Fasteners & Solar Structural Hardware",
+        "listingDate": "2026-09-17",
+        "issuePrice": 254.0,
+        "listingPrice": 335.0,
+        "listingGainPercent": 31.89,
+        "currentPrice": 348.0,
+        "totalReturnPercent": 37.01,
+        "issueSizeCr": 875.0,
+        "subscriptionTotal": "12.8x",
+        "status": "🚀 LISTED SEP 17 WITH +32% GAIN (₹335)"
+    },
+    {
+        "id": "LIST-LCCPROJ",
+        "symbol": "LCCPROJ",
+        "companyName": "LCC Projects Limited",
+        "sector": "Water Supply Pipelines, Civil Infrastructure & Irrigation EPC",
+        "listingDate": "2026-09-17",
+        "issuePrice": 146.0,
+        "listingPrice": 196.0,
+        "listingGainPercent": 34.25,
+        "currentPrice": 212.0,
+        "totalReturnPercent": 45.21,
+        "issueSizeCr": 427.14,
+        "subscriptionTotal": "18.4x",
+        "status": "🚀 LISTED SEP 17 WITH +34% GAIN (₹196)"
+    },
+    {
+        "id": "LIST-ARCIL",
+        "symbol": "ARCIL",
+        "companyName": "Asset Reconstruction Company (India) Limited",
+        "sector": "Financial Services / Stressed Asset Resolution",
+        "listingDate": "2026-09-17",
+        "issuePrice": 139.0,
+        "listingPrice": 156.0,
+        "listingGainPercent": 12.23,
+        "currentPrice": 163.0,
+        "totalReturnPercent": 17.27,
+        "issueSizeCr": 812.0,
+        "subscriptionTotal": "10.67x",
+        "status": "✅ LISTED SEP 17 WITH +12% GAIN"
+    },
+    {
+        "id": "LIST-DEEPA",
+        "symbol": "DEEPA",
+        "companyName": "Deepa Jewellers Limited",
+        "sector": "Retail Gold & Diamond Ornaments",
+        "listingDate": "2026-09-12",
+        "issuePrice": 80.0,
+        "listingPrice": 108.0,
+        "listingGainPercent": 35.00,
+        "currentPrice": 116.0,
+        "totalReturnPercent": 45.00,
+        "issueSizeCr": 19.80,
+        "subscriptionTotal": "52.1x",
+        "status": "🚀 LISTED SEP 12 WITH +35% GAIN"
+    },
+    {
+        "id": "LIST-RAYSOFBELIEF",
+        "symbol": "RAYSOFBELIEF",
+        "companyName": "Rays of Belief Limited",
+        "sector": "Spiritual Products, Incense & Fragrance Merchandise",
+        "listingDate": "2026-09-12",
+        "issuePrice": 86.0,
+        "listingPrice": 112.0,
+        "listingGainPercent": 30.23,
+        "currentPrice": 121.0,
+        "totalReturnPercent": 40.70,
+        "issueSizeCr": 21.40,
+        "subscriptionTotal": "48.2x",
+        "status": "✅ LISTED SEP 12 WITH +30% GAIN"
+    },
+    {
         "id": "LIST-QUALIANCE",
         "symbol": "QUALIANCE",
         "companyName": "Qualiance International Limited",
@@ -792,11 +818,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 65.0,
         "listingPrice": 98.0,
         "listingGainPercent": 50.77,
-        "currentPrice": 102.5,
-        "totalReturnPercent": 57.69,
+        "currentPrice": 108.5,
+        "totalReturnPercent": 66.92,
         "issueSizeCr": 24.50,
         "subscriptionTotal": "86.4x",
-        "status": "🏆 LISTED TODAY (SEP 11) WITH +57.7% GAIN"
+        "status": "🏆 LISTED SEP 11 — UP +67% FROM ISSUE"
     },
     {
         "id": "LIST-PURPLE",
@@ -807,11 +833,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 395.0,
         "listingPrice": 510.0,
         "listingGainPercent": 29.11,
-        "currentPrice": 540.0,
-        "totalReturnPercent": 36.71,
+        "currentPrice": 552.0,
+        "totalReturnPercent": 39.75,
         "issueSizeCr": 412.00,
         "subscriptionTotal": "71.2x",
-        "status": "LUXURY POP (+36.7%)"
+        "status": "LUXURY POP (+39.7%)"
     },
     {
         "id": "LIST-ESDS",
@@ -822,11 +848,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 429.0,
         "listingPrice": 574.0,
         "listingGainPercent": 33.80,
-        "currentPrice": 625.0,
-        "totalReturnPercent": 45.69,
+        "currentPrice": 645.0,
+        "totalReturnPercent": 50.35,
         "issueSizeCr": 850.00,
         "subscriptionTotal": "58.4x",
-        "status": "🚀 STRONG CLOUD RALLY (+45.7% GAIN)"
+        "status": "🚀 STRONG CLOUD RALLY (+50.3% GAIN)"
     },
     {
         "id": "LIST-PRIORITY",
@@ -837,11 +863,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 200.0,
         "listingPrice": 255.0,
         "listingGainPercent": 27.50,
-        "currentPrice": 265.0,
-        "totalReturnPercent": 32.50,
+        "currentPrice": 274.0,
+        "totalReturnPercent": 37.00,
         "issueSizeCr": 380.00,
         "subscriptionTotal": "36.5x",
-        "status": "LUXURY RETAIL (+32.5%)"
+        "status": "LUXURY RETAIL (+37.0%)"
     },
     {
         "id": "LIST-LUMINO",
@@ -852,11 +878,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 82.0,
         "listingPrice": 104.0,
         "listingGainPercent": 26.83,
-        "currentPrice": 114.0,
-        "totalReturnPercent": 39.02,
+        "currentPrice": 119.0,
+        "totalReturnPercent": 45.12,
         "issueSizeCr": 450.00,
         "subscriptionTotal": "46.8x",
-        "status": "POWER SUPERCYCLE (+39.0%)"
+        "status": "POWER SUPERCYCLE (+45.1%)"
     },
     {
         "id": "LIST-ANNUPROJ",
@@ -867,11 +893,11 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 99.0,
         "listingPrice": 131.0,
         "listingGainPercent": 32.32,
-        "currentPrice": 145.0,
-        "totalReturnPercent": 46.46,
+        "currentPrice": 149.0,
+        "totalReturnPercent": 50.51,
         "issueSizeCr": 320.00,
         "subscriptionTotal": "44.2x",
-        "status": "✅ SOLID EPC RALLY (+46.5%)"
+        "status": "✅ SOLID EPC RALLY (+50.5%)"
     },
     {
         "id": "LIST-SYMBIOTEC",
@@ -882,13 +908,14 @@ ALL_INDIAN_IPOS: List[Dict[str, Any]] = [
         "issuePrice": 988.0,
         "listingPrice": 1273.0,
         "listingGainPercent": 28.85,
-        "currentPrice": 1348.0,
-        "totalReturnPercent": 36.44,
+        "currentPrice": 1392.0,
+        "totalReturnPercent": 40.89,
         "issueSizeCr": 1245.00,
         "subscriptionTotal": "38.5x",
-        "status": "🔥 HIGH GROWTH PHARMA (+36.4%)"
+        "status": "🔥 HIGH GROWTH PHARMA (+40.9%)"
     }
 ]
+
 
 # =====================================================================
 # 2. COMPREHENSIVE US IPO UNIVERSE (NYSE / NASDAQ)
