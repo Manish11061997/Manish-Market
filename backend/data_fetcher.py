@@ -210,8 +210,117 @@ US_INDEX_TICKERS = {
 
 KNOWN_US_TICKERS = {item["symbol"] for item in US_STOCKS_UNIVERSE}
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DYNAMIC UNIVERSE PRICE REFRESH
+# Batch-fetches live market prices for all universe stocks every 60 seconds.
+# Updates the `price` and `prevClose` fields in-place so every module that
+# reads the universe (WebSocket ticks, recommendations, analysis baseline)
+# always has current prices — not hardcoded Sep 2026 snapshots.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_UNIVERSE_REFRESH_LOCK = _threading.Lock()
+_UNIVERSE_LAST_REFRESH = 0.0
+_UNIVERSE_REFRESH_INTERVAL = 60  # seconds
+
+def _batch_fetch_prices(symbols: list[str]) -> dict:
+    """
+    Fetch real-time prices for up to 200 symbols in a single Yahoo Finance API call.
+    Returns dict: {symbol: {"price": float, "prevClose": float}}
+    """
+    if not symbols:
+        return {}
+    results = {}
+    # Yahoo Finance /v7/finance/quote supports comma-separated symbols
+    chunk_size = 100  # Yahoo limit per call
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+    }
+    for i in range(0, len(symbols), chunk_size):
+        chunk = symbols[i:i + chunk_size]
+        sym_str = ",".join(chunk)
+        try:
+            url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&fields=regularMarketPrice,regularMarketPreviousClose"
+            res = _http_session.get(url, headers=headers, timeout=6.0)
+            if res.status_code != 200:
+                # Fallback to query1
+                url2 = url.replace("query2", "query1")
+                res = _http_session.get(url2, headers=headers, timeout=6.0)
+            if res.status_code == 200:
+                data = res.json()
+                quotes = data.get("quoteResponse", {}).get("result", [])
+                for q in quotes:
+                    sym = q.get("symbol", "")
+                    price = q.get("regularMarketPrice")
+                    prev = q.get("regularMarketPreviousClose")
+                    if price:
+                        results[sym] = {
+                            "price": round(float(price), 2),
+                            "prevClose": round(float(prev), 2) if prev else round(float(price), 2)
+                        }
+        except Exception as e:
+            logger.debug(f"Batch price fetch error for chunk {i}: {e}")
+    return results
+
+def refresh_universe_prices():
+    """
+    Refresh live prices for all Indian + US universe stocks.
+    Safe to call from any thread. Throttled to max once per 60 seconds.
+    """
+    global _UNIVERSE_LAST_REFRESH
+    now = _time.monotonic()
+    if now - _UNIVERSE_LAST_REFRESH < _UNIVERSE_REFRESH_INTERVAL:
+        return  # Too soon — skip
+    if not _UNIVERSE_REFRESH_LOCK.acquire(blocking=False):
+        return  # Another thread is already refreshing
+    try:
+        _UNIVERSE_LAST_REFRESH = now
+        # Indian universe — .NS suffix
+        in_symbols = [s["symbol"] for s in INDIAN_STOCKS_UNIVERSE]
+        us_symbols = [s["symbol"] for s in US_STOCKS_UNIVERSE]
+        all_symbols = in_symbols + us_symbols
+        prices = _batch_fetch_prices(all_symbols)
+        updated_in = 0
+        for stock in INDIAN_STOCKS_UNIVERSE:
+            sym = stock["symbol"]
+            if sym in prices:
+                stock["price"] = prices[sym]["price"]
+                stock["prevClose"] = prices[sym]["prevClose"]
+                updated_in += 1
+        updated_us = 0
+        for stock in US_STOCKS_UNIVERSE:
+            sym = stock["symbol"]
+            if sym in prices:
+                stock["price"] = prices[sym]["price"]
+                stock["prevClose"] = prices[sym]["prevClose"]
+                updated_us += 1
+        logger.info(f"Universe price refresh: {updated_in}/{len(in_symbols)} IN, {updated_us}/{len(us_symbols)} US stocks updated")
+    except Exception as e:
+        logger.warning(f"Universe price refresh failed: {e}")
+    finally:
+        _UNIVERSE_REFRESH_LOCK.release()
+
+def _start_universe_price_refresh_loop():
+    """Background thread that keeps universe prices fresh every 60 seconds."""
+    def _loop():
+        # Initial refresh after 3 seconds (give server time to start)
+        _time.sleep(3)
+        while True:
+            try:
+                refresh_universe_prices()
+            except Exception as e:
+                logger.debug(f"Universe refresh loop error: {e}")
+            _time.sleep(_UNIVERSE_REFRESH_INTERVAL)
+    t = _threading.Thread(target=_loop, daemon=True, name="universe-price-refresh")
+    t.start()
+    logger.info("Universe price auto-refresh thread started (60s interval)")
+
+# Start the background refresh immediately when this module is imported
+_start_universe_price_refresh_loop()
+
 def get_stock_universe(market: str = "IN"):
     return US_STOCKS_UNIVERSE if market.upper() == "US" else INDIAN_STOCKS_UNIVERSE
+
 
 def fetch_market_indices(market: str = "IN"):
     """Fetch current prices and daily change for key market indices.

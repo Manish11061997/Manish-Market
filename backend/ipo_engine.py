@@ -4,17 +4,31 @@ Institutional IPO Intelligence & Deep Quantitative Analysis Engine
 Features:
 - Dynamic Real-Time Date & Stage Categorization (Active, Closed, Upcoming, Listed)
 - 100% Cross-Verified Exchange Data (NSE / BSE & NYSE / NASDAQ)
-- Live Grey Market Premium (GMP) & Expected Listing Gains Tracking
+- Live Grey Market Premium (GMP) Auto-Scraped from Chittorgarh
+- Live Listed IPO Prices Auto-Fetched from Yahoo Finance every 5 minutes
+- Dynamic Allotment Status Auto-Generated from Date Logic
 - Live Subscription Demand Breakdown (QIB, NII/HNI, Retail RII, Employee)
 - AI-Powered Fundamental Verdicts, Registrar Allotment Tracking & Suitability Analysis
 """
 
 import logging
+import threading
+import time
+import re
+import requests
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
+
+# Shared HTTP session for GMP scraping and price fetching
+_ipo_http = requests.Session()
+_ipo_http.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/json,*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+})
 
 # =====================================================================
 # 1. AUTHENTIC SEPTEMBER 2026 INDIAN IPO UNIVERSE (MAINBOARD & SME)
@@ -1164,6 +1178,279 @@ ALL_US_IPOS: List[Dict[str, Any]] = [
 # 3. DYNAMIC REAL-TIME CLASSIFICATION & EVALUATION ENGINE
 # =====================================================================
 
+# Map IPO symbols to Yahoo Finance tickers (only those available on yfinance)
+_YAHOO_TICKERS: Dict[str, str] = {
+    "KARAMTARA":   "KARAMTARA.NS",
+    "ARCIL":       "ARCIL.NS",
+    "MANIKA":      "MANIKA.NS",
+    "DEEPA":       "DEEPA.NS",
+    "ESDS":        "ESDS.NS",
+    "PRIORITY":    "PRIORITY.NS",
+    "LUMINO":      "LUMINO.NS",
+    "SYMBIOTEC":   "SYMBIOTEC.NS",
+    "RENTOMOJO":   "RENTOMOJO.NS",
+}
+
+# GMP cache: { "SYMBOL": {"gmp": float, "gmpPercent": float, "subscription": {...}, "ts": float} }
+_GMP_CACHE: Dict[str, Dict] = {}
+_GMP_CACHE_LOCK = threading.Lock()
+_GMP_LAST_REFRESH = 0.0
+
+# Listed IPO price cache: { "SYMBOL": {"currentPrice": float, "totalReturnPercent": float, "ts": float} }
+_LISTED_PRICE_CACHE: Dict[str, Dict] = {}
+_LISTED_PRICE_LOCK = threading.Lock()
+_LISTED_PRICE_LAST_REFRESH = 0.0
+
+
+def _fetch_yahoo_batch_prices(ticker_map: Dict[str, str]) -> Dict[str, float]:
+    """Batch-fetch current prices for a symbol->yf_ticker mapping. Returns {symbol: price}."""
+    if not ticker_map:
+        return {}
+    results = {}
+    yf_tickers = list(ticker_map.values())
+    sym_by_yf = {v: k for k, v in ticker_map.items()}
+    sym_str = ",".join(yf_tickers)
+    try:
+        url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&fields=regularMarketPrice,regularMarketPreviousClose"
+        res = _ipo_http.get(url, timeout=8.0)
+        if res.status_code != 200:
+            res = _ipo_http.get(url.replace("query2", "query1"), timeout=8.0)
+        if res.status_code == 200:
+            quotes = res.json().get("quoteResponse", {}).get("result", [])
+            for q in quotes:
+                yf_sym = q.get("symbol", "")
+                price = q.get("regularMarketPrice")
+                if price and yf_sym in sym_by_yf:
+                    results[sym_by_yf[yf_sym]] = round(float(price), 2)
+    except Exception as e:
+        logger.debug(f"IPO batch price fetch error: {e}")
+    return results
+
+
+def _scrape_chittorgarh_gmp() -> Dict[str, Dict]:
+    """
+    Scrape live GMP and subscription data from Chittorgarh.com.
+    Returns dict: {symbol_upper: {gmp, gmpPercent, subscriptionTotal, qib, nii, retail}}
+    Falls back to empty dict on any failure.
+    """
+    gmp_data: Dict[str, Dict] = {}
+    urls = [
+        "https://www.chittorgarh.com/ipo/ipo_subscribe_status.asp",
+        "https://www.chittorgarh.com/report/ipo-grey-market-premium-gmp-today-live/79/"
+    ]
+    for url in urls:
+        try:
+            res = _ipo_http.get(url, timeout=10.0)
+            if res.status_code != 200:
+                continue
+            html = res.text
+            # Find all table rows with IPO data
+            # Pattern: matches company name and numeric GMP values from HTML tables
+            rows = re.findall(
+                r'<tr[^>]*>.*?<td[^>]*>(.*?)</td>.*?<td[^>]*>.*?(\d[\d,.]*)\s*</td>.*?<td[^>]*>.*?(\d[\d,.]*)\s*%?\s*</td>',
+                html, re.DOTALL | re.IGNORECASE
+            )
+            for row in rows:
+                try:
+                    name_raw = re.sub(r'<[^>]+>', '', row[0]).strip()
+                    gmp_val = float(row[1].replace(',', ''))
+                    gmp_pct = float(row[2].replace(',', ''))
+                    if gmp_val > 0 and name_raw:
+                        # Normalize name to all caps, no spaces/special chars for matching
+                        key = re.sub(r'[^A-Z0-9]', '', name_raw.upper())[:10]
+                        gmp_data[key] = {"gmp": gmp_val, "gmpPercent": gmp_pct}
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.debug(f"Chittorgarh scrape error ({url}): {e}")
+
+    # Also try the JSON-based subscription endpoint
+    try:
+        sub_url = "https://www.chittorgarh.com/ipo/ipo_subscribe_status.asp"
+        res2 = _ipo_http.get(sub_url, timeout=10.0)
+        if res2.status_code == 200:
+            # Extract subscription tables
+            sub_rows = re.findall(
+                r'href="/ipo/([^/]+)/\d+/"[^>]*>(.*?)</a>.*?(\d[\d,.]*)\s*</td>.*?(\d[\d,.]*)\s*</td>.*?(\d[\d,.]*)\s*</td>.*?(\d[\d,.]*)\s*</td>',
+                res2.text, re.DOTALL | re.IGNORECASE
+            )
+            for row in sub_rows:
+                try:
+                    sym_slug = row[0].upper().replace('-', '')[:10]
+                    total = float(row[2].replace(',', ''))
+                    qib = float(row[3].replace(',', ''))
+                    nii = float(row[4].replace(',', ''))
+                    retail = float(row[5].replace(',', ''))
+                    entry = gmp_data.get(sym_slug, {})
+                    entry.update({"subscriptionTotal": f"{total:.2f}x", "qib": qib, "nii": nii, "retail": retail})
+                    gmp_data[sym_slug] = entry
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"Chittorgarh subscription scrape error: {e}")
+
+    return gmp_data
+
+
+def _auto_allotment_status(ipo: Dict, today: date) -> str:
+    """
+    Auto-generate a contextual allotment status string from IPO dates.
+    This replaces hardcoded allotmentStatus fields.
+    """
+    open_d_str = ipo.get("openDate", "")
+    close_d_str = ipo.get("closeDate", "")
+    allot_d_str = ipo.get("allotmentDate", "")
+    listing_d_str = ipo.get("listingDate", "")
+
+    def pd(s):
+        try:
+            return datetime.strptime(s[:10], "%Y-%m-%d").date() if s else None
+        except Exception:
+            return None
+
+    open_d = pd(open_d_str)
+    close_d = pd(close_d_str)
+    allot_d = pd(allot_d_str)
+    listing_d = pd(listing_d_str)
+
+    if open_d and close_d and open_d <= today <= close_d:
+        total_days = (close_d - open_d).days + 1
+        day_num = (today - open_d).days + 1
+        if today == close_d:
+            return f"🔴 LAST DAY — CLOSES TODAY (DAY {day_num}/{total_days})"
+        return f"🟢 LIVE BIDDING — DAY {day_num} OF {total_days} (CLOSES {close_d.strftime('%b %d')})"
+
+    if close_d and allot_d and close_d < today <= allot_d:
+        days_to_allot = (allot_d - today).days
+        if days_to_allot == 0:
+            return "📦 ALLOTMENT TODAY — CHECK YOUR STATUS"
+        return f"⏳ BIDDING CLOSED — ALLOTMENT IN {days_to_allot} DAY{'S' if days_to_allot > 1 else ''} ({allot_d.strftime('%b %d')})"
+
+    if allot_d and listing_d and allot_d < today < listing_d:
+        days_to_listing = (listing_d - today).days
+        return f"📋 ALLOTTED — LISTING IN {days_to_listing} DAY{'S' if days_to_listing > 1 else ''} ON {listing_d.strftime('%b %d')}"
+
+    if listing_d and today >= listing_d:
+        return f"🏁 LISTED ON {listing_d.strftime('%b %d, %Y')}"
+
+    return ipo.get("allotmentStatus", "📋 IPO PIPELINE")
+
+
+def _enrich_ipo(ipo: Dict, today: date) -> Dict:
+    """
+    Enrich an IPO dict with:
+    - Dynamic allotmentStatus from date math
+    - Live currentPrice + totalReturnPercent for listed IPOs (from cache)
+    - Live gmp/gmpPercent/subscription for active IPOs (from GMP cache)
+    """
+    enriched = dict(ipo)
+
+    # Auto-generate allotment status
+    enriched["allotmentStatus"] = _auto_allotment_status(ipo, today)
+
+    sym = ipo.get("symbol", "").upper()
+
+    # Inject live price for listed IPOs
+    with _LISTED_PRICE_LOCK:
+        price_data = _LISTED_PRICE_CACHE.get(sym)
+    if price_data:
+        enriched["currentPrice"] = price_data["currentPrice"]
+        issue_price = ipo.get("issuePrice") or ipo.get("maxPrice")
+        if issue_price and price_data["currentPrice"]:
+            enriched["totalReturnPercent"] = round(
+                (price_data["currentPrice"] - issue_price) / issue_price * 100, 2
+            )
+            listing_price = ipo.get("listingPrice")
+            if listing_price:
+                enriched["listingGainPercent"] = round(
+                    (listing_price - issue_price) / issue_price * 100, 2
+                )
+
+    # Inject live GMP/subscription for active/upcoming IPOs
+    with _GMP_CACHE_LOCK:
+        gmp_data = _GMP_CACHE.get(sym)
+    if gmp_data:
+        if "gmp" in gmp_data:
+            enriched["gmp"] = gmp_data["gmp"]
+            enriched["gmpPercent"] = gmp_data.get("gmpPercent", ipo.get("gmpPercent", 0))
+            max_price = ipo.get("maxPrice")
+            if max_price and gmp_data["gmp"]:
+                enriched["expectedListingPrice"] = round(max_price + gmp_data["gmp"], 2)
+        if "subscriptionTotal" in gmp_data:
+            sub = enriched.get("subscription", {})
+            sub["total"] = float(gmp_data.get("subscriptionTotal", "0x").rstrip("x"))
+            if "qib" in gmp_data:
+                sub["qib"] = gmp_data["qib"]
+            if "nii" in gmp_data:
+                sub["nii"] = gmp_data["nii"]
+            if "retail" in gmp_data:
+                sub["retail"] = gmp_data["retail"]
+            enriched["subscription"] = sub
+
+    return enriched
+
+
+def refresh_listed_ipo_prices():
+    """Fetch live market prices for all listed IPOs that have a known Yahoo Finance ticker."""
+    global _LISTED_PRICE_LAST_REFRESH
+    now = time.monotonic()
+    if now - _LISTED_PRICE_LAST_REFRESH < 300:  # 5-minute throttle
+        return
+    if not _LISTED_PRICE_LOCK.acquire(blocking=False):
+        return
+    try:
+        _LISTED_PRICE_LAST_REFRESH = now
+        # Collect all listed IPO symbols with known Yahoo tickers
+        relevant = {sym: ticker for sym, ticker in _YAHOO_TICKERS.items()}
+        prices = _fetch_yahoo_batch_prices(relevant)
+        with _LISTED_PRICE_LOCK:
+            for sym, price in prices.items():
+                _LISTED_PRICE_CACHE[sym] = {"currentPrice": price, "ts": time.time()}
+        logger.info(f"Listed IPO price refresh: {len(prices)}/{len(relevant)} symbols updated")
+    except Exception as e:
+        logger.warning(f"Listed IPO price refresh failed: {e}")
+    finally:
+        _LISTED_PRICE_LOCK.release()
+
+
+def refresh_gmp_data():
+    """Scrape live GMP and subscription data from Chittorgarh.com."""
+    global _GMP_LAST_REFRESH
+    now = time.monotonic()
+    if now - _GMP_LAST_REFRESH < 300:  # 5-minute throttle
+        return
+    try:
+        data = _scrape_chittorgarh_gmp()
+        if data:
+            with _GMP_CACHE_LOCK:
+                _GMP_CACHE.update(data)
+            _GMP_LAST_REFRESH = now
+            logger.info(f"GMP data refresh: {len(data)} IPOs updated from Chittorgarh")
+        else:
+            logger.debug("GMP scrape returned no data — keeping cached values")
+    except Exception as e:
+        logger.warning(f"GMP refresh failed: {e}")
+
+
+def _start_ipo_refresh_loop():
+    """Background thread: refreshes IPO prices + GMP every 5 minutes."""
+    def _loop():
+        time.sleep(5)  # Wait for server startup
+        while True:
+            try:
+                refresh_listed_ipo_prices()
+            except Exception as e:
+                logger.debug(f"IPO price refresh loop error: {e}")
+            try:
+                refresh_gmp_data()
+            except Exception as e:
+                logger.debug(f"GMP refresh loop error: {e}")
+            time.sleep(300)  # 5 minutes
+    t = threading.Thread(target=_loop, daemon=True, name="ipo-data-refresh")
+    t.start()
+    logger.info("IPO data auto-refresh thread started (5-min interval: prices + GMP)")
+
+
 class IPOIntelligenceEngine:
     """Quantitative evaluation, dynamic date classification, and GMP tracking engine for global IPOs."""
 
@@ -1196,13 +1483,13 @@ class IPOIntelligenceEngine:
             close_d = self._parse_date(ipo.get("closeDate"))
             if open_d and close_d:
                 if open_d <= today <= close_d:
-                    res.append(ipo)
+                    res.append(_enrich_ipo(ipo, today))
             elif ipo.get("id", "").startswith("IPO-"):
-                res.append(ipo)
+                res.append(_enrich_ipo(ipo, today))
         return res
 
     def get_closed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """IPOs that closed bidding and are in Allotment / Awaiting Listing phase (closeDate < today < listingDate)."""
+        """IPOs that closed bidding and are in Allotment / Awaiting Listing phase."""
         today = self._get_current_date(market)
         res = []
         for ipo in self.get_all_universe(market):
@@ -1212,16 +1499,16 @@ class IPOIntelligenceEngine:
             list_d = self._parse_date(ipo.get("listingDate"))
             if close_d and list_d:
                 if close_d < today < list_d:
-                    res.append(ipo)
+                    res.append(_enrich_ipo(ipo, today))
             elif close_d and not list_d:
                 if close_d < today:
-                    res.append(ipo)
+                    res.append(_enrich_ipo(ipo, today))
             elif ipo.get("id", "").startswith("CLOSED-"):
-                res.append(ipo)
+                res.append(_enrich_ipo(ipo, today))
         return res
 
     def get_upcoming_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """Upcoming IPO pipeline with DRHP/RHP filed and bidding starting in future (today < openDate)."""
+        """Upcoming IPO pipeline with DRHP/RHP filed and bidding starting in future."""
         today = self._get_current_date(market)
         res = []
         for ipo in self.get_all_universe(market):
@@ -1229,32 +1516,33 @@ class IPOIntelligenceEngine:
                 continue
             open_d = self._parse_date(ipo.get("openDate"))
             if open_d and today < open_d:
-                res.append(ipo)
+                res.append(_enrich_ipo(ipo, today))
             elif not open_d and ipo.get("id", "").startswith("UPCOMING-"):
-                res.append(ipo)
+                res.append(_enrich_ipo(ipo, today))
         return res
 
     def get_listed_ipos(self, market: str = "IN") -> List[Dict[str, Any]]:
-        """Recently listed IPOs with secondary market performance (today >= listingDate)."""
+        """Recently listed IPOs with live secondary market performance."""
         today = self._get_current_date(market)
         res = []
         for ipo in self.get_all_universe(market):
             if ipo.get("id", "").startswith("LIST-"):
-                res.append(ipo)
+                res.append(_enrich_ipo(ipo, today))
             else:
                 list_d = self._parse_date(ipo.get("listingDate"))
                 if list_d and today >= list_d and "currentPrice" in ipo:
-                    res.append(ipo)
+                    res.append(_enrich_ipo(ipo, today))
         return res
 
     def get_ipo_details(self, ipo_id: str) -> Optional[Dict[str, Any]]:
         all_ipos = ALL_INDIAN_IPOS + ALL_US_IPOS
         norm = ipo_id.upper().strip()
+        today = self._get_current_date()
         for ipo in all_ipos:
             if ipo.get("id", "").upper() == norm or ipo.get("symbol", "").upper() == norm:
-                return ipo
+                return _enrich_ipo(ipo, today)
             if ipo.get("id", "").upper().endswith(f"-{norm}") or norm.endswith(ipo.get("symbol", "").upper()):
-                return ipo
+                return _enrich_ipo(ipo, today)
         return None
 
     def get_market_ipo_summary(self, market: str = "IN") -> Dict[str, Any]:
@@ -1277,7 +1565,13 @@ class IPOIntelligenceEngine:
             "listedCount": len(listed),
             "averageGmpPercent": avg_gmp,
             "totalActiveCapital": f"{curr_symbol}{total_raised:,.0f} {unit}",
-            "topGmpPick": max(active, key=lambda x: x.get("gmpPercent", 0)) if active else None
+            "topGmpPick": max(active, key=lambda x: x.get("gmpPercent", 0)) if active else None,
+            "dataRefreshedAt": datetime.now().strftime("%Y-%m-%d %H:%M IST"),
+            "liveDataSources": ["Yahoo Finance (listed prices)", "Chittorgarh (GMP + subscription)"]
         }
+
+
+# Start background refresh immediately on module import
+_start_ipo_refresh_loop()
 
 ipo_engine = IPOIntelligenceEngine()

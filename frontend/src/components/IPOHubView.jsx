@@ -340,20 +340,32 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [summary, setSummary] = useState(null);
-  const [activeIpos, setActiveIpos] = useState(currentMarket === 'IN' ? DEFAULT_ACTIVE_IPOS_IN : []);
-  const [closedIpos, setClosedIpos] = useState(currentMarket === 'IN' ? DEFAULT_CLOSED_IPOS_IN : []);
-  const [upcomingIpos, setUpcomingIpos] = useState(currentMarket === 'IN' ? DEFAULT_UPCOMING_IPOS_IN : []);
-  const [listedIpos, setListedIpos] = useState(currentMarket === 'IN' ? DEFAULT_LISTED_IPOS_IN : []);
+  // Always start with empty arrays — data comes from API, never from stale hardcoded defaults
+  const [activeIpos, setActiveIpos] = useState([]);
+  const [closedIpos, setClosedIpos] = useState([]);
+  const [upcomingIpos, setUpcomingIpos] = useState([]);
+  const [listedIpos, setListedIpos] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);   // true on first load
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIpo, setSelectedIpo] = useState(null);
   const [detailedIpoData, setDetailedIpoData] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const currPrefix = currentMarket === 'US' ? '$' : '₹';
   const unit = currentMarket === 'US' ? 'M' : 'Cr';
 
-  const fetchData = useCallback(() => {
-    setIsRefreshing(true);
+  // Compute live return percent if backend gives us currentPrice + issuePrice
+  const enrichListed = (ipos) => ipos.map(ipo => {
+    if (ipo.currentPrice && ipo.issuePrice && !ipo.totalReturnPercent) {
+      return { ...ipo, totalReturnPercent: ((ipo.currentPrice - ipo.issuePrice) / ipo.issuePrice * 100).toFixed(2) };
+    }
+    return ipo;
+  });
+
+  const fetchData = useCallback((isInitial = false) => {
+    if (isInitial) setIsLoading(true);
+    else setIsRefreshing(true);
     setFetchError(null);
 
     const safeJson = async (p) => {
@@ -374,32 +386,38 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
       safeJson(apiFetch(`/api/ipo/listed?market=${currentMarket}`))
     ])
     .then(([summaryRes, activeRes, closedRes, upcomingRes, listedRes]) => {
-      const hasAnyData = [summaryRes, activeRes, closedRes, upcomingRes, listedRes].some(
-        r => r.status === 'fulfilled' && r.value
-      );
-      if (!hasAnyData && currentMarket === 'US') {
-        setFetchError('IPO data unavailable for US market. Backend may be offline.');
+      const anySuccess = [summaryRes, activeRes, closedRes, upcomingRes, listedRes]
+        .some(r => r.status === 'fulfilled' && r.value);
+      if (!anySuccess) {
+        setFetchError('Could not reach the IPO data server. Please check your connection.');
       }
       if (summaryRes.status === 'fulfilled' && summaryRes.value) setSummary(summaryRes.value);
-      if (activeRes.status === 'fulfilled' && activeRes.value?.ipos?.length) setActiveIpos(activeRes.value.ipos);
-      if (closedRes.status === 'fulfilled' && closedRes.value?.ipos?.length) setClosedIpos(closedRes.value.ipos);
-      if (upcomingRes.status === 'fulfilled' && upcomingRes.value?.ipos?.length) setUpcomingIpos(upcomingRes.value.ipos);
-      if (listedRes.status === 'fulfilled' && listedRes.value?.ipos?.length) setListedIpos(listedRes.value.ipos);
+      // Always replace state — even if empty — so stale data never stays on screen
+      if (activeRes.status === 'fulfilled' && activeRes.value?.ipos !== undefined)
+        setActiveIpos(activeRes.value.ipos);
+      if (closedRes.status === 'fulfilled' && closedRes.value?.ipos !== undefined)
+        setClosedIpos(closedRes.value.ipos);
+      if (upcomingRes.status === 'fulfilled' && upcomingRes.value?.ipos !== undefined)
+        setUpcomingIpos(upcomingRes.value.ipos);
+      if (listedRes.status === 'fulfilled' && listedRes.value?.ipos !== undefined)
+        setListedIpos(enrichListed(listedRes.value.ipos));
+      setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+      setIsLoading(false);
       setIsRefreshing(false);
     })
     .catch(() => {
       setFetchError('Failed to fetch live IPO data.');
+      setIsLoading(false);
       setIsRefreshing(false);
     });
   }, [currentMarket]);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => {
-      fetchData();
-    }, 30000);
+    fetchData(true);  // Initial load — shows skeleton
+    const interval = setInterval(() => fetchData(false), 30000);  // Refresh every 30s
     return () => clearInterval(interval);
   }, [fetchData]);
+
 
   // Load detailed prospectus if selected
   useEffect(() => {
@@ -482,28 +500,40 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
               </span>
             </h1>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              100% verified exchange data, live subscription books, allocation probabilities & institutional GMP
+              {lastUpdated
+                ? <span>🟢 Live data · Last updated <strong style={{color:'var(--accent-green)'}}>{lastUpdated}</strong> · Auto-refreshes every 30s</span>
+                : <span>{isLoading ? '⏳ Loading live IPO data...' : '100% verified exchange data, live subscription books & institutional GMP'}</span>
+              }
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', flexWrap: 'wrap' }} className="mono-num">
-          <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Live Bidding: </span>
-            <strong style={{ color: 'var(--accent-green)' }}>{activeIpos.length}</strong>
-          </div>
-          <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Awaiting Listing: </span>
-            <strong style={{ color: 'var(--accent-gold)' }}>{closedIpos.length}</strong>
-          </div>
-          <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Upcoming Pipeline: </span>
-            <strong style={{ color: 'var(--accent-blue)' }}>{upcomingIpos.length}</strong>
-          </div>
-          <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Avg Active GMP: </span>
-            <strong style={{ color: '#10b981' }}>{computedAvgGmp}</strong>
-          </div>
+          {isLoading ? (
+            // Skeleton loading badges
+            [1,2,3,4].map(i => (
+              <div key={i} style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', minWidth: '90px', height: '28px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))
+          ) : (
+            <>
+              <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Live Bidding: </span>
+                <strong style={{ color: 'var(--accent-green)' }}>{activeIpos.length}</strong>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Awaiting Listing: </span>
+                <strong style={{ color: 'var(--accent-gold)' }}>{closedIpos.length}</strong>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Upcoming Pipeline: </span>
+                <strong style={{ color: 'var(--accent-blue)' }}>{upcomingIpos.length}</strong>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Avg Active GMP: </span>
+                <strong style={{ color: '#10b981' }}>{computedAvgGmp}</strong>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -618,13 +648,22 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
       {/* TAB 1: ACTIVE LIVE BIDDING */}
       {activeTab === 'ACTIVE' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))', gap: '16px' }}>
-          {filteredActive.length === 0 && !isRefreshing ? (
+          {isLoading ? (
+            // Skeleton cards while loading
+            [1,2,3,4].map(i => (
+              <div key={i} className="pro-card-glass" style={{ padding: '14px 16px', borderRadius: '14px', height: '220px', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                <div style={{ height: '16px', width: '60%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', marginBottom: '10px' }} />
+                <div style={{ height: '12px', width: '80%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', marginBottom: '8px' }} />
+                <div style={{ height: '12px', width: '40%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px' }} />
+              </div>
+            ))
+          ) : filteredActive.length === 0 ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px 20px', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>
-                {fetchError ? 'IPO Data Unavailable' : 'No Active IPOs Found'}
+                {fetchError ? '⚠️ IPO Data Unavailable' : '✅ No Active IPOs Today'}
               </div>
               <div style={{ fontSize: '12px' }}>
-                {fetchError || 'No IPOs matched your search criteria in the live bidding window.'}
+                {fetchError || 'No IPOs are currently open for bidding. Check the Upcoming tab for next openings.'}
               </div>
             </div>
           ) : filteredActive.map(ipo => {
