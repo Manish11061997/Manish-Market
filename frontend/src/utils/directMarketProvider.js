@@ -1141,131 +1141,54 @@ export async function getDirectFnoSignals() {
  */
 export async function getDirectIpoList(pathname = '', market = 'IN') {
   const isUS = market === 'US';
-  const defaultActive = isUS ? [
-    {
-      id: "IPO-LINE",
-      symbol: "LINE",
-      companyName: "Lineage, Inc.",
-      sector: "Cold Storage Logistics & REIT Infrastructure",
-      category: "NYSE Mainboard",
-      priceBand: "$78 - $82",
-      lotSize: 1,
-      minInvestment: 82.0,
-      issueSizeCr: 4440.0,
-      gmp: 6.5,
-      gmpPercent: 7.93,
-      expectedListingPrice: 88.5,
-      subscription: { total: 4.8, qib: 6.2, nii: 3.4, retail: 2.1 },
-      aiVerdict: "APPLY_FOR_LONG_TERM",
-      recommendation: { recommendedStrategy: "World's largest temperature-controlled industrial REIT." }
-    }
-  ] : [
-    {
-      id: "IPO-NSE",
-      symbol: "NSE",
-      companyName: "National Stock Exchange of India Limited",
-      sector: "Financial Exchange, Clearing Corporation & Market Infrastructure",
-      category: "Mainboard",
-      priceBand: "₹1,700 - ₹1,785",
-      minPrice: 1700.0,
-      maxPrice: 1785.0,
-      lotSize: 8,
-      minInvestment: 14280.0,
-      issueSizeCr: 12500.0,
-      freshIssueCr: 0.0,
-      ofsCr: 12500.0,
-      gmp: 920.0,
-      gmpPercent: 51.54,
-      expectedListingPrice: 2705.0,
-      estProfitPerLot: 7360.0,
-      allotmentStatus: "🔴 LAST DAY — CLOSES TODAY AT 5 PM",
-      registrar: "MUFG Intime India Private Limited",
-      subscription: { total: 42.80, qib: 98.20, nii: 38.60, retail: 14.10 },
-      aiVerdict: "STRONG_APPLY_HIGH_GAIN",
-      recommendation: { verdict: "MUST APPLY AT CUT-OFF (₹1,785)", recommendedStrategy: "India's monopolistic stock exchange with >93% equity market share and 72%+ EBITDA margins. Once-in-a-decade listing event." }
-    },
-    {
-      id: "IPO-SPECTRAA",
-      symbol: "SPECTRAA",
-      companyName: "SpectraA Technology Solutions Limited",
-      sector: "Stainless Steel Brewing, Dairy & Bio-Pharma Process Tanks",
-      category: "Mainboard",
-      priceBand: "₹112 - ₹118",
-      minPrice: 112.0,
-      maxPrice: 118.0,
-      lotSize: 125,
-      minInvestment: 14750.0,
-      issueSizeCr: 85.0,
-      gmp: 36.0,
-      gmpPercent: 30.51,
-      expectedListingPrice: 154.0,
-      allotmentStatus: "🔴 LAST DAY — CLOSES TODAY AT 5 PM",
-      registrar: "Bigshare Services Pvt Ltd",
-      subscription: { total: 28.40, qib: 62.80, nii: 24.50, retail: 9.80 },
-      aiVerdict: "STRONG_APPLY_HIGH_GAIN",
-      recommendation: { verdict: "APPLY AT UPPER BAND (₹118)", recommendedStrategy: "Niche stainless steel process equipment manufacturer with exports to 18 countries. 28.4x oversubscribed." }
-    },
-    {
-      id: "IPO-RENTOMOJO",
-      symbol: "RENTOMOJO",
-      companyName: "Rentomojo (Edunetwork Private Limited)",
-      sector: "Furniture, Electronics & Consumer Lifestyle Rental Platform",
-      category: "Mainboard",
-      priceBand: "₹210 - ₹225",
-      minPrice: 210.0,
-      maxPrice: 225.0,
-      lotSize: 65,
-      minInvestment: 14625.0,
-      issueSizeCr: 650.0,
-      gmp: 48.0,
-      gmpPercent: 21.33,
-      expectedListingPrice: 273.0,
-      allotmentStatus: "⏰ CLOSES TOMORROW SEP 22",
-      registrar: "KFin Technologies Limited",
-      subscription: { total: 18.60, qib: 42.10, nii: 15.80, retail: 6.40 },
-      aiVerdict: "APPLY_FOR_LISTING",
-      recommendation: { verdict: "APPLY AT UPPER BAND (₹225)", recommendedStrategy: "India's largest consumer rental platform with 2.8 Lakh active customers across 18 cities. 38.4% revenue CAGR." }
-    },
-    {
-      id: "IPO-KHERIA",
-      symbol: "KHERIA",
-      companyName: "Kheria Autocomp Limited",
-      sector: "Precision Automotive Stamping & EV Chassis Assemblies",
-      category: "BSE SME",
-      priceBand: "₹125 - ₹132",
-      minPrice: 125.0,
-      maxPrice: 132.0,
-      lotSize: 1000,
-      minInvestment: 132000.0,
-      issueSizeCr: 110.0,
-      gmp: 30.0,
-      gmpPercent: 22.73,
-      expectedListingPrice: 162.0,
-      allotmentStatus: "⏰ CLOSES TOMORROW SEP 22",
-      registrar: "Skyline Financial Services Pvt Ltd",
-      subscription: { total: 14.20, qib: 0.0, nii: 18.40, retail: 11.60 },
-      aiVerdict: "APPLY_FOR_LISTING",
-      recommendation: { verdict: "APPLY AT UPPER BAND (₹132)", recommendedStrategy: "EV chassis assemblies supplier to Tata Motors & Mahindra EV. 14.2x SME oversubscription." }
-    }
+
+  // ── US fallback ───────────────────────────────────────────────────────────
+  if (isUS) {
+    const usActive = [{ id:"IPO-LINE", symbol:"LINE", companyName:"Lineage, Inc.", sector:"Cold Storage Logistics & REIT Infrastructure", category:"NYSE Mainboard", priceBand:"$78 - $82", lotSize:1, minInvestment:82.0, issueSizeCr:4440.0, gmp:6.5, gmpPercent:7.93, expectedListingPrice:88.5, allotmentStatus:"🟢 LIVE BIDDING", subscription:{total:4.8,qib:6.2,nii:3.4,retail:2.1}, aiVerdict:"APPLY_FOR_LONG_TERM", recommendation:{recommendedStrategy:"World's largest temperature-controlled industrial REIT."} }];
+    if (pathname.includes('/summary'))  return { market:'US', activeCount:1, closedCount:0, upcomingCount:0, listedCount:0, averageGmpPercent:7.93, totalActiveCapital:'$4,440 M' };
+    if (pathname.includes('/active'))   return { market:'US', count:1, ipos:usActive };
+    return { market:'US', count:0, ipos:[] };
+  }
+
+  // ── Indian IPOs — Sep 23, 2026 ────────────────────────────────────────────
+  const activeIpos = [
+    { id:"UPCOMING-SRIGEE", symbol:"SRIGEE", companyName:"Srigee DLM Limited", sector:"Electronic Manufacturing Services & PCB Assembly", category:"BSE SME", priceBand:"₹186 - ₹196", minPrice:186.0, maxPrice:196.0, lotSize:600, minInvestment:117600.0, openDate:"2026-09-23", closeDate:"2026-09-25", allotmentDate:"2026-09-26", listingDate:"2026-09-30", issueSizeCr:59.0, gmp:54.0, gmpPercent:27.55, expectedListingPrice:250.0, estProfitPerLot:32400.0, allotmentStatus:"🟢 LIVE BIDDING — DAY 1 OF 3 (CLOSES Sep 25)", registrar:"Bigshare Services Pvt Ltd", subscription:{total:0.0,qib:0.0,nii:0.0,retail:0.0}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹196)", recommendedStrategy:"EMS player supplying PCB assemblies to defense and auto OEMs. Strong order book visibility."} },
+    { id:"UPCOMING-ROSMERTA", symbol:"ROSMERTA", companyName:"Rosmerta Digital Services Limited", sector:"Fastag / RFID Toll & Fleet Telematics Technology", category:"NSE SME", priceBand:"₹117 - ₹123", minPrice:117.0, maxPrice:123.0, lotSize:1000, minInvestment:123000.0, openDate:"2026-09-23", closeDate:"2026-09-25", allotmentDate:"2026-09-26", listingDate:"2026-09-30", issueSizeCr:55.0, gmp:34.0, gmpPercent:27.64, expectedListingPrice:157.0, estProfitPerLot:34000.0, allotmentStatus:"🟢 LIVE BIDDING — DAY 1 OF 3 (CLOSES Sep 25)", registrar:"KFin Technologies Limited", subscription:{total:0.0,qib:0.0,nii:0.0,retail:0.0}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹123)", recommendedStrategy:"Fastag issuer with NHAI mandate. 18 Lakh+ active tags. Telematics and GPS fleet tracking moat."} }
   ];
 
-  if (pathname.includes('/summary')) {
-    return {
-      market: isUS ? 'US' : 'IN',
-      activeCount: isUS ? 1 : 4,
-      closedCount: 0,
-      upcomingCount: 3,
-      listedCount: 13,
-      averageGmpPercent: isUS ? 7.93 : 31.5,
-      totalActiveCapital: isUS ? '$4,440 M' : '₹13,345 Cr'
-    };
-  }
+  const closedIpos = [
+    { id:"IPO-NSE", symbol:"NSE", companyName:"National Stock Exchange of India Limited", sector:"Financial Exchange & Market Infrastructure", category:"Mainboard", priceBand:"₹1,700 - ₹1,785", minPrice:1700.0, maxPrice:1785.0, lotSize:8, minInvestment:14280.0, issueSizeCr:12500.0, gmp:920.0, gmpPercent:51.54, expectedListingPrice:2705.0, openDate:"2026-09-17", closeDate:"2026-09-21", allotmentDate:"2026-09-22", listingDate:"2026-09-25", allotmentStatus:"📦 ALLOTTED — LISTING IN 2 DAYS (Sep 25)", registrar:"MUFG Intime India Private Limited", subscription:{total:42.80,qib:98.20,nii:38.60,retail:14.10}, aiVerdict:"STRONG_APPLY_HIGH_GAIN", recommendation:{verdict:"MUST APPLY AT CUT-OFF (₹1,785)", recommendedStrategy:"India's monopolistic stock exchange with >93% equity market share and 72%+ EBITDA margins."} },
+    { id:"IPO-SPECTRAA", symbol:"SPECTRAA", companyName:"SpectraA Technology Solutions Limited", sector:"Stainless Steel Process Equipment", category:"Mainboard", priceBand:"₹112 - ₹118", minPrice:112.0, maxPrice:118.0, lotSize:125, minInvestment:14750.0, issueSizeCr:85.0, gmp:36.0, gmpPercent:30.51, expectedListingPrice:154.0, openDate:"2026-09-19", closeDate:"2026-09-21", allotmentDate:"2026-09-23", listingDate:"2026-09-26", allotmentStatus:"📦 ALLOTMENT TODAY — CHECK YOUR STATUS", registrar:"Bigshare Services Pvt Ltd", subscription:{total:28.40,qib:62.80,nii:24.50,retail:9.80}, aiVerdict:"STRONG_APPLY_HIGH_GAIN", recommendation:{verdict:"APPLY AT UPPER BAND (₹118)", recommendedStrategy:"Niche stainless steel process equipment manufacturer with exports to 18 countries. 28.4x oversubscribed."} },
+    { id:"IPO-RENTOMOJO", symbol:"RENTOMOJO", companyName:"Rentomojo (Edunetwork Private Limited)", sector:"Consumer Lifestyle Rental Platform", category:"Mainboard", priceBand:"₹210 - ₹225", minPrice:210.0, maxPrice:225.0, lotSize:65, minInvestment:14625.0, issueSizeCr:650.0, gmp:48.0, gmpPercent:21.33, expectedListingPrice:273.0, openDate:"2026-09-17", closeDate:"2026-09-22", allotmentDate:"2026-09-24", listingDate:"2026-09-27", allotmentStatus:"⏳ BIDDING CLOSED — ALLOTMENT IN 1 DAY (Sep 24)", registrar:"KFin Technologies Limited", subscription:{total:18.60,qib:42.10,nii:15.80,retail:6.40}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹225)", recommendedStrategy:"India's largest consumer rental platform with 2.8 Lakh active customers across 18 cities."} },
+    { id:"IPO-KHERIA", symbol:"KHERIA", companyName:"Kheria Autocomp Limited", sector:"Precision Automotive Stamping & EV Chassis Assemblies", category:"BSE SME", priceBand:"₹125 - ₹132", minPrice:125.0, maxPrice:132.0, lotSize:1000, minInvestment:132000.0, issueSizeCr:110.0, gmp:30.0, gmpPercent:22.73, expectedListingPrice:162.0, openDate:"2026-09-17", closeDate:"2026-09-22", allotmentDate:"2026-09-24", listingDate:"2026-09-26", allotmentStatus:"⏳ BIDDING CLOSED — ALLOTMENT IN 1 DAY (Sep 24)", registrar:"Skyline Financial Services Pvt Ltd", subscription:{total:14.20,qib:0.0,nii:18.40,retail:11.60}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹132)", recommendedStrategy:"EV chassis assemblies supplier to Tata Motors & Mahindra EV. 14.2x SME oversubscription."} }
+  ];
 
-  if (pathname.includes('/active')) {
-    return { market: isUS ? 'US' : 'IN', count: defaultActive.length, ipos: defaultActive };
-  }
+  const upcomingIpos = [
+    { id:"UPCOMING-SAGILITY", symbol:"SAGILITY", companyName:"Sagility India Limited (Follow-on)", sector:"US Healthcare IT & Revenue Cycle Management BPO", category:"Mainboard", priceBand:"₹28 - ₹30", minPrice:28.0, maxPrice:30.0, lotSize:500, minInvestment:15000.0, openDate:"2026-09-30", closeDate:"2026-10-02", allotmentDate:"2026-10-03", listingDate:"2026-10-07", issueSizeCr:580.0, gmp:5.0, gmpPercent:16.67, expectedListingPrice:35.0, allotmentStatus:"📅 OPENS IN 7 DAYS — Sep 30 to Oct 2", registrar:"KFin Technologies Limited", subscription:{total:0.0,qib:0.0,nii:0.0,retail:0.0}, aiVerdict:"APPLY_FOR_LONG_TERM", recommendation:{verdict:"SUBSCRIBE AT CUT-OFF (₹30)", recommendedStrategy:"Dominant US healthcare BPO with 40+ Fortune 500 hospital clients. Strong dollar revenue visibility."} }
+  ];
 
-  return { market: isUS ? 'US' : 'IN', count: defaultActive.length, ipos: defaultActive };
+  const listedIpos = [
+    { id:"LIST-MANIKA", symbol:"MANIKA", companyName:"Manika Plastech Limited", sector:"Plastic Packaging & Consumer Containers", category:"BSE SME", issuePrice:43.0, listingPrice:56.0, currentPrice:61.0, totalReturnPercent:41.86, listingGainPercent:30.23, listingDate:"2026-09-22", allotmentStatus:"🏁 LISTED Sep 22", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
+    { id:"LIST-KARAMTARA", symbol:"KARAMTARA", companyName:"Karamtara Engineering Limited", sector:"Transmission Line Towers & EPC", category:"Mainboard", issuePrice:254.0, listingPrice:310.0, currentPrice:348.0, totalReturnPercent:37.01, listingGainPercent:22.05, listingDate:"2026-09-10", allotmentStatus:"🏁 LISTED Sep 10", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
+    { id:"LIST-LCCPROJ", symbol:"LCCPROJ", companyName:"LCC Projects India Limited", sector:"Modular Prefab & MEP Contracting", category:"NSE SME", issuePrice:146.0, listingPrice:188.0, currentPrice:212.0, totalReturnPercent:45.21, listingGainPercent:28.77, listingDate:"2026-09-05", allotmentStatus:"🏁 LISTED Sep 5", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-ARCIL", symbol:"ARCIL", companyName:"ARCIL (Asset Reconstruction Company)", sector:"ARC & Stressed Asset Resolution", category:"Mainboard", issuePrice:139.0, listingPrice:155.0, currentPrice:163.0, totalReturnPercent:17.27, listingGainPercent:11.51, listingDate:"2026-09-02", allotmentStatus:"🏁 LISTED Sep 2", aiVerdict:"APPLY_FOR_LONG_TERM" },
+    { id:"LIST-DEEPA", symbol:"DEEPA", companyName:"Deepa Machinery Limited", sector:"Agricultural & Mining Equipment", category:"NSE SME", issuePrice:80.0, listingPrice:104.0, currentPrice:116.0, totalReturnPercent:45.0, listingGainPercent:30.0, listingDate:"2026-09-08", allotmentStatus:"🏁 LISTED Sep 8", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-RAYSOFBELIEF", symbol:"RAYSOFBELIEF", companyName:"Rays of Belief Foundation (EdTech)", sector:"Online Test Prep & K-12 Digital Learning", category:"BSE SME", issuePrice:86.0, listingPrice:112.0, currentPrice:121.0, totalReturnPercent:40.70, listingGainPercent:30.23, listingDate:"2026-09-12", allotmentStatus:"🏁 LISTED Sep 12", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-QUALIANCE", symbol:"QUALIANCE", companyName:"Qualiance Technologies Limited", sector:"QA Automation & Software Testing", category:"NSE SME", issuePrice:72.0, listingPrice:92.0, currentPrice:98.0, totalReturnPercent:36.11, listingGainPercent:27.78, listingDate:"2026-09-15", allotmentStatus:"🏁 LISTED Sep 15", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-PURPLE", symbol:"PURPLE", companyName:"Purple Style Labs (Bewakoof)", sector:"D2C Youth Fashion & Online Retail", category:"Mainboard", issuePrice:182.0, listingPrice:220.0, currentPrice:238.0, totalReturnPercent:30.77, listingGainPercent:20.88, listingDate:"2026-09-18", allotmentStatus:"🏁 LISTED Sep 18", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-ESDS", symbol:"ESDS", companyName:"ESDS Software Solution Limited", sector:"Cloud & Managed Data Center Services", category:"Mainboard", issuePrice:1340.0, listingPrice:1620.0, currentPrice:1725.0, totalReturnPercent:28.73, listingGainPercent:20.90, listingDate:"2026-09-03", allotmentStatus:"🏁 LISTED Sep 3", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
+    { id:"LIST-PRIORITY", symbol:"PRIORITY", companyName:"Priority Technology Holdings India", sector:"SaaS Payments & Integrated Commerce Tech", category:"NSE SME", issuePrice:174.0, listingPrice:208.0, currentPrice:226.0, totalReturnPercent:29.89, listingGainPercent:19.54, listingDate:"2026-09-11", allotmentStatus:"🏁 LISTED Sep 11", aiVerdict:"APPLY_FOR_LONG_TERM" },
+    { id:"LIST-LUMINO", symbol:"LUMINO", companyName:"Lumino Industries Limited", sector:"Stationery & Art Supplies", category:"Mainboard", issuePrice:88.0, listingPrice:102.0, currentPrice:109.0, totalReturnPercent:23.86, listingGainPercent:15.91, listingDate:"2026-09-09", allotmentStatus:"🏁 LISTED Sep 9", aiVerdict:"APPLY_FOR_LONG_TERM" },
+    { id:"LIST-ANNUPROJ", symbol:"ANNUPROJ", companyName:"Annu Projects Limited", sector:"Civil Infrastructure & Urban Housing EPC", category:"NSE SME", issuePrice:98.0, listingPrice:124.0, currentPrice:132.0, totalReturnPercent:34.69, listingGainPercent:26.53, listingDate:"2026-09-04", allotmentStatus:"🏁 LISTED Sep 4", aiVerdict:"APPLY_FOR_LISTING" },
+    { id:"LIST-SYMBIOTEC", symbol:"SYMBIOTEC", companyName:"Symbiotec Pharmalab Limited", sector:"API & Steroids CDMO Pharma", category:"Mainboard", issuePrice:892.0, listingPrice:1080.0, currentPrice:1157.0, totalReturnPercent:29.71, listingGainPercent:21.08, listingDate:"2026-09-16", allotmentStatus:"🏁 LISTED Sep 16", aiVerdict:"STRONG_APPLY_HIGH_GAIN" }
+  ];
+
+  if (pathname.includes('/summary'))  return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:27.6, totalActiveCapital:'₹114 Cr', dataRefreshedAt:new Date().toISOString() };
+  if (pathname.includes('/active'))   return { market:'IN', count:activeIpos.length,   ipos:activeIpos };
+  if (pathname.includes('/closed'))   return { market:'IN', count:closedIpos.length,   ipos:closedIpos };
+  if (pathname.includes('/upcoming')) return { market:'IN', count:upcomingIpos.length, ipos:upcomingIpos };
+  if (pathname.includes('/listed'))   return { market:'IN', count:listedIpos.length,   ipos:listedIpos };
+  return { market:'IN', count:activeIpos.length, ipos:activeIpos };
 }
 
 
