@@ -5,5 +5,10 @@ service cloud.firestore {
     match /users/{userId}/{document=**} {
       allow read, write: if true;
     }
+    // IPO live data: public read (for Firebase hosted site), open write (for backend push via API key)
+    match /ipo_data/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

@@ -1,8 +1,11 @@
 /**
  * Autonomous Direct Cloud Market Feed Provider
  * Fetches REAL LIVE data directly from Yahoo Finance public API (CORS-enabled).
+ * IPO GMP: read from Firestore (written by backend every 5 min).
  * Zero backend dependency — works 24/7 even when laptop is off.
  */
+import { db } from './firebase.js';
+import { doc, getDoc } from 'firebase/firestore';
 
 import { fuzzySearchUniverse, INDIAN_STOCKS_UNIVERSE, US_STOCKS_UNIVERSE } from './stockUniverse.js';
 
@@ -1183,12 +1186,48 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
     { id:"LIST-SYMBIOTEC", symbol:"SYMBIOTEC", companyName:"Symbiotec Pharmalab Limited", sector:"API & Steroids CDMO Pharma", category:"Mainboard", issuePrice:892.0, listingPrice:1080.0, currentPrice:1157.0, totalReturnPercent:29.71, listingGainPercent:21.08, listingDate:"2026-09-16", allotmentStatus:"🏁 LISTED Sep 16", aiVerdict:"STRONG_APPLY_HIGH_GAIN" }
   ];
 
-  if (pathname.includes('/summary'))  return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:27.6, totalActiveCapital:'₹114 Cr', dataRefreshedAt:new Date().toISOString() };
-  if (pathname.includes('/active'))   return { market:'IN', count:activeIpos.length,   ipos:activeIpos };
-  if (pathname.includes('/closed'))   return { market:'IN', count:closedIpos.length,   ipos:closedIpos };
-  if (pathname.includes('/upcoming')) return { market:'IN', count:upcomingIpos.length, ipos:upcomingIpos };
-  if (pathname.includes('/listed'))   return { market:'IN', count:listedIpos.length,   ipos:listedIpos };
-  return { market:'IN', count:activeIpos.length, ipos:activeIpos };
+  // Try to fetch live GMP + prices from Firestore (written by backend every 5 min)
+  let liveGmp = {};
+  let livePrices = {};
+  try {
+    const snap = await getDoc(doc(db, 'ipo_data', 'live'));
+    if (snap.exists()) {
+      liveGmp = snap.data().gmp || {};
+      livePrices = snap.data().listedPrices || {};
+    }
+  } catch (e) {
+    // Firestore unavailable — use hardcoded fallback values
+  }
+
+  // Enrich IPO arrays with live Firestore data
+  const enrichWithGmp = (ipos) => ipos.map(ipo => {
+    const g = liveGmp[ipo.symbol] || liveGmp[ipo.symbol?.toLowerCase()] || {};
+    const price = livePrices[ipo.symbol];
+    const enriched = { ...ipo };
+    if (g.gmp !== undefined)               enriched.gmp = g.gmp;
+    if (g.gmpPercent !== undefined)        enriched.gmpPercent = g.gmpPercent;
+    if (g.subscriptionTotal !== undefined) {
+      enriched.subscription = { ...(ipo.subscription || {}), total: parseFloat(g.subscriptionTotal) || ipo.subscription?.total };
+      if (g.qib !== undefined)   enriched.subscription.qib = g.qib;
+      if (g.nii !== undefined)   enriched.subscription.nii = g.nii;
+      if (g.retail !== undefined) enriched.subscription.retail = g.retail;
+    }
+    if (price && ipo.issuePrice) {
+      enriched.currentPrice = price;
+      enriched.totalReturnPercent = parseFloat(((price - ipo.issuePrice) / ipo.issuePrice * 100).toFixed(2));
+    }
+    if (g.gmp && ipo.maxPrice) enriched.expectedListingPrice = parseFloat((ipo.maxPrice + g.gmp).toFixed(2));
+    return enriched;
+  });
+
+  const hasLiveData = Object.keys(liveGmp).length > 0;
+
+  if (pathname.includes('/summary'))  return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:27.6, totalActiveCapital:'₹114 Cr', dataRefreshedAt:new Date().toISOString(), liveData:hasLiveData };
+  if (pathname.includes('/active'))   return { market:'IN', count:activeIpos.length,   ipos:enrichWithGmp(activeIpos) };
+  if (pathname.includes('/closed'))   return { market:'IN', count:closedIpos.length,   ipos:enrichWithGmp(closedIpos) };
+  if (pathname.includes('/upcoming')) return { market:'IN', count:upcomingIpos.length, ipos:enrichWithGmp(upcomingIpos) };
+  if (pathname.includes('/listed'))   return { market:'IN', count:listedIpos.length,   ipos:enrichWithGmp(listedIpos) };
+  return { market:'IN', count:activeIpos.length, ipos:enrichWithGmp(activeIpos) };
 }
 
 

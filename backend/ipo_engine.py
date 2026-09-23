@@ -1423,8 +1423,69 @@ def refresh_listed_ipo_prices():
         _LISTED_PRICE_LOCK.release()
 
 
+def _push_gmp_to_firestore(gmp_data: dict):
+    """
+    Push live GMP + listed prices to Firestore via REST API (no service account needed).
+    Uses the Firebase project's web API key — the same one in the frontend.
+    Document: ipo_data/live  →  { gmp: {SYMBOL: {gmp, gmpPercent, ...}}, listedPrices: {SYMBOL: price} }
+    """
+    try:
+        FIREBASE_PROJECT = "manishmarket-web"
+        FIREBASE_API_KEY = "AIzaSyD4YkCxqFyzj0qIbgjK6evooCGT47MkTAE"
+        url = (
+            f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}"
+            f"/databases/(default)/documents/ipo_data/live?key={FIREBASE_API_KEY}"
+        )
+
+        # Build Firestore REST API field structure
+        def to_firestore_value(v):
+            if isinstance(v, bool): return {"booleanValue": v}
+            if isinstance(v, int): return {"integerValue": str(v)}
+            if isinstance(v, float): return {"doubleValue": v}
+            if isinstance(v, str): return {"stringValue": v}
+            if v is None: return {"nullValue": None}
+            return {"stringValue": str(v)}
+
+        # Build gmp map fields
+        gmp_map_fields = {}
+        for sym, data in gmp_data.items():
+            sym_fields = {}
+            for k in ("gmp", "gmpPercent", "subscriptionTotal", "qib", "nii", "retail"):
+                if k in data:
+                    sym_fields[k] = to_firestore_value(data[k])
+            gmp_map_fields[sym] = {"mapValue": {"fields": sym_fields}}
+
+        # Build listedPrices map
+        with _LISTED_PRICE_LOCK:
+            listed_prices = dict(_LISTED_PRICE_CACHE)
+        listed_map_fields = {}
+        for sym, v in listed_prices.items():
+            price = v.get("currentPrice")
+            if price:
+                listed_map_fields[sym] = to_firestore_value(float(price))
+
+        body = {
+            "fields": {
+                "gmp": {"mapValue": {"fields": gmp_map_fields}},
+                "listedPrices": {"mapValue": {"fields": listed_map_fields}},
+                "updatedAt": {"stringValue": datetime.now().isoformat()},
+            }
+        }
+
+        import json as _json
+        res = _ipo_http.patch(url, json=body, timeout=10.0)
+        if res.status_code in (200, 201):
+            logger.info(f"Firestore GMP push: {len(gmp_data)} symbols → ipo_data/live ✅")
+        else:
+            logger.debug(f"Firestore GMP push HTTP {res.status_code}: {res.text[:200]}")
+    except Exception as e:
+        logger.debug(f"Firestore GMP push failed (non-critical): {e}")
+
+
+
+
 def refresh_gmp_data():
-    """Scrape live GMP and subscription data from Chittorgarh.com."""
+    """Scrape live GMP and subscription data from Chittorgarh.com, then push to Firestore."""
     global _GMP_LAST_REFRESH
     now = time.monotonic()
     if now - _GMP_LAST_REFRESH < 300:  # 5-minute throttle
@@ -1436,8 +1497,11 @@ def refresh_gmp_data():
                 _GMP_CACHE.update(data)
             _GMP_LAST_REFRESH = now
             logger.info(f"GMP data refresh: {len(data)} IPOs updated from Chittorgarh")
+            # Push to Firestore so Firebase-hosted site can read live GMP
+            _push_gmp_to_firestore(data)
         else:
             logger.debug("GMP scrape returned no data — keeping cached values")
+
     except Exception as e:
         logger.warning(f"GMP refresh failed: {e}")
 
