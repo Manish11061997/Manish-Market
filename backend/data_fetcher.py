@@ -224,42 +224,77 @@ _UNIVERSE_REFRESH_INTERVAL = 60  # seconds
 
 def _batch_fetch_prices(symbols: list[str]) -> dict:
     """
-    Fetch real-time prices for up to 200 symbols in a single Yahoo Finance API call.
+    Fetch real-time prices for a list of Yahoo Finance symbols.
     Returns dict: {symbol: {"price": float, "prevClose": float}}
+
+    Strategy (in order):
+    1. yf.download() — confirmed working, handles 100s of symbols in one call
+    2. Per-symbol v8/chart fallback for any missed symbols
     """
     if not symbols:
         return {}
+
     results = {}
-    # Yahoo Finance /v7/finance/quote supports comma-separated symbols
-    chunk_size = 100  # Yahoo limit per call
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-    }
-    for i in range(0, len(symbols), chunk_size):
-        chunk = symbols[i:i + chunk_size]
-        sym_str = ",".join(chunk)
-        try:
-            url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&fields=regularMarketPrice,regularMarketPreviousClose"
-            res = _http_session.get(url, headers=headers, timeout=6.0)
-            if res.status_code != 200:
-                # Fallback to query1
-                url2 = url.replace("query2", "query1")
-                res = _http_session.get(url2, headers=headers, timeout=6.0)
-            if res.status_code == 200:
-                data = res.json()
-                quotes = data.get("quoteResponse", {}).get("result", [])
-                for q in quotes:
-                    sym = q.get("symbol", "")
-                    price = q.get("regularMarketPrice")
-                    prev = q.get("regularMarketPreviousClose")
+
+    # --- Strategy 1: yf.download() batch (fast, no auth required) ---
+    try:
+        import yfinance as yf
+        import warnings
+        import pandas as pd
+        chunk_size = 100
+        for i in range(0, len(symbols), chunk_size):
+            chunk = symbols[i:i + chunk_size]
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    df = yf.download(chunk, period="2d", progress=False, threads=True, auto_adjust=True)
+                if df.empty:
+                    continue
+                # df has MultiIndex columns: (field, symbol) when multi-ticker
+                close_df = df.get("Close")
+                if close_df is None:
+                    continue
+                if isinstance(close_df, pd.Series):
+                    # Single symbol — wrap it
+                    sym = chunk[0] if len(chunk) == 1 else None
+                    if sym and not close_df.empty:
+                        prices = close_df.dropna()
+                        if len(prices) >= 2:
+                            results[sym] = {"price": round(float(prices.iloc[-1]), 2), "prevClose": round(float(prices.iloc[-2]), 2)}
+                        elif len(prices) == 1:
+                            results[sym] = {"price": round(float(prices.iloc[-1]), 2), "prevClose": round(float(prices.iloc[-1]), 2)}
+                else:
+                    for sym in close_df.columns:
+                        col = close_df[sym].dropna()
+                        if len(col) >= 2:
+                            results[sym] = {"price": round(float(col.iloc[-1]), 2), "prevClose": round(float(col.iloc[-2]), 2)}
+                        elif len(col) == 1:
+                            results[sym] = {"price": round(float(col.iloc[-1]), 2), "prevClose": round(float(col.iloc[-1]), 2)}
+            except Exception as e:
+                logger.debug(f"yf.download batch chunk {i} error: {e}")
+    except ImportError:
+        logger.debug("yfinance not available, falling back to per-symbol v8/chart")
+
+    # --- Strategy 2: per-symbol v8/chart for any symbols missed by download ---
+    missed = [s for s in symbols if s not in results]
+    if missed:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+        }
+        for sym in missed[:20]:  # Cap fallback to 20 symbols to avoid long startup
+            try:
+                url = f"https://query2.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d"
+                res = _http_session.get(url, headers=headers, timeout=5.0)
+                if res.status_code == 200:
+                    meta = res.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
+                    price = meta.get("regularMarketPrice") or meta.get("chartPreviousClose")
+                    prev = meta.get("chartPreviousClose") or price
                     if price:
-                        results[sym] = {
-                            "price": round(float(price), 2),
-                            "prevClose": round(float(prev), 2) if prev else round(float(price), 2)
-                        }
-        except Exception as e:
-            logger.debug(f"Batch price fetch error for chunk {i}: {e}")
+                        results[sym] = {"price": round(float(price), 2), "prevClose": round(float(prev), 2)}
+            except Exception as e:
+                logger.debug(f"v8/chart fallback error for {sym}: {e}")
+
     return results
 
 def refresh_universe_prices():

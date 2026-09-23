@@ -1203,27 +1203,27 @@ _LISTED_PRICE_LAST_REFRESH = 0.0
 
 
 def _fetch_yahoo_batch_prices(ticker_map: Dict[str, str]) -> Dict[str, float]:
-    """Batch-fetch current prices for a symbol->yf_ticker mapping. Returns {symbol: price}."""
+    """Fetch current prices for a symbol->yf_ticker mapping using per-symbol v8/chart.
+    Returns {symbol: price}. /v7/finance/quote is broken (401), use v8/chart instead."""
     if not ticker_map:
         return {}
     results = {}
-    yf_tickers = list(ticker_map.values())
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+    }
     sym_by_yf = {v: k for k, v in ticker_map.items()}
-    sym_str = ",".join(yf_tickers)
-    try:
-        url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&fields=regularMarketPrice,regularMarketPreviousClose"
-        res = _ipo_http.get(url, timeout=8.0)
-        if res.status_code != 200:
-            res = _ipo_http.get(url.replace("query2", "query1"), timeout=8.0)
-        if res.status_code == 200:
-            quotes = res.json().get("quoteResponse", {}).get("result", [])
-            for q in quotes:
-                yf_sym = q.get("symbol", "")
-                price = q.get("regularMarketPrice")
-                if price and yf_sym in sym_by_yf:
-                    results[sym_by_yf[yf_sym]] = round(float(price), 2)
-    except Exception as e:
-        logger.debug(f"IPO batch price fetch error: {e}")
+    for yf_sym, our_sym in sym_by_yf.items():
+        try:
+            url = f"https://query2.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval=1d&range=5d"
+            res = _ipo_http.get(url, headers=headers, timeout=6.0)
+            if res.status_code == 200:
+                meta = res.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
+                price = meta.get("regularMarketPrice") or meta.get("chartPreviousClose")
+                if price:
+                    results[our_sym] = round(float(price), 2)
+        except Exception as e:
+            logger.debug(f"IPO price fetch error for {yf_sym}: {e}")
     return results
 
 
