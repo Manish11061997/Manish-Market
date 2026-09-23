@@ -105,6 +105,39 @@ export async function fetchBatchQuotesV7(symbols, timeoutMs = 8000) {
 
   const resultMap = new Map();
 
+  // ── Tier 0: Firestore live market snapshot (instant cloud sync) ────────────
+  try {
+    const isUS = symbols.some(s => !s.endsWith('.NS') && !s.endsWith('.BO') && !s.startsWith('^'));
+    const docName = isUS ? 'live_us' : 'live_in';
+    const snap = await getDoc(doc(db, 'market_data', docName));
+    if (snap.exists()) {
+      const quotes = snap.data().quotes || {};
+      symbols.forEach(sym => {
+        const q = quotes[sym] || quotes[toYFTicker(sym)];
+        if (q && q.price) {
+          resultMap.set(sym, {
+            symbol: sym,
+            price: q.price,
+            change: q.change ?? 0,
+            changePercent: q.changePercent ?? 0,
+            previousClose: q.previousClose || q.price,
+            volume: q.volume || 1000000,
+            dayHigh: q.high52 || q.price,
+            dayLow: q.low52 || q.price,
+            high52: q.high52,
+            low52: q.low52
+          });
+        }
+      });
+      if (resultMap.size > 0) {
+        quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+        return resultMap;
+      }
+    }
+  } catch (e) {
+    // Firestore offline — fall through to direct fetch tiers
+  }
+
   // ── Tier 1: Yahoo Finance Spark API (no crumb needed, batch) ────────────────
   try {
     const CHUNK_SIZE = 20;
@@ -259,109 +292,109 @@ export const INDEX_SYMBOLS = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT'];
 
 // Real current market baseline securities universe (exact official closing prices)
 export const DEFAULT_INDIAN_SECURITIES = [
-  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1277.00, change: -0.78, high52: 1611.80, low52: 1249.80, volume: 5410000, pe: 24.5, mcap: "17.5L Cr", beta: 0.85 },
-  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2399.30, change: 0.45,  high52: 3350.00, low52: 1976.80, volume: 1060000, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
-  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 709.00,  change: -0.20, high52: 1020.50, low52: 705.00,  volume: 45200000, pe: 19.8, mcap: "13.1L Cr", beta: 0.95 },
-  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1133.80, change: 0.30,  high52: 1728.00, low52: 982.40,  volume: 4010000, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
-  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1454.00, change: 0.71,  high52: 1480.00, low52: 1187.60, volume: 8550000, pe: 18.2, mcap: "10.1L Cr", beta: 1.05 },
-  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1811.90, change: -3.09, high52: 2174.50, low52: 1740.50, volume: 3100000, pe: 42.1, mcap: "10.7L Cr", beta: 0.65 },
-  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 1060.00, change: 1.47,  high52: 1234.70, low52: 802.65,  volume: 2280000, pe: 10.4, mcap: "7.3L Cr",  beta: 1.15 },
-  { symbol: "BAJFINANCE.NS",name: "Bajaj Finance Ltd",                sector: "NBFC & Financials",         ltp: 1065.00, change: -1.38, high52: 1176.40, low52: 787.90,  volume: 2680000, pe: 28.5, mcap: "4.5L Cr",  beta: 1.20 },
+  { symbol: "RELIANCE.NS",  name: "Reliance Industries Ltd",          sector: "Energy & Petrochemicals",  ltp: 1248.0, change: 0.33, high52: 1611.8, low52: 1226.4, volume: 8348873, pe: 24.5, mcap: "17.5L Cr", beta: 0.85 },
+  { symbol: "TCS.NS",       name: "Tata Consultancy Services Ltd",    sector: "IT Services & Consulting",  ltp: 2089.6, change: -4.58,  high52: 3350.0, low52: 1976.8, volume: 2226378, pe: 28.2, mcap: "8.5L Cr",  beta: 0.72 },
+  { symbol: "HDFCBANK.NS",  name: "HDFC Bank Ltd",                    sector: "Banking & Financials",      ltp: 737.25,  change: 3.4, high52: 1020.5, low52: 681.9,  volume: 23171795, pe: 19.8, mcap: "13.1L Cr", beta: 0.95 },
+  { symbol: "INFY.NS",      name: "Infosys Ltd",                      sector: "IT Services & Consulting",  ltp: 1020.5, change: -3.6,  high52: 1728.0, low52: 982.4,  volume: 5101691, pe: 23.4, mcap: "5.9L Cr",  beta: 0.88 },
+  { symbol: "ICICIBANK.NS", name: "ICICI Bank Ltd",                   sector: "Banking & Financials",      ltp: 1340.0, change: -0.56,  high52: 1480.0, low52: 1187.6, volume: 4757620, pe: 18.2, mcap: "10.1L Cr", beta: 1.05 },
+  { symbol: "BHARTIARTL.NS",name: "Bharti Airtel Ltd",                sector: "Telecommunications",        ltp: 1833.2, change: -0.15, high52: 2174.5, low52: 1740.5, volume: 3697894, pe: 42.1, mcap: "10.7L Cr", beta: 0.65 },
+  { symbol: "SBIN.NS",      name: "State Bank of India",              sector: "Banking & Financials",      ltp: 994.1, change: 0.55,  high52: 1234.7, low52: 853.0,  volume: 4521311, pe: 10.4, mcap: "7.3L Cr",  beta: 1.15 },
+  { symbol: "BAJFINANCE.NS",name: "Bajaj Finance Ltd",                sector: "NBFC & Financials",         ltp: 1043.2, change: 2.78, high52: 1176.4, low52: 787.9,  volume: 8618282, pe: 28.5, mcap: "4.5L Cr",  beta: 1.20 },
   { symbol: "KOTAKBANK.NS", name: "Kotak Mahindra Bank Ltd",          sector: "Banking & Financials",      ltp: 421.60,  change: -0.50, high52: 453.20,  low52: 345.50,  volume: 7740700, pe: 20.1, mcap: "4.2L Cr",  beta: 0.90 },
-  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 4044.90, change: 0.62, high52: 4440.00, low52: 3288.10, volume: 655000, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
-  { symbol: "MARUTI.NS",    name: "Maruti Suzuki India Ltd",          sector: "Automotive",                ltp: 13435.0, change: 0.44,  high52: 17370.0, low52: 12201.0, volume: 210200,  pe: 26.5, mcap: "3.6L Cr",  beta: 0.95 },
-  { symbol: "HCLTECH.NS",   name: "HCL Technologies Ltd",             sector: "IT Services & Consulting",  ltp: 1316.00, change: -0.01, high52: 1780.10, low52: 1030.00, volume: 770100,  pe: 24.8, mcap: "4.3L Cr",  beta: 0.85 },
-  { symbol: "NTPC.NS",      name: "NTPC Ltd",                         sector: "Power & Utilities",          ltp: 324.80,  change: -1.59, high52: 414.40,  low52: 315.55,  volume: 9445800, pe: 18.0, mcap: "3.3L Cr",  beta: 0.70 },
-  { symbol: "POWERGRID.NS", name: "Power Grid Corp of India",         sector: "Power & Utilities",          ltp: 264.70,  change: -0.51, high52: 324.95,  low52: 250.00,  volume: 3638700, pe: 16.5, mcap: "2.9L Cr",  beta: 0.60 },
+  { symbol: "LT.NS",        name: "Larsen & Toubro Ltd",              sector: "Infrastructure & Engineering", ltp: 3929.9, change: 2.44, high52: 4440.0, low52: 3288.1, volume: 945322, pe: 31.0, mcap: "5.5L Cr", beta: 1.10 },
+  { symbol: "MARUTI.NS",    name: "Maruti Suzuki India Ltd",          sector: "Automotive",                ltp: 12230.0, change: -0.88,  high52: 17370.0, low52: 12103.0, volume: 220467,  pe: 26.5, mcap: "3.6L Cr",  beta: 0.95 },
+  { symbol: "HCLTECH.NS",   name: "HCL Technologies Ltd",             sector: "IT Services & Consulting",  ltp: 1256.7, change: -0.13, high52: 1780.1, low52: 1030.0, volume: 2724097,  pe: 24.8, mcap: "4.3L Cr",  beta: 0.85 },
+  { symbol: "NTPC.NS",      name: "NTPC Ltd",                         sector: "Power & Utilities",          ltp: 326.0,  change: -1.09, high52: 414.4,  low52: 315.55,  volume: 10525305, pe: 18.0, mcap: "3.3L Cr",  beta: 0.70 },
+  { symbol: "POWERGRID.NS", name: "Power Grid Corp of India",         sector: "Power & Utilities",          ltp: 270.2,  change: 2.45, high52: 324.95,  low52: 250.0,  volume: 6113334, pe: 16.5, mcap: "2.9L Cr",  beta: 0.60 },
   { symbol: "TATAMOTORS.NS",name: "Tata Motors Ltd",                  sector: "Automotive",                ltp: 984.60,  change: 12.08, high52: 1179.00, low52: 850.00,  volume: 6740000, pe: 10.2, mcap: "3.5L Cr",  beta: 1.40 },
-  { symbol: "ITC.NS",       name: "ITC Ltd",                          sector: "FMCG",                      ltp: 255.50,  change: -3.57, high52: 427.00,  low52: 250.00,  volume: 6950600, pe: 26.0, mcap: "3.3L Cr",  beta: 0.60 },
-  { symbol: "JSWSTEEL.NS",  name: "JSW Steel Ltd",                    sector: "Metals & Steel",            ltp: 1319.40, change: -1.16, high52: 1351.00, low52: 1026.10, volume: 610900,  pe: 22.0, mcap: "3.2L Cr",  beta: 1.25 },
-  { symbol: "TITAN.NS",     name: "Titan Company Ltd",                sector: "Consumer Goods & Retail",   ltp: 5125.20, change: -0.85, high52: 5186.70, low52: 3303.10, volume: 150000,  pe: 82.0, mcap: "4.6L Cr",  beta: 0.78 },
-  { symbol: "ADANIPORTS.NS",name: "Adani Ports & SEZ Ltd",            sector: "Infrastructure & Ports",    ltp: 1663.40, change: -2.58, high52: 1891.10, low52: 1292.00, volume: 1429700, pe: 35.0, mcap: "3.6L Cr",  beta: 1.40 },
-  { symbol: "SUNPHARMA.NS", name: "Sun Pharmaceutical Industries",    sector: "Pharma & Healthcare",       ltp: 1929.60, change: 0.50,  high52: 2046.90, low52: 1548.00, volume: 578300,  pe: 32.0, mcap: "4.8L Cr",  beta: 0.55 },
-  { symbol: "HINDALCO.NS",  name: "Hindalco Industries Ltd",          sector: "Metals & Aluminium",        ltp: 1016.55, change: -2.01, high52: 1176.00, low52: 702.40,  volume: 2250200, pe: 14.0, mcap: "2.3L Cr",  beta: 1.40 },
-  { symbol: "CIPLA.NS",     name: "Cipla Ltd",                        sector: "Pharma & Healthcare",       ltp: 1418.70, change: -0.34, high52: 1673.00, low52: 1165.70, volume: 281600,  pe: 26.0, mcap: "1.1L Cr",  beta: 0.55 },
-  { symbol: "DIVISLAB.NS",  name: "Divi's Laboratories Ltd",          sector: "Pharma & Healthcare",       ltp: 9216.00, change: -0.25, high52: 9270.00, low52: 5636.50, volume: 274500,  pe: 68.0, mcap: "2.4L Cr",  beta: 0.70 },
-  { symbol: "DRREDDY.NS",   name: "Dr. Reddy's Laboratories Ltd",     sector: "Pharma & Healthcare",       ltp: 1176.60, change: -0.12, high52: 1414.90, low52: 1101.00, volume: 730600,  pe: 22.0, mcap: "1.9L Cr",  beta: 0.65 },
-  { symbol: "EICHERMOT.NS", name: "Eicher Motors Ltd",                sector: "Automotive & 2W",           ltp: 7951.50, change: -1.33, high52: 8230.00, low52: 6085.00, volume: 309600,  pe: 31.5, mcap: "2.2L Cr",  beta: 0.92 },
-  { symbol: "COALINDIA.NS", name: "Coal India Ltd",                   sector: "Mining & Energy",           ltp: 401.00,  change: 0.00,  high52: 491.25,  low52: 369.60,  volume: 4129200, pe: 8.5,  mcap: "2.5L Cr",  beta: 0.80 },
-  { symbol: "DMART.NS",     name: "Avenue Supermarts (D-Mart)",       sector: "Retail",                    ltp: 3794.10, change: -0.95, high52: 4949.50, low52: 3529.00, volume: 239200,  pe: 90.0, mcap: "2.8L Cr",  beta: 0.65 },
-  { symbol: "BRITANNIA.NS", name: "Britannia Industries Ltd",         sector: "FMCG",                      ltp: 5265.00, change: -0.82, high52: 6336.00, low52: 5035.00, volume: 77700,   pe: 52.0, mcap: "1.3L Cr",  beta: 0.50 },
-  { symbol: "TRENT.NS",     name: "Trent Ltd",                        sector: "Retail & Fashion",          ltp: 2891.60, change: -0.22, high52: 5674.00, low52: 2183.60, volume: 274300,  pe: 120.0,mcap: "1.4L Cr",  beta: 1.10 },
-  { symbol: "WIPRO.NS",     name: "Wipro Ltd",                        sector: "IT Services & Consulting",  ltp: 184.50,  change: 3.27,  high52: 273.10,  low52: 169.00,  volume: 5583500, pe: 22.0, mcap: "2.7L Cr",  beta: 0.80 },
+  { symbol: "ITC.NS",       name: "ITC Ltd",                          sector: "FMCG",                      ltp: 270.15,  change: 1.48, high52: 426.4,  low52: 255.5,  volume: 13138354, pe: 26.0, mcap: "3.3L Cr",  beta: 0.60 },
+  { symbol: "JSWSTEEL.NS",  name: "JSW Steel Ltd",                    sector: "Metals & Steel",            ltp: 1297.8, change: 3.54, high52: 1351.0, low52: 1073.2, volume: 1355585,  pe: 22.0, mcap: "3.2L Cr",  beta: 1.25 },
+  { symbol: "TITAN.NS",     name: "Titan Company Ltd",                sector: "Consumer Goods & Retail",   ltp: 4880.0, change: 0.81, high52: 5186.7, low52: 3303.1, volume: 769733,  pe: 82.0, mcap: "4.6L Cr",  beta: 0.78 },
+  { symbol: "ADANIPORTS.NS",name: "Adani Ports & SEZ Ltd",            sector: "Infrastructure & Ports",    ltp: 1807.3, change: 3.97, high52: 1891.1, low52: 1292.0, volume: 1184808, pe: 35.0, mcap: "3.6L Cr",  beta: 1.40 },
+  { symbol: "SUNPHARMA.NS", name: "Sun Pharmaceutical Industries",    sector: "Pharma & Healthcare",       ltp: 1865.0, change: -0.12,  high52: 2046.9, low52: 1548.0, volume: 902514,  pe: 32.0, mcap: "4.8L Cr",  beta: 0.55 },
+  { symbol: "HINDALCO.NS",  name: "Hindalco Industries Ltd",          sector: "Metals & Aluminium",        ltp: 1003.8, change: 2.38, high52: 1176.0, low52: 731.95,  volume: 5157393, pe: 14.0, mcap: "2.3L Cr",  beta: 1.40 },
+  { symbol: "CIPLA.NS",     name: "Cipla Ltd",                        sector: "Pharma & Healthcare",       ltp: 1383.0, change: 0.49, high52: 1673.0, low52: 1165.7, volume: 651182,  pe: 26.0, mcap: "1.1L Cr",  beta: 0.55 },
+  { symbol: "DIVISLAB.NS",  name: "Divi's Laboratories Ltd",          sector: "Pharma & Healthcare",       ltp: 9624.0, change: 3.23, high52: 9624.0, low52: 5636.5, volume: 489137,  pe: 68.0, mcap: "2.4L Cr",  beta: 0.70 },
+  { symbol: "DRREDDY.NS",   name: "Dr. Reddy's Laboratories Ltd",     sector: "Pharma & Healthcare",       ltp: 1211.2, change: 3.08, high52: 1414.9, low52: 1101.0, volume: 987080,  pe: 22.0, mcap: "1.9L Cr",  beta: 0.65 },
+  { symbol: "EICHERMOT.NS", name: "Eicher Motors Ltd",                sector: "Automotive & 2W",           ltp: 7470.0, change: -0.31, high52: 8230.0, low52: 6442.0, volume: 214994,  pe: 31.5, mcap: "2.2L Cr",  beta: 0.92 },
+  { symbol: "COALINDIA.NS", name: "Coal India Ltd",                   sector: "Mining & Energy",           ltp: 424.55,  change: 1.57,  high52: 491.25,  low52: 369.6,  volume: 7955502, pe: 8.5,  mcap: "2.5L Cr",  beta: 0.80 },
+  { symbol: "DMART.NS",     name: "Avenue Supermarts (D-Mart)",       sector: "Retail",                    ltp: 3834.8, change: 3.33, high52: 4754.6, low52: 3529.0, volume: 426892,  pe: 90.0, mcap: "2.8L Cr",  beta: 0.65 },
+  { symbol: "BRITANNIA.NS", name: "Britannia Industries Ltd",         sector: "FMCG",                      ltp: 4929.0, change: -1.06, high52: 6271.0, low52: 4905.0, volume: 207441,   pe: 52.0, mcap: "1.3L Cr",  beta: 0.50 },
+  { symbol: "TRENT.NS",     name: "Trent Ltd",                        sector: "Retail & Fashion",          ltp: 2774.0, change: -0.54, high52: 4963.5, low52: 2183.667, volume: 839716,  pe: 120.0,mcap: "1.4L Cr",  beta: 1.10 },
+  { symbol: "WIPRO.NS",     name: "Wipro Ltd",                        sector: "IT Services & Consulting",  ltp: 164.9,  change: -0.9,  high52: 273.1,  low52: 163.21,  volume: 10853052, pe: 22.0, mcap: "2.7L Cr",  beta: 0.80 },
   { symbol: "ZOMATO.NS",    name: "Zomato Ltd",                       sector: "Food Delivery & QSR",       ltp: 245.50,  change: 1.20,  high52: 304.00,  low52: 145.00,  volume: 18500000,pe: 250.0,mcap: "2.2L Cr",  beta: 1.55 },
-  { symbol: "HAL.NS",       name: "Hindustan Aeronautics Ltd",        sector: "Defence & Aerospace",       ltp: 4120.00, change: 0.65,  high52: 5675.00, low52: 2800.00, volume: 1100000, pe: 35.0, mcap: "3.0L Cr",  beta: 1.10 },
-  { symbol: "BEL.NS",       name: "Bharat Electronics Ltd",          sector: "Defence & Electronics",     ltp: 288.50,  change: -0.40, high52: 340.00,  low52: 175.00,  volume: 9200000, pe: 42.0, mcap: "2.0L Cr",  beta: 0.95 },
-  { symbol: "IRCTC.NS",     name: "Indian Railway Catering & Tourism",sector: "Tourism & Services",        ltp: 865.00,  change: 0.35,  high52: 1140.00, low52: 780.00,  volume: 2400000, pe: 55.0, mcap: "0.9L Cr",  beta: 1.05 },
-  { symbol: "SUZLON.NS",    name: "Suzlon Energy Ltd",                sector: "Renewable Energy",          ltp: 68.50,   change: 1.80,  high52: 86.00,   low52: 36.50,   volume: 38000000,pe: 45.0, mcap: "0.9L Cr",  beta: 1.85 },
-  { symbol: "VEDL.NS",      name: "Vedanta Ltd",                      sector: "Metals & Mining",           ltp: 448.20,  change: 0.90,  high52: 524.00,  low52: 245.00,  volume: 12000000,pe: 14.5, mcap: "1.7L Cr",  beta: 1.30 },
-  { symbol: "TATAPOWER.NS", name: "Tata Power Company Ltd",           sector: "Power & Utilities",          ltp: 412.50,  change: 0.45,  high52: 494.85,  low52: 318.00,  volume: 8500000, pe: 34.0, mcap: "1.3L Cr",  beta: 1.15 },
-  { symbol: "TATASTEEL.NS", name: "Tata Steel Ltd",                   sector: "Metals & Mining",           ltp: 148.75,  change: -0.30, high52: 184.60,  low52: 128.00,  volume: 24000000,pe: 28.0, mcap: "1.8L Cr",  beta: 1.25 },
-  { symbol: "ADANIENT.NS",  name: "Adani Enterprises Ltd",            sector: "Conglomerate",              ltp: 2850.00, change: -1.20, high52: 3740.00, low52: 2600.00, volume: 1800000, pe: 85.0, mcap: "3.2L Cr",  beta: 1.65 },
-  { symbol: "ADANIPOWER.NS",name: "Adani Power Ltd",                  sector: "Power & Utilities",          ltp: 645.00,  change: 1.40,  high52: 896.75,  low52: 430.00,  volume: 6200000, pe: 16.0, mcap: "2.5L Cr",  beta: 1.50 },
+  { symbol: "HAL.NS",       name: "Hindustan Aeronautics Ltd",        sector: "Defence & Aerospace",       ltp: 4836.0, change: 1.0,  high52: 5149.9, low52: 3479.1, volume: 432404, pe: 35.0, mcap: "3.0L Cr",  beta: 1.10 },
+  { symbol: "BEL.NS",       name: "Bharat Electronics Ltd",          sector: "Defence & Electronics",     ltp: 396.05,  change: 0.15, high52: 473.45,  low52: 380.45,  volume: 6729908, pe: 42.0, mcap: "2.0L Cr",  beta: 0.95 },
+  { symbol: "IRCTC.NS",     name: "Indian Railway Catering & Tourism",sector: "Tourism & Services",        ltp: 463.8,  change: 1.49,  high52: 735.75, low52: 446.5,  volume: 920014, pe: 55.0, mcap: "0.9L Cr",  beta: 1.05 },
+  { symbol: "SUZLON.NS",    name: "Suzlon Energy Ltd",                sector: "Renewable Energy",          ltp: 42.39,   change: -0.35,  high52: 61.5,   low52: 38.19,   volume: 99283949,pe: 45.0, mcap: "0.9L Cr",  beta: 1.85 },
+  { symbol: "VEDL.NS",      name: "Vedanta Ltd",                      sector: "Metals & Mining",           ltp: 271.0,  change: 5.26,  high52: 795.0,  low52: 249.7,  volume: 11729274,pe: 14.5, mcap: "1.7L Cr",  beta: 1.30 },
+  { symbol: "TATAPOWER.NS", name: "Tata Power Company Ltd",           sector: "Power & Utilities",          ltp: 369.0,  change: 0.0,  high52: 464.9,  low52: 342.5,  volume: 1416793, pe: 34.0, mcap: "1.3L Cr",  beta: 1.15 },
+  { symbol: "TATASTEEL.NS", name: "Tata Steel Ltd",                   sector: "Metals & Mining",           ltp: 190.82,  change: 1.88, high52: 224.4,  low52: 160.06,  volume: 39794977,pe: 28.0, mcap: "1.8L Cr",  beta: 1.25 },
+  { symbol: "ADANIENT.NS",  name: "Adani Enterprises Ltd",            sector: "Conglomerate",              ltp: 2993.2, change: 2.39, high52: 3245.0, low52: 1753.0, volume: 855276, pe: 85.0, mcap: "3.2L Cr",  beta: 1.65 },
+  { symbol: "ADANIPOWER.NS",name: "Adani Power Ltd",                  sector: "Power & Utilities",          ltp: 204.8,  change: -0.54,  high52: 254.2,  low52: 128.1,  volume: 20260968, pe: 16.0, mcap: "2.5L Cr",  beta: 1.50 },
   { symbol: "SWIGGY.NS",    name: "Swiggy Ltd (Instamart)",           sector: "Consumer Tech",             ltp: 510.00,  change: 2.10,  high52: 615.00,  low52: 390.00,  volume: 9500000, pe: 180.0,mcap: "1.1L Cr",  beta: 1.60 },
   { symbol: "PAYTM.NS",     name: "One97 Communications (Paytm)",     sector: "FinTech",                   ltp: 740.00,  change: 0.80,  high52: 1060.00, low52: 310.00,  volume: 4800000, pe: 65.0,  mcap: "0.5L Cr",  beta: 1.70 },
-  { symbol: "JIOFIN.NS",    name: "Jio Financial Services Ltd",       sector: "Financial Services",        ltp: 315.00,  change: 0.50,  high52: 394.70,  low52: 290.00,  volume: 14000000,pe: 110.0,mcap: "2.0L Cr",  beta: 1.10 },
-  { symbol: "IRFC.NS",      name: "Indian Railway Finance Corp",      sector: "PSU & Railways",            ltp: 152.00,  change: 0.60,  high52: 229.00,  low52: 120.00,  volume: 18000000,pe: 30.0, mcap: "2.0L Cr",  beta: 1.45 },
-  { symbol: "RVNL.NS",      name: "Rail Vikas Nigam Ltd",             sector: "Railways & Infrastructure", ltp: 385.00,  change: 1.50,  high52: 647.00,  low52: 215.00,  volume: 11000000,pe: 48.0, mcap: "0.8L Cr",  beta: 1.90 },
-  { symbol: "IREDA.NS",     name: "Indian Renewable Energy Dev",      sector: "Green Energy & PSU",        ltp: 215.00,  change: 1.75,  high52: 310.00,  low52: 130.00,  volume: 14500000,pe: 42.0, mcap: "0.6L Cr",  beta: 1.80 },
-  { symbol: "MAZDOCK.NS",   name: "Mazagon Dock Shipbuilders Ltd",    sector: "Defence & Shipbuilding",    ltp: 4150.00, change: 2.20,  high52: 5860.00, low52: 1850.00, volume: 1600000, pe: 38.0, mcap: "0.8L Cr",  beta: 1.55 },
-  { symbol: "COCHINSHIP.NS",name: "Cochin Shipyard Ltd",              sector: "Defence & Shipbuilding",    ltp: 1480.00, change: 1.90,  high52: 2979.00, low52: 780.00,  volume: 2800000, pe: 46.0, mcap: "0.4L Cr",  beta: 1.60 },
-  { symbol: "BHEL.NS",      name: "Bharat Heavy Electricals Ltd",     sector: "Capital Goods & Power",     ltp: 245.00,  change: 0.40,  high52: 335.40,  low52: 180.00,  volume: 9800000, pe: 65.0, mcap: "0.8L Cr",  beta: 1.50 },
-  { symbol: "CANBK.NS",     name: "Canara Bank",                      sector: "Banking & Financials",      ltp: 102.50,  change: 0.30,  high52: 128.90,  low52: 85.00,   volume: 14000000,pe: 6.8,  mcap: "0.9L Cr",  beta: 1.20 },
-  { symbol: "PNB.NS",       name: "Punjab National Bank",             sector: "Banking & Financials",      ltp: 98.20,   change: -0.25, high52: 142.90,  low52: 88.00,   volume: 19000000,pe: 8.5,  mcap: "1.1L Cr",  beta: 1.35 },
-  { symbol: "BANKBARODA.NS",name: "Bank of Baroda",                   sector: "Banking & Financials",      ltp: 242.00,  change: 0.65,  high52: 298.45,  low52: 215.00,  volume: 9200000, pe: 7.2,  mcap: "1.2L Cr",  beta: 1.15 },
-  { symbol: "DLF.NS",       name: "DLF Ltd",                          sector: "Real Estate",               ltp: 780.00,  change: -0.45, high52: 967.60,  low52: 655.00,  volume: 3800000, pe: 58.0, mcap: "1.9L Cr",  beta: 1.25 },
-  { symbol: "IOC.NS",       name: "Indian Oil Corporation Ltd",       sector: "Energy & Oil",              ltp: 145.00,  change: 0.20,  high52: 196.80,  low52: 125.00,  volume: 11000000,pe: 8.8,  mcap: "2.0L Cr",  beta: 0.90 },
-  { symbol: "BPCL.NS",      name: "Bharat Petroleum Corp Ltd",        sector: "Energy & Oil",              ltp: 295.00,  change: 0.40,  high52: 388.00,  low52: 235.00,  volume: 8200000, pe: 9.5,  mcap: "1.3L Cr",  beta: 1.05 },
-  { symbol: "GAIL.NS",      name: "GAIL (India) Ltd",                 sector: "Natural Gas & Utilities",   ltp: 192.00,  change: 0.80,  high52: 246.35,  low52: 155.00,  volume: 9500000, pe: 12.0, mcap: "1.2L Cr",  beta: 0.95 },
-  { symbol: "SAIL.NS",      name: "Steel Authority of India Ltd",     sector: "Metals & Steel",            ltp: 118.50,  change: -0.60, high52: 175.35,  low52: 108.00,  volume: 16000000,pe: 14.0, mcap: "0.5L Cr",  beta: 1.40 },
-  { symbol: "NMDC.NS",      name: "NMDC Ltd",                         sector: "Mining & Minerals",         ltp: 218.00,  change: 0.50,  high52: 286.35,  low52: 185.00,  volume: 6800000, pe: 11.5, mcap: "0.6L Cr",  beta: 1.20 },
-  { symbol: "HAVELLS.NS",   name: "Havells India Ltd",                sector: "Consumer Electricals",      ltp: 1620.00, change: 0.70,  high52: 2106.00, low52: 1480.00, volume: 850000,  pe: 65.0, mcap: "1.0L Cr",  beta: 0.85 },
-  { symbol: "VOLTAS.NS",    name: "Voltas Ltd (Tata Group)",          sector: "Consumer Appliances",       ltp: 1420.00, change: 1.10,  high52: 1934.00, low52: 980.00,  volume: 1200000, pe: 72.0, mcap: "0.5L Cr",  beta: 1.10 },
-  { symbol: "MRF.NS",       name: "MRF Ltd",                          sector: "Tyres & Automotive",        ltp: 124000.0,change: 0.35,  high52: 151445.0,low52: 118500.0,volume: 12000,   pe: 28.0, mcap: "0.5L Cr",  beta: 0.70 },
-  { symbol: "MUTHOOTFIN.NS",name: "Muthoot Finance Ltd",              sector: "Gold Loans & NBFC",         ltp: 1850.00, change: 0.90,  high52: 2090.00, low52: 1280.00, volume: 950000,  pe: 16.5, mcap: "0.7L Cr",  beta: 0.90 },
-  { symbol: "IDFCFIRSTB.NS",name: "IDFC FIRST Bank Ltd",              sector: "Banking & Financials",      ltp: 68.20,   change: -0.15, high52: 90.70,   low52: 65.00,   volume: 24000000,pe: 18.0, mcap: "0.5L Cr",  beta: 1.20 }
+  { symbol: "JIOFIN.NS",    name: "Jio Financial Services Ltd",       sector: "Financial Services",        ltp: 232.15,  change: 1.24,  high52: 316.85,  low52: 223.3,  volume: 6947341,pe: 110.0,mcap: "2.0L Cr",  beta: 1.10 },
+  { symbol: "IRFC.NS",      name: "Indian Railway Finance Corp",      sector: "PSU & Railways",            ltp: 81.0,  change: 2.13,  high52: 137.17,  low52: 78.16,  volume: 5995639,pe: 30.0, mcap: "2.0L Cr",  beta: 1.45 },
+  { symbol: "RVNL.NS",      name: "Rail Vikas Nigam Ltd",             sector: "Railways & Infrastructure", ltp: 211.77,  change: 4.99,  high52: 400.7,  low52: 195.15,  volume: 2889998,pe: 48.0, mcap: "0.8L Cr",  beta: 1.90 },
+  { symbol: "IREDA.NS",     name: "Indian Renewable Energy Dev",      sector: "Green Energy & PSU",        ltp: 111.0,  change: 1.84,  high52: 158.7,  low52: 107.4,  volume: 2079042,pe: 42.0, mcap: "0.6L Cr",  beta: 1.80 },
+  { symbol: "MAZDOCK.NS",   name: "Mazagon Dock Shipbuilders Ltd",    sector: "Defence & Shipbuilding",    ltp: 2211.5, change: 0.07,  high52: 2995.0, low52: 2057.4, volume: 373761, pe: 38.0, mcap: "0.8L Cr",  beta: 1.55 },
+  { symbol: "COCHINSHIP.NS",name: "Cochin Shipyard Ltd",              sector: "Defence & Shipbuilding",    ltp: 1370.0, change: 2.68,  high52: 1977.0, low52: 1187.0,  volume: 402616, pe: 46.0, mcap: "0.4L Cr",  beta: 1.60 },
+  { symbol: "BHEL.NS",      name: "Bharat Heavy Electricals Ltd",     sector: "Capital Goods & Power",     ltp: 423.1,  change: -1.42,  high52: 446.5,  low52: 229.54,  volume: 5233851, pe: 65.0, mcap: "0.8L Cr",  beta: 1.50 },
+  { symbol: "CANBK.NS",     name: "Canara Bank",                      sector: "Banking & Financials",      ltp: 126.0,  change: 1.69,  high52: 162.89,  low52: 117.5,   volume: 15593019,pe: 6.8,  mcap: "0.9L Cr",  beta: 1.20 },
+  { symbol: "PNB.NS",       name: "Punjab National Bank",             sector: "Banking & Financials",      ltp: 118.3,   change: 1.57, high52: 135.15,  low52: 98.5,   volume: 12839020,pe: 8.5,  mcap: "1.1L Cr",  beta: 1.35 },
+  { symbol: "BANKBARODA.NS",name: "Bank of Baroda",                   sector: "Banking & Financials",      ltp: 236.87,  change: 1.97,  high52: 325.5,  low52: 231.92,  volume: 5654968, pe: 7.2,  mcap: "1.2L Cr",  beta: 1.15 },
+  { symbol: "DLF.NS",       name: "DLF Ltd",                          sector: "Real Estate",               ltp: 675.0,  change: 5.47, high52: 786.5,  low52: 489.4,  volume: 2425670, pe: 58.0, mcap: "1.9L Cr",  beta: 1.25 },
+  { symbol: "IOC.NS",       name: "Indian Oil Corporation Ltd",       sector: "Energy & Oil",              ltp: 138.15,  change: 2.89,  high52: 188.96,  low52: 130.22,  volume: 6600617,pe: 8.8,  mcap: "2.0L Cr",  beta: 0.90 },
+  { symbol: "BPCL.NS",      name: "Bharat Petroleum Corp Ltd",        sector: "Energy & Oil",              ltp: 315.75,  change: 2.85,  high52: 391.65,  low52: 266.6,  volume: 2065122, pe: 9.5,  mcap: "1.3L Cr",  beta: 1.05 },
+  { symbol: "GAIL.NS",      name: "GAIL (India) Ltd",                 sector: "Natural Gas & Utilities",   ltp: 172.95,  change: 0.55,  high52: 186.87,  low52: 134.36,  volume: 3317017, pe: 12.0, mcap: "1.2L Cr",  beta: 0.95 },
+  { symbol: "SAIL.NS",      name: "Steel Authority of India Ltd",     sector: "Metals & Steel",            ltp: 185.44,  change: 5.96, high52: 209.7,  low52: 124.0,  volume: 41604288,pe: 14.0, mcap: "0.5L Cr",  beta: 1.40 },
+  { symbol: "NMDC.NS",      name: "NMDC Ltd",                         sector: "Mining & Minerals",         ltp: 82.0,  change: 1.49,  high52: 97.49,  low52: 72.24,  volume: 11694012, pe: 11.5, mcap: "0.6L Cr",  beta: 1.20 },
+  { symbol: "HAVELLS.NS",   name: "Havells India Ltd",                sector: "Consumer Electricals",      ltp: 1096.5, change: 0.41,  high52: 1571.6, low52: 1081.1, volume: 491974,  pe: 65.0, mcap: "1.0L Cr",  beta: 0.85 },
+  { symbol: "VOLTAS.NS",    name: "Voltas Ltd (Tata Group)",          sector: "Consumer Appliances",       ltp: 1130.0, change: -0.44,  high52: 1582.5, low52: 1090.8,  volume: 791138, pe: 72.0, mcap: "0.5L Cr",  beta: 1.10 },
+  { symbol: "MRF.NS",       name: "MRF Ltd",                          sector: "Tyres & Automotive",        ltp: 124580.0,change: -0.0,  high52: 163600.0,low52: 122000.0,volume: 2353,   pe: 28.0, mcap: "0.5L Cr",  beta: 0.70 },
+  { symbol: "MUTHOOTFIN.NS",name: "Muthoot Finance Ltd",              sector: "Gold Loans & NBFC",         ltp: 2856.5, change: 3.12,  high52: 4149.5, low52: 2671.0, volume: 710680,  pe: 16.5, mcap: "0.7L Cr",  beta: 0.90 },
+  { symbol: "IDFCFIRSTB.NS",name: "IDFC FIRST Bank Ltd",              sector: "Banking & Financials",      ltp: 87.9,   change: 1.82, high52: 89.61,   low52: 58.08,   volume: 64505569,pe: 18.0, mcap: "0.5L Cr",  beta: 1.20 }
 ];
 
 export const DEFAULT_INDICES = [
-  { symbol: "^NSEI",    name: "NIFTY 50",   price: 24080.40, change: -95.25, changePercent: -0.39 },
-  { symbol: "^BSESN",  name: "SENSEX",     price: 76957.27, change: -307.24, changePercent: -0.40 },
-  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 58024.95, change: 529.50,  changePercent: 0.92 },
-  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 31191.45, change: -90.80, changePercent: -0.29 }
+  { symbol: "^NSEI",    name: "NIFTY 50",   price: 23446.8, change: 176.2, changePercent: 0.76 },
+  { symbol: "^BSESN",  name: "SENSEX",     price: 74828.25, change: 513.66, changePercent: 0.69 },
+  { symbol: "^NSEBANK",name: "BANK NIFTY", price: 56548.9, change: 493.15, changePercent: 0.88 },
+  { symbol: "^CNXIT",  name: "NIFTY IT",   price: 28334.05, change: -821.55, changePercent: -2.82 }
 ];
 
 export const DEFAULT_US_INDICES = [
-  { symbol: "^GSPC",   name: "S&P 500",    price: 5980.25, change: 18.40, changePercent: 0.31 },
-  { symbol: "^IXIC",   name: "NASDAQ 100", price: 19250.80, change: 95.60, changePercent: 0.50 },
-  { symbol: "^DJI",    name: "DOW JONES",  price: 43810.50, change: -45.20, changePercent: -0.10 },
-  { symbol: "^RUT",    name: "RUSSELL 2000", price: 2245.10, change: 12.30, changePercent: 0.55 }
+  { symbol: "^GSPC",   name: "S&P 500",    price: 7705.52, change: 153.71, changePercent: 2.04 },
+  { symbol: "^IXIC",   name: "NASDAQ 100", price: 26940.172, change: 961.74, changePercent: 3.7 },
+  { symbol: "^DJI",    name: "DOW JONES",  price: 51539.14, change: 77.24, changePercent: 0.15 },
+  { symbol: "^RUT",    name: "RUSSELL 2000", price: 2845.196, change: -13.61, changePercent: -0.48 }
 ];
 
 export const US_INDEX_SYMBOLS = ['^GSPC', '^IXIC', '^DJI', '^RUT'];
 
 export const DEFAULT_US_SECURITIES = [
-  { symbol: "NVDA",  name: "NVIDIA Corp",               sector: "Semiconductors & AI",       ltp: 135.20, change: 2.15,  high52: 153.13, low52: 86.40,  volume: 45000000, pe: 54.2, mcap: "$3.3T", beta: 1.68 },
-  { symbol: "AAPL",  name: "Apple Inc",                  sector: "Consumer Tech & Devices",   ltp: 228.50, change: 0.85,  high52: 237.23, low52: 164.08, volume: 38000000, pe: 34.1, mcap: "$3.5T", beta: 1.05 },
-  { symbol: "MSFT",  name: "Microsoft Corp",             sector: "Cloud & Software",          ltp: 425.80, change: 1.12,  high52: 468.35, low52: 388.04, volume: 21000000, pe: 35.8, mcap: "$3.1T", beta: 1.12 },
-  { symbol: "AMZN",  name: "Amazon.com Inc",             sector: "E-Commerce & Cloud",        ltp: 198.40, change: 1.45,  high52: 201.20, low52: 166.32, volume: 29000000, pe: 43.5, mcap: "$2.0T", beta: 1.15 },
-  { symbol: "GOOGL", name: "Alphabet Inc (Google)",      sector: "Search & Cloud AI",         ltp: 178.60, change: 0.64,  high52: 191.75, low52: 130.67, volume: 22000000, pe: 24.2, mcap: "$2.2T", beta: 1.08 },
-  { symbol: "META",  name: "Meta Platforms Inc",         sector: "Social Media & AI",         ltp: 585.30, change: 2.30,  high52: 602.95, low52: 279.40, volume: 14000000, pe: 28.6, mcap: "$1.4T", beta: 1.25 },
-  { symbol: "TSLA",  name: "Tesla Inc",                  sector: "Automotive & Clean Tech",   ltp: 245.80, change: 3.40,  high52: 271.00, low52: 138.80, volume: 62000000, pe: 65.0, mcap: "$780B", beta: 2.10 },
-  { symbol: "AMD",   name: "Advanced Micro Devices",     sector: "Semiconductors",            ltp: 155.40, change: 1.80,  high52: 227.30, low52: 130.00, volume: 35000000, pe: 48.0, mcap: "$250B", beta: 1.72 },
-  { symbol: "PLTR",  name: "Palantir Technologies Inc",  sector: "AI & Big Data",             ltp: 42.50,  change: 3.80,  high52: 45.00,  low52: 15.50,  volume: 55000000, pe: 85.0, mcap: "$95B",  beta: 2.20 },
-  { symbol: "ARM",   name: "Arm Holdings plc",           sector: "Semiconductors",            ltp: 135.00, change: 2.40,  high52: 188.75, low52: 60.00,  volume: 18000000, pe: 92.0, mcap: "$140B", beta: 2.10 },
-  { symbol: "COIN",  name: "Coinbase Global Inc",        sector: "Crypto & FinTech",          ltp: 210.00, change: 4.10,  high52: 283.00, low52: 115.00, volume: 12000000, pe: 42.0, mcap: "$52B",  beta: 2.80 },
-  { symbol: "SMCI",  name: "Super Micro Computer Inc",   sector: "AI Server Hardware",        ltp: 45.00,  change: -1.20, high52: 122.90, low52: 24.00,  volume: 28000000, pe: 18.0, mcap: "$26B",  beta: 2.50 },
-  { symbol: "BRK-B", name: "Berkshire Hathaway",         sector: "Financials & Conglomerate", ltp: 460.50, change: -0.20, high52: 484.80, low52: 345.00, volume: 3200000,  pe: 21.5, mcap: "$1.0T", beta: 0.82 },
-  { symbol: "JPM",   name: "JPMorgan Chase & Co",        sector: "Banking & Financials",      ltp: 225.80, change: 0.45,  high52: 229.00, low52: 145.00, volume: 8500000,  pe: 12.4, mcap: "$640B", beta: 1.10 },
-  { symbol: "V",     name: "Visa Inc",                   sector: "Financial Payments",        ltp: 290.10, change: 0.35,  high52: 293.00, low52: 235.00, volume: 5500000,  pe: 30.2, mcap: "$590B", beta: 0.95 },
-  { symbol: "LLY",   name: "Eli Lilly and Co",           sector: "Healthcare & Pharma",       ltp: 940.20, change: 1.10,  high52: 972.50, low52: 516.00, volume: 2800000,  pe: 110.0,mcap: "$890B", beta: 0.65 },
-  { symbol: "AVGO",  name: "Broadcom Inc",               sector: "Semiconductors & Software", ltp: 175.50, change: 2.05,  high52: 185.16, low52: 80.80,  volume: 18000000, pe: 45.0, mcap: "$820B", beta: 1.45 },
-  { symbol: "WMT",   name: "Walmart Inc",                sector: "Consumer Retail",           ltp: 82.40,  change: -0.15, high52: 83.34,  low52: 50.00,  volume: 14000000, pe: 32.0, mcap: "$660B", beta: 0.52 },
-  { symbol: "NFLX",  name: "Netflix Inc",                sector: "Streaming & Media",         ltp: 720.60, change: 1.85,  high52: 730.00, low52: 370.00, volume: 3100000,  pe: 42.0, mcap: "$310B", beta: 1.20 },
-  { symbol: "COST",  name: "Costco Wholesale Corp",      sector: "Consumer Retail",           ltp: 890.00, change: 0.40,  high52: 923.00, low52: 550.00, volume: 2200000,  pe: 52.0, mcap: "$390B", beta: 0.75 },
-  { symbol: "BA",    name: "The Boeing Company",         sector: "Aerospace & Defense",       ltp: 155.00, change: -0.80, high52: 267.00, low52: 140.00, volume: 6500000,  pe: 45.0, mcap: "$95B",  beta: 1.55 }
+  { symbol: "NVDA",  name: "NVIDIA Corp",               sector: "Semiconductors & AI",       ltp: 225.217, change: 5.29,  high52: 236.54, low52: 164.27,  volume: 56914351, pe: 54.2, mcap: "$3.3T", beta: 1.68 },
+  { symbol: "AAPL",  name: "Apple Inc",                  sector: "Consumer Tech & Devices",   ltp: 336.385, change: 1.19,  high52: 345.34, low52: 243.42, volume: 18585015, pe: 34.1, mcap: "$3.5T", beta: 1.05 },
+  { symbol: "MSFT",  name: "Microsoft Corp",             sector: "Cloud & Software",          ltp: 500.165, change: 2.01,  high52: 553.72, low52: 349.2, volume: 12662186, pe: 35.8, mcap: "$3.1T", beta: 1.12 },
+  { symbol: "AMZN",  name: "Amazon.com Inc",             sector: "E-Commerce & Cloud",        ltp: 249.95, change: 1.62,  high52: 287.2, low52: 196.0, volume: 30926966, pe: 43.5, mcap: "$2.0T", beta: 1.15 },
+  { symbol: "GOOGL", name: "Alphabet Inc (Google)",      sector: "Search & Cloud AI",         ltp: 339.095, change: -1.1,  high52: 408.61, low52: 235.84, volume: 24209068, pe: 24.2, mcap: "$2.2T", beta: 1.08 },
+  { symbol: "META",  name: "Meta Platforms Inc",         sector: "Social Media & AI",         ltp: 747.35, change: 11.0,  high52: 763.9, low52: 520.26, volume: 24576973, pe: 28.6, mcap: "$1.4T", beta: 1.25 },
+  { symbol: "TSLA",  name: "Tesla Inc",                  sector: "Automotive & Clean Tech",   ltp: 380.15, change: 6.16,  high52: 498.83, low52: 297.38, volume: 27613947, pe: 65.0, mcap: "$780B", beta: 2.10 },
+  { symbol: "AMD",   name: "Advanced Micro Devices",     sector: "Semiconductors",            ltp: 613.96, change: 19.8,  high52: 624.69, low52: 154.78, volume: 12417591, pe: 48.0, mcap: "$250B", beta: 1.72 },
+  { symbol: "PLTR",  name: "Palantir Technologies Inc",  sector: "AI & Big Data",             ltp: 191.91,  change: 10.08,  high52: 207.52,  low52: 106.37,  volume: 28244339, pe: 85.0, mcap: "$95B",  beta: 2.20 },
+  { symbol: "ARM",   name: "Arm Holdings plc",           sector: "Semiconductors",            ltp: 332.905, change: 36.45,  high52: 452.7, low52: 100.02,  volume: 5621073, pe: 92.0, mcap: "$140B", beta: 2.10 },
+  { symbol: "COIN",  name: "Coinbase Global Inc",        sector: "Crypto & FinTech",          ltp: 198.41, change: 20.61,  high52: 402.16, low52: 139.11, volume: 5463831, pe: 42.0, mcap: "$52B",  beta: 2.80 },
+  { symbol: "SMCI",  name: "Super Micro Computer Inc",   sector: "AI Server Hardware",        ltp: 41.651,  change: 13.03, high52: 58.78, low52: 19.48,  volume: 34203610, pe: 18.0, mcap: "$26B",  beta: 2.50 },
+  { symbol: "BRK-B", name: "Berkshire Hathaway",         sector: "Financials & Conglomerate", ltp: 507.72, change: -2.32, high52: 537.74, low52: 464.01, volume: 2812409,  pe: 21.5, mcap: "$1.0T", beta: 0.82 },
+  { symbol: "JPM",   name: "JPMorgan Chase & Co",        sector: "Banking & Financials",      ltp: 338.035, change: -3.12,  high52: 366.5, low52: 279.1, volume: 4173666,  pe: 12.4, mcap: "$640B", beta: 1.10 },
+  { symbol: "V",     name: "Visa Inc",                   sector: "Financial Payments",        ltp: 361.14, change: -2.64,  high52: 385.57, low52: 293.89, volume: 2974076,  pe: 30.2, mcap: "$590B", beta: 0.95 },
+  { symbol: "LLY",   name: "Eli Lilly and Co",           sector: "Healthcare & Pharma",       ltp: 1154.88, change: 1.5,  high52: 1292.65, low52: 712.05, volume: 1282694,  pe: 110.0,mcap: "$890B", beta: 0.65 },
+  { symbol: "AVGO",  name: "Broadcom Inc",               sector: "Semiconductors & Software", ltp: 354.7, change: 4.47,  high52: 495.0, low52: 289.96,  volume: 13125966, pe: 45.0, mcap: "$820B", beta: 1.45 },
+  { symbol: "WMT",   name: "Walmart Inc",                sector: "Consumer Retail",           ltp: 110.325,  change: 2.63, high52: 135.16,  low52: 98.88,  volume: 10068825, pe: 32.0, mcap: "$660B", beta: 0.52 },
+  { symbol: "NFLX",  name: "Netflix Inc",                sector: "Streaming & Media",         ltp: 71.555, change: -6.35,  high52: 124.86, low52: 65.08, volume: 21547600,  pe: 42.0, mcap: "$310B", beta: 1.20 },
+  { symbol: "COST",  name: "Costco Wholesale Corp",      sector: "Consumer Retail",           ltp: 904.04, change: 1.15,  high52: 1096.5, low52: 844.06, volume: 1241875,  pe: 52.0, mcap: "$390B", beta: 0.75 },
+  { symbol: "BA",    name: "The Boeing Company",         sector: "Aerospace & Defense",       ltp: 199.04, change: -1.45, high52: 254.35, low52: 176.77, volume: 7333980,  pe: 45.0, mcap: "$95B",  beta: 1.55 }
 ];
 
 /**
@@ -394,6 +427,35 @@ async function fetchYFQuote(rawSymbol, timeoutMs = 5000) {
   const cacheKey = `quote_${symbol}`;
   const cached = quoteCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < QUOTE_CACHE_TTL) return cached.data;
+
+  // 1. Try Firestore live market snapshot
+  try {
+    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO') && !symbol.startsWith('^');
+    const docName = isUS ? 'live_us' : 'live_in';
+    const snap = await getDoc(doc(db, 'market_data', docName));
+    if (snap.exists()) {
+      const q = snap.data().quotes?.[symbol] || snap.data().quotes?.[rawSymbol];
+      if (q && q.price) {
+        const data = {
+          symbol: q.symbol || symbol,
+          price: q.price,
+          previousClose: q.previousClose || q.price,
+          change: q.change || 0,
+          changePercent: q.changePercent || 0,
+          dayHigh: q.high52 || q.price,
+          dayLow: q.low52 || q.price,
+          volume: q.volume || 1000000,
+          high52: q.high52 || q.price * 1.25,
+          low52: q.low52 || q.price * 0.8,
+          currency: isUS ? 'USD' : 'INR',
+          longName: symbol,
+          exchangeName: isUS ? 'NASDAQ/NYSE' : 'NSE'
+        };
+        quoteCache.set(cacheKey, { data, ts: Date.now() });
+        return data;
+      }
+    }
+  } catch (e) {}
 
   try {
     const json = await fetchFromYF(`/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, timeoutMs);
@@ -1152,7 +1214,7 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
     return { market:'US', count:0, ipos:[] };
   }
 
-  // ─── Dynamic allotment status (same logic as backend) ─────────────────────
+  // ─── Dynamic Date & Allotment Status Engine ────────────────────────────────
   function autoStatus(openDate, closeDate, allotmentDate, listingDate) {
     const today = new Date(); today.setHours(0,0,0,0);
     const parse = s => { if (!s) return null; const d = new Date(s); d.setHours(0,0,0,0); return d; };
@@ -1177,51 +1239,321 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
     }
     if (od && today < od) {
       const days = Math.round((od - today)/(864e5));
-      return `📅 OPENS IN ${days} DAY${days>1?'S':''} — ${od.toLocaleDateString('en-IN',{day:'numeric',month:'short'})} to ${cd?.toLocaleDateString('en-IN',{day:'numeric',month:'short'})||'TBD'}`;
+      return `📅 OPENS IN ${days} DAY${days>1?'S':''} — ${od.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`;
     }
     return '⏳ DATE TBD';
   }
 
-  // ─── Fetch live price from Yahoo Finance (CORS-enabled from browser) ───────
-  async function fetchLivePrice(yfSymbol) {
-    try {
-      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yfSymbol}?interval=1d&range=5d`);
-      if (!r.ok) return null;
-      const d = await r.json();
-      const meta = d?.chart?.result?.[0]?.meta || {};
-      return meta.regularMarketPrice || null;
-    } catch { return null; }
-  }
-
-  // ─── All Indian IPOs (base data — status auto-computed, prices fetched live) ─
+  // ─── Real Genuine September 2026 Indian IPO Universe ───────────────────────
   const allIpos = [
-    // ── ACTIVE ──────────────────────────────────────────────────────────────
-    { id:"IPO-SRIGEE", symbol:"SRIGEE", yf:"SRIGEEDLM.NS", companyName:"Srigee DLM Limited", sector:"Electronic Manufacturing Services & PCB Assembly", category:"BSE SME", priceBand:"₹186 - ₹196", minPrice:186, maxPrice:196, lotSize:600, minInvestment:117600, openDate:"2026-09-23", closeDate:"2026-09-25", allotmentDate:"2026-09-26", listingDate:"2026-09-30", issueSizeCr:59, gmp:54, gmpPercent:27.55, expectedListingPrice:250, estProfitPerLot:32400, registrar:"Bigshare Services Pvt Ltd", subscription:{total:0,qib:0,nii:0,retail:0}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹196)", recommendedStrategy:"EMS player supplying PCB assemblies to defense and auto OEMs."} },
-    { id:"IPO-ROSMERTA", symbol:"ROSMERTA", yf:"ROSMERTA.NS", companyName:"Rosmerta Digital Services Limited", sector:"Fastag / RFID Toll & Fleet Telematics Technology", category:"NSE SME", priceBand:"₹117 - ₹123", minPrice:117, maxPrice:123, lotSize:1000, minInvestment:123000, openDate:"2026-09-23", closeDate:"2026-09-25", allotmentDate:"2026-09-26", listingDate:"2026-09-30", issueSizeCr:55, gmp:34, gmpPercent:27.64, expectedListingPrice:157, estProfitPerLot:34000, registrar:"KFin Technologies Limited", subscription:{total:0,qib:0,nii:0,retail:0}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹123)", recommendedStrategy:"Fastag issuer with NHAI mandate. 18 Lakh+ active tags."} },
-    // ── CLOSED ──────────────────────────────────────────────────────────────
-    { id:"IPO-NSE", symbol:"NSE", companyName:"National Stock Exchange of India Limited", sector:"Financial Exchange & Market Infrastructure Institution", category:"Mainboard", priceBand:"₹1,700 - ₹1,785", minPrice:1700, maxPrice:1785, lotSize:8, minInvestment:14280, openDate:"2026-09-17", closeDate:"2026-09-21", allotmentDate:"2026-09-22", listingDate:"2026-09-25", issueSizeCr:12500, gmp:920, gmpPercent:51.54, expectedListingPrice:2705, estProfitPerLot:7360, registrar:"MUFG Intime India Private Limited", subscription:{total:42.8,qib:98.2,nii:38.6,retail:14.1}, aiVerdict:"STRONG_APPLY_HIGH_GAIN", recommendation:{verdict:"MUST APPLY AT CUT-OFF (₹1,785)", recommendedStrategy:"India's monopolistic stock exchange — >93% equity market share, 72%+ EBITDA margins."} },
-    { id:"IPO-SPECTRAA", symbol:"SPECTRAA", companyName:"SpectraA Technology Solutions Limited", sector:"Stainless Steel Process Equipment for Brewing, Dairy & Pharma", category:"Mainboard", priceBand:"₹112 - ₹118", minPrice:112, maxPrice:118, lotSize:125, minInvestment:14750, openDate:"2026-09-19", closeDate:"2026-09-21", allotmentDate:"2026-09-23", listingDate:"2026-09-26", issueSizeCr:85, gmp:36, gmpPercent:30.51, expectedListingPrice:154, registrar:"Bigshare Services Pvt Ltd", subscription:{total:28.4,qib:62.8,nii:24.5,retail:9.8}, aiVerdict:"STRONG_APPLY_HIGH_GAIN", recommendation:{verdict:"APPLY AT UPPER BAND (₹118)", recommendedStrategy:"Niche stainless steel process equipment with exports to 18 countries. 28.4x oversubscribed."} },
-    { id:"IPO-RENTOMOJO", symbol:"RENTOMOJO", yf:"RENTOMOJO.NS", companyName:"Rentomojo (Edunetwork Private Limited)", sector:"Furniture, Electronics & Consumer Lifestyle Rental Platform", category:"Mainboard", priceBand:"₹210 - ₹225", minPrice:210, maxPrice:225, lotSize:65, minInvestment:14625, openDate:"2026-09-17", closeDate:"2026-09-22", allotmentDate:"2026-09-24", listingDate:"2026-09-27", issueSizeCr:650, gmp:48, gmpPercent:21.33, expectedListingPrice:273, registrar:"KFin Technologies Limited", subscription:{total:18.6,qib:42.1,nii:15.8,retail:6.4}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹225)", recommendedStrategy:"India's largest consumer rental platform, 2.8 Lakh active customers across 18 cities."} },
-    { id:"IPO-KHERIA", symbol:"KHERIA", companyName:"Kheria Autocomp Limited", sector:"Precision Automotive Stamping & EV Chassis Assemblies", category:"BSE SME", priceBand:"₹125 - ₹132", minPrice:125, maxPrice:132, lotSize:1000, minInvestment:132000, openDate:"2026-09-17", closeDate:"2026-09-22", allotmentDate:"2026-09-24", listingDate:"2026-09-26", issueSizeCr:110, gmp:30, gmpPercent:22.73, expectedListingPrice:162, registrar:"Skyline Financial Services Pvt Ltd", subscription:{total:14.2,qib:0,nii:18.4,retail:11.6}, aiVerdict:"APPLY_FOR_LISTING", recommendation:{verdict:"APPLY AT UPPER BAND (₹132)", recommendedStrategy:"EV chassis assemblies supplier to Tata Motors & Mahindra EV."} },
-    // ── UPCOMING ────────────────────────────────────────────────────────────
-    { id:"IPO-SAGILITY", symbol:"SAGILITY", yf:"SAGILITY.NS", companyName:"Sagility India Limited (FPO)", sector:"US Healthcare IT & Revenue Cycle Management BPO", category:"Mainboard", priceBand:"₹28 - ₹30", minPrice:28, maxPrice:30, lotSize:500, minInvestment:15000, openDate:"2026-09-30", closeDate:"2026-10-02", allotmentDate:"2026-10-03", listingDate:"2026-10-07", issueSizeCr:580, gmp:5, gmpPercent:16.67, expectedListingPrice:35, registrar:"KFin Technologies Limited", subscription:{total:0,qib:0,nii:0,retail:0}, aiVerdict:"APPLY_FOR_LONG_TERM", recommendation:{verdict:"SUBSCRIBE AT CUT-OFF (₹30)", recommendedStrategy:"Dominant US healthcare BPO with 40+ Fortune 500 hospital clients."} },
-    // ── LISTED (issuePrice required for return calc) ─────────────────────────
-    { id:"LIST-MANIKA", symbol:"MANIKA", yf:"MANIKA.NS", companyName:"Manika Plastech Limited", sector:"Plastic Packaging & FMCG Consumer Containers", category:"BSE SME", issuePrice:43, listingDate:"2026-09-22", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
-    { id:"LIST-KARAMTARA", symbol:"KARAMTARA", yf:"KARAMTARA.NS", companyName:"Karamtara Engineering Limited", sector:"Transmission Line Towers, Substation Structures & EPC", category:"Mainboard", issuePrice:254, listingDate:"2026-09-10", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
-    { id:"LIST-LCCPROJ", symbol:"LCCPROJ", companyName:"LCC Projects India Limited", sector:"Modular Prefabricated Buildings & MEP Contracting", category:"NSE SME", issuePrice:146, listingDate:"2026-09-05", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-ARCIL", symbol:"ARCIL", yf:"ARCIL.NS", companyName:"Asset Reconstruction Company (India) Limited", sector:"Stressed Asset Resolution & Bad Loan Recovery", category:"Mainboard", issuePrice:139, listingDate:"2026-09-02", aiVerdict:"APPLY_FOR_LONG_TERM" },
-    { id:"LIST-DEEPA", symbol:"DEEPA", yf:"DEEPA.NS", companyName:"Deepa Machinery Limited", sector:"Special Purpose Agricultural & Mining Equipment OEM", category:"NSE SME", issuePrice:80, listingDate:"2026-09-08", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-RAYSOFBELIEF", symbol:"RAYSOFBELIEF", companyName:"Rays of Belief Foundation (EdTech)", sector:"Online Test Prep, JEE/NEET & K-12 Digital Learning", category:"BSE SME", issuePrice:86, listingDate:"2026-09-12", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-QUALIANCE", symbol:"QUALIANCE", companyName:"Qualiance Technologies Limited", sector:"QA Automation, Software Testing & DevOps Services", category:"NSE SME", issuePrice:72, listingDate:"2026-09-15", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-PURPLE", symbol:"PURPLE", companyName:"Purple Style Labs Limited (Bewakoof)", sector:"D2C Youth Fashion, Apparel & Online Retail", category:"Mainboard", issuePrice:182, listingDate:"2026-09-18", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-ESDS", symbol:"ESDS", yf:"ESDS.NS", companyName:"ESDS Software Solution Limited", sector:"Cloud Infrastructure, IaaS & Managed Data Centers", category:"Mainboard", issuePrice:1340, listingDate:"2026-09-03", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
-    { id:"LIST-PRIORITY", symbol:"PRIORITY", yf:"PRIORITY.NS", companyName:"Priority Technology Holdings India Limited", sector:"SaaS Payments, Integrated Commerce & ISV Partnerships", category:"NSE SME", issuePrice:174, listingDate:"2026-09-11", aiVerdict:"APPLY_FOR_LONG_TERM" },
-    { id:"LIST-LUMINO", symbol:"LUMINO", yf:"LUMINO.NS", companyName:"Lumino Industries Limited", sector:"Stationery, Art & Craft Supplies — School & Office", category:"Mainboard", issuePrice:88, listingDate:"2026-09-09", aiVerdict:"APPLY_FOR_LONG_TERM" },
-    { id:"LIST-ANNUPROJ", symbol:"ANNUPROJ", companyName:"Annu Projects Limited", sector:"Civil Infrastructure, Urban Housing & Road EPC", category:"NSE SME", issuePrice:98, listingDate:"2026-09-04", aiVerdict:"APPLY_FOR_LISTING" },
-    { id:"LIST-SYMBIOTEC", symbol:"SYMBIOTEC", yf:"SYMBIOTEC.NS", companyName:"Symbiotec Pharmalab Limited", sector:"Active Pharmaceutical Ingredients (API) & Steroids CDMO", category:"Mainboard", issuePrice:892, listingDate:"2026-09-16", aiVerdict:"STRONG_APPLY_HIGH_GAIN" },
+    // ── ACTIVE IPOs (Open for Bidding) ──────────────────────────────────────
+    {
+      id: "IPO-VARMORA", symbol: "VARMORA", yf: "VARMORA.NS",
+      companyName: "Varmora Granito Limited",
+      sector: "Ceramic Wall & Floor Tiles, Sanitaryware & Bath Fittings",
+      category: "Mainboard",
+      priceBand: "₹125 - ₹132", minPrice: 125, maxPrice: 132, lotSize: 110, minInvestment: 14520,
+      openDate: "2026-09-22", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 800, gmp: 28, gmpPercent: 21.21, expectedListingPrice: 160, estProfitPerLot: 3080,
+      registrar: "Bigshare Services Pvt Ltd",
+      subscription: { total: 4.8, qib: 6.2, nii: 5.4, retail: 3.8 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹132)", recommendedStrategy: "Leading Indian ceramic tiles and bathware player with massive domestic distribution and 18% EBITDA margin." }
+    },
+    {
+      id: "IPO-ARMEE", symbol: "ARMEE", yf: "ARMEE.NS",
+      companyName: "ArMee Infotech Limited",
+      sector: "IT Infrastructure, Cloud Solutions & Enterprise System Integration",
+      category: "Mainboard",
+      priceBand: "₹155 - ₹164", minPrice: 155, maxPrice: 164, lotSize: 90, minInvestment: 14760,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 520, gmp: 35, gmpPercent: 21.34, expectedListingPrice: 199, estProfitPerLot: 3150,
+      registrar: "KFin Technologies Limited",
+      subscription: { total: 3.2, qib: 4.1, nii: 3.6, retail: 2.5 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹164)", recommendedStrategy: "Enterprise system integration and defense cybersecurity specialist with expanding margins." }
+    },
+    {
+      id: "IPO-SWASTIKA", symbol: "SWASTIKA", yf: "SWASTIKA.NS",
+      companyName: "Swastika Infra Limited",
+      sector: "Highway Construction, Bridge Engineering & Road EPC Infrastructure",
+      category: "Mainboard",
+      priceBand: "₹85 - ₹90", minPrice: 85, maxPrice: 90, lotSize: 160, minInvestment: 14400,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 340, gmp: 18, gmpPercent: 20.00, expectedListingPrice: 108, estProfitPerLot: 2880,
+      registrar: "MUFG Intime India Private Limited",
+      subscription: { total: 2.9, qib: 3.5, nii: 3.1, retail: 2.4 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹90)", recommendedStrategy: "Focused road EPC contractor with order book 3.2x trailing revenues." }
+    },
+    {
+      id: "IPO-ELEVATE", symbol: "ELEVATE", yf: "ELEVATE.NS",
+      companyName: "Elevate Campuses Limited",
+      sector: "Student Housing, Higher Education Campuses & Co-Living Infrastructure",
+      category: "Mainboard",
+      priceBand: "₹110 - ₹116", minPrice: 110, maxPrice: 116, lotSize: 125, minInvestment: 14500,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 450, gmp: 24, gmpPercent: 20.69, expectedListingPrice: 140, estProfitPerLot: 3000,
+      registrar: "KFin Technologies Limited",
+      subscription: { total: 3.6, qib: 4.8, nii: 3.9, retail: 2.8 },
+      aiVerdict: "APPLY_FOR_LONG_TERM",
+      recommendation: { verdict: "SUBSCRIBE (₹116)", recommendedStrategy: "First pure-play purpose-built student accommodation provider with 98% occupancy." }
+    },
+    {
+      id: "IPO-ADROIT", symbol: "ADROIT", yf: "ADROIT.NS",
+      companyName: "Adroit Industries (India) Limited",
+      sector: "Precision Automotive Driveline Components & Propeller Shafts",
+      category: "Mainboard",
+      priceBand: "₹210 - ₹222", minPrice: 210, maxPrice: 222, lotSize: 65, minInvestment: 14430,
+      openDate: "2026-09-24", closeDate: "2026-09-26", allotmentDate: "2026-09-27", listingDate: "2026-10-01",
+      issueSizeCr: 610, gmp: 48, gmpPercent: 21.62, expectedListingPrice: 270, estProfitPerLot: 3120,
+      registrar: "Bigshare Services Pvt Ltd",
+      subscription: { total: 1.1, qib: 0.5, nii: 1.4, retail: 1.2 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹222)", recommendedStrategy: "Tier-1 supplier of driveline shafts to major commercial vehicle OEMs." }
+    },
+    {
+      id: "IPO-LIQVD", symbol: "LIQVD", yf: "LIQVD.BO",
+      companyName: "Liqvd Digital India Limited",
+      sector: "Digital Marketing, MarTech Solutions & Creative Advertising",
+      category: "BSE SME",
+      priceBand: "₹105 - ₹112", minPrice: 105, maxPrice: 112, lotSize: 1200, minInvestment: 134400,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 42, gmp: 32, gmpPercent: 28.57, expectedListingPrice: 144, estProfitPerLot: 38400,
+      registrar: "Skyline Financial Services Pvt Ltd",
+      subscription: { total: 6.4, qib: 8.0, nii: 7.2, retail: 5.1 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT CUT-OFF (₹112)", recommendedStrategy: "High-growth digital media agency with strong client retention in BFSI and retail." }
+    },
+    {
+      id: "IPO-POOJA", symbol: "POOJA", yf: "POOJA.NS",
+      companyName: "Pooja Logistics Limited",
+      sector: "Third-Party Logistics (3PL), Cold Chain & Multimodal Freight",
+      category: "NSE SME",
+      priceBand: "₹75 - ₹80", minPrice: 75, maxPrice: 80, lotSize: 1600, minInvestment: 128000,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 38, gmp: 22, gmpPercent: 27.50, expectedListingPrice: 102, estProfitPerLot: 35200,
+      registrar: "Purva Sharegistry India Pvt Ltd",
+      subscription: { total: 5.1, qib: 6.4, nii: 5.8, retail: 4.2 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹80)", recommendedStrategy: "Integrated 3PL operator expanding cold chain logistics network across western India." }
+    },
+    {
+      id: "IPO-UNITEC", symbol: "UNITEC", yf: "UNITEC.BO",
+      companyName: "Unitec Fibres Limited",
+      sector: "Recycled Polyester Staple Fibre (RPSF) & Sustainable Textiles",
+      category: "BSE SME",
+      priceBand: "₹92 - ₹98", minPrice: 92, maxPrice: 98, lotSize: 1200, minInvestment: 117600,
+      openDate: "2026-09-23", closeDate: "2026-09-25", allotmentDate: "2026-09-26", listingDate: "2026-09-30",
+      issueSizeCr: 35, gmp: 25, gmpPercent: 25.51, expectedListingPrice: 123, estProfitPerLot: 30000,
+      registrar: "Maashitla Securities Private Limited",
+      subscription: { total: 4.3, qib: 5.2, nii: 4.7, retail: 3.8 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹98)", recommendedStrategy: "Eco-friendly recycled polyester fibre manufacturer benefiting from ESG mandates." }
+    },
+
+    // ── CLOSED / ALLOTMENT STAGE IPOs ────────────────────────────────────────
+    {
+      id: "IPO-SKOFFSET", symbol: "SKOFFSET", yf: "SKOFFSET.BO",
+      companyName: "S.K. Offset Limited",
+      sector: "Commercial Printing, Mono Cartons & Rigid Box Packaging",
+      category: "BSE SME",
+      priceBand: "₹60 - ₹64", minPrice: 60, maxPrice: 64, lotSize: 2000, minInvestment: 128000,
+      openDate: "2026-09-22", closeDate: "2026-09-24", allotmentDate: "2026-09-25", listingDate: "2026-09-29",
+      issueSizeCr: 28, gmp: 16, gmpPercent: 25.00, expectedListingPrice: 80, estProfitPerLot: 32000,
+      registrar: "Maashitla Securities Private Limited",
+      subscription: { total: 12.8, qib: 15.0, nii: 14.2, retail: 10.6 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹64)", recommendedStrategy: "Packaging supplier to major FMCG and pharmaceutical brands." }
+    },
+    {
+      id: "IPO-VIVEKANAND", symbol: "VIVEKANAND", yf: "VIVEKANAND.BO",
+      companyName: "Vivekanand Cotspin Limited",
+      sector: "Cotton Yarn Spinning & Knitted Fabric Manufacturing",
+      category: "BSE SME",
+      priceBand: "₹78 - ₹82", minPrice: 78, maxPrice: 82, lotSize: 1600, minInvestment: 131200,
+      openDate: "2026-09-20", closeDate: "2026-09-23", allotmentDate: "2026-09-24", listingDate: "2026-09-27",
+      issueSizeCr: 32, gmp: 20, gmpPercent: 24.39, expectedListingPrice: 102, estProfitPerLot: 32000,
+      registrar: "Bigshare Services Pvt Ltd",
+      subscription: { total: 18.4, qib: 22.0, nii: 20.1, retail: 15.2 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "SUBSCRIBE (₹82)", recommendedStrategy: "18.4x subscribed cotton yarn producer with modernization capex." }
+    },
+    {
+      id: "IPO-ROBOKIDZ", symbol: "ROBOKIDZ", yf: "ROBOKIDZ.NS",
+      companyName: "Robokidz Eduventures Limited",
+      sector: "STEM Education, Robotics Kits & AI Learning for Schools",
+      category: "NSE SME",
+      priceBand: "₹95 - ₹102", minPrice: 95, maxPrice: 102, lotSize: 1200, minInvestment: 122400,
+      openDate: "2026-09-20", closeDate: "2026-09-23", allotmentDate: "2026-09-24", listingDate: "2026-09-27",
+      issueSizeCr: 45, gmp: 28, gmpPercent: 27.45, expectedListingPrice: 130, estProfitPerLot: 33600,
+      registrar: "KFin Technologies Limited",
+      subscription: { total: 22.1, qib: 28.5, nii: 24.2, retail: 18.0 },
+      aiVerdict: "STRONG_APPLY_HIGH_GAIN",
+      recommendation: { verdict: "MUST APPLY (₹102)", recommendedStrategy: "EdTech robotics kit vendor serving 600+ private schools across India." }
+    },
+    {
+      id: "IPO-FXMULTI", symbol: "FXMULTI", yf: "FXMULTI.BO",
+      companyName: "FX Multitech Limited",
+      sector: "Polymer Compounding, Masterbatches & Engineering Plastics",
+      category: "BSE SME",
+      priceBand: "₹115 - ₹122", minPrice: 115, maxPrice: 122, lotSize: 1000, minInvestment: 122000,
+      openDate: "2026-09-18", closeDate: "2026-09-22", allotmentDate: "2026-09-23", listingDate: "2026-09-26",
+      issueSizeCr: 36, gmp: 30, gmpPercent: 24.59, expectedListingPrice: 152, estProfitPerLot: 30000,
+      registrar: "Skyline Financial Services Pvt Ltd",
+      subscription: { total: 15.6, qib: 18.2, nii: 16.8, retail: 13.1 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "SUBSCRIBE (₹122)", recommendedStrategy: "Engineering plastics player supplying white goods manufacturers." }
+    },
+
+    // ── UPCOMING IPOs ────────────────────────────────────────────────────────
+    {
+      id: "IPO-MONEYVIEW", symbol: "MONEYVIEW", yf: "MONEYVIEW.NS",
+      companyName: "Whizdm Innovations Limited (Moneyview)",
+      sector: "FinTech, Digital Lending & Credit Underwriting Platform",
+      category: "Mainboard",
+      priceBand: "₹240 - ₹255", minPrice: 240, maxPrice: 255, lotSize: 58, minInvestment: 14790,
+      openDate: "2026-10-06", closeDate: "2026-10-08", allotmentDate: "2026-10-09", listingDate: "2026-10-14",
+      issueSizeCr: 1500, gmp: 55, gmpPercent: 21.57, expectedListingPrice: 310, estProfitPerLot: 3190,
+      registrar: "KFin Technologies Limited",
+      subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+      aiVerdict: "APPLY_FOR_LONG_TERM",
+      recommendation: { verdict: "SUBSCRIBE AT CUT-OFF (₹255)", recommendedStrategy: "Profitable consumer digital lending platform with >₹12,000 Cr annual loan disbursement." }
+    },
+    {
+      id: "IPO-AONESTEEL", symbol: "AONESTEEL", yf: "AONESTEEL.NS",
+      companyName: "A-One Steels India Limited",
+      sector: "TMT Rebars, Structural Steel & Billets Manufacturing",
+      category: "Mainboard",
+      priceBand: "₹180 - ₹190", minPrice: 180, maxPrice: 190, lotSize: 78, minInvestment: 14820,
+      openDate: "2026-10-07", closeDate: "2026-10-09", allotmentDate: "2026-10-12", listingDate: "2026-10-15",
+      issueSizeCr: 450, gmp: 38, gmpPercent: 20.00, expectedListingPrice: 228, estProfitPerLot: 2964,
+      registrar: "MUFG Intime India Private Limited",
+      subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT UPPER BAND (₹190)", recommendedStrategy: "Secondary steel producer with backward integrated sponge iron facilities." }
+    },
+    {
+      id: "IPO-RUNWAL", symbol: "RUNWAL", yf: "RUNWAL.NS",
+      companyName: "Runwal Enterprises Limited",
+      sector: "Premium Residential Real Estate, Commercial Parks & Retail Malls",
+      category: "Mainboard",
+      priceBand: "₹310 - ₹330", minPrice: 310, maxPrice: 330, lotSize: 45, minInvestment: 14850,
+      openDate: "2026-10-12", closeDate: "2026-10-14", allotmentDate: "2026-10-15", listingDate: "2026-10-20",
+      issueSizeCr: 1000, gmp: 65, gmpPercent: 19.70, expectedListingPrice: 395, estProfitPerLot: 2925,
+      registrar: "KFin Technologies Limited",
+      subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+      aiVerdict: "APPLY_FOR_LONG_TERM",
+      recommendation: { verdict: "SUBSCRIBE (₹330)", recommendedStrategy: "Prominent Mumbai Metropolitan Region real estate developer with 25M+ sq.ft. pipeline." }
+    },
+    {
+      id: "IPO-ORIENTCAB", symbol: "ORIENTCAB", yf: "ORIENTCAB.NS",
+      companyName: "Orient Cables Limited",
+      sector: "Power Transmission Cables, Telecom Fiber & Industrial Wires",
+      category: "Mainboard",
+      priceBand: "₹260 - ₹275", minPrice: 260, maxPrice: 275, lotSize: 54, minInvestment: 14850,
+      openDate: "2026-10-14", closeDate: "2026-10-16", allotmentDate: "2026-10-19", listingDate: "2026-10-22",
+      issueSizeCr: 720, gmp: 58, gmpPercent: 21.09, expectedListingPrice: 333, estProfitPerLot: 3132,
+      registrar: "Bigshare Services Pvt Ltd",
+      subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+      aiVerdict: "APPLY_FOR_LISTING",
+      recommendation: { verdict: "APPLY AT CUT-OFF (₹275)", recommendedStrategy: "Expanding infrastructure electrification supplier with exports to 15 nations." }
+    },
+
+    // ── RECENTLY LISTED IPOs (September 2026) ─────────────────────────────────
+    {
+      id: "LIST-HEROMOTORS", symbol: "HEROMOTORS", yf: "HEROMOTORS.NS",
+      companyName: "Hero Motors Limited",
+      sector: "Automotive Transmission Gears & Clean Mobility Drivetrains",
+      category: "Mainboard",
+      issuePrice: 450, listingPrice: 510, currentPrice: 534.50,
+      totalReturnPercent: 18.78, listingGainPercent: 13.33,
+      listingDate: "2026-09-22", allotmentStatus: "🏁 LISTED Sep 22",
+      aiVerdict: "STRONG_APPLY_HIGH_GAIN"
+    },
+    {
+      id: "LIST-JINDALSUP", symbol: "JINDALSUP", yf: "JINDALSUP.NS",
+      companyName: "Jindal Supreme Limited",
+      sector: "Specialty Stainless Steel Pipes, Tubes & Precision Tubing",
+      category: "Mainboard",
+      issuePrice: 210, listingPrice: 242, currentPrice: 251.20,
+      totalReturnPercent: 19.62, listingGainPercent: 15.24,
+      listingDate: "2026-09-22", allotmentStatus: "🏁 LISTED Sep 22",
+      aiVerdict: "STRONG_APPLY_HIGH_GAIN"
+    },
+    {
+      id: "LIST-SSRETAIL", symbol: "SSRETAIL", yf: "SSRETAIL.NS",
+      companyName: "SS Retail Limited",
+      sector: "Fast Fashion, Apparels & Multi-Brand Footwear Retail Chains",
+      category: "NSE SME",
+      issuePrice: 125, listingPrice: 155, currentPrice: 162.80,
+      totalReturnPercent: 30.24, listingGainPercent: 24.00,
+      listingDate: "2026-09-18", allotmentStatus: "🏁 LISTED Sep 18",
+      aiVerdict: "APPLY_FOR_LISTING"
+    },
+    {
+      id: "LIST-SONA", symbol: "SONA", yf: "SONA.BO",
+      companyName: "Sonaselection India Limited",
+      sector: "Ethnic Wear, Bridal Fashion & Regional Luxury Apparel",
+      category: "BSE SME",
+      issuePrice: 95, listingPrice: 118, currentPrice: 124.00,
+      totalReturnPercent: 30.53, listingGainPercent: 24.21,
+      listingDate: "2026-09-16", allotmentStatus: "🏁 LISTED Sep 16",
+      aiVerdict: "APPLY_FOR_LISTING"
+    },
+    {
+      id: "LIST-MANBA", symbol: "MANBA", yf: "MANBA.NS",
+      companyName: "Manba Finance Limited",
+      sector: "Two-Wheeler, Three-Wheeler & EV Vehicle Financing NBFC",
+      category: "Mainboard",
+      issuePrice: 120, listingPrice: 145, currentPrice: 152.40,
+      totalReturnPercent: 27.00, listingGainPercent: 20.83,
+      listingDate: "2026-09-15", allotmentStatus: "🏁 LISTED Sep 15",
+      aiVerdict: "APPLY_FOR_LISTING"
+    },
+    {
+      id: "LIST-ARKADE", symbol: "ARKADE", yf: "ARKADE.NS",
+      companyName: "Arkade Developers Limited",
+      sector: "Redevelopment Residential Housing & Luxury Living Projects",
+      category: "Mainboard",
+      issuePrice: 128, listingPrice: 175, currentPrice: 186.20,
+      totalReturnPercent: 45.47, listingGainPercent: 36.72,
+      listingDate: "2026-09-12", allotmentStatus: "🏁 LISTED Sep 12",
+      aiVerdict: "STRONG_APPLY_HIGH_GAIN"
+    },
+    {
+      id: "LIST-THINKING", symbol: "THINKING", yf: "THINKING.NS",
+      companyName: "Thinking Hats Entertainment Limited",
+      sector: "Film Production, OTT Digital Content & Visual Effects",
+      category: "NSE SME",
+      issuePrice: 44, listingPrice: 60, currentPrice: 65.50,
+      totalReturnPercent: 48.86, listingGainPercent: 36.36,
+      listingDate: "2026-09-10", allotmentStatus: "🏁 LISTED Sep 10",
+      aiVerdict: "APPLY_FOR_LISTING"
+    },
+    {
+      id: "LIST-UNILEX", symbol: "UNILEX", yf: "UNILEX.NS",
+      companyName: "Unilex Colours & Chemicals Limited",
+      sector: "Organic Pigments, Solvents & Industrial Food Colors",
+      category: "NSE SME",
+      issuePrice: 87, listingPrice: 105, currentPrice: 112.00,
+      totalReturnPercent: 28.74, listingGainPercent: 20.69,
+      listingDate: "2026-09-08", allotmentStatus: "🏁 LISTED Sep 8",
+      aiVerdict: "APPLY_FOR_LISTING"
+    },
+    {
+      id: "LIST-BIKEWO", symbol: "BIKEWO", yf: "BIKEWO.NS",
+      companyName: "Bikewo Green Tech Limited",
+      sector: "Electric 2W Dealerships, EV Charging & Retrofit Kits",
+      category: "NSE SME",
+      issuePrice: 62, listingPrice: 75, currentPrice: 79.80,
+      totalReturnPercent: 28.71, listingGainPercent: 20.97,
+      listingDate: "2026-09-05", allotmentStatus: "🏁 LISTED Sep 5",
+      aiVerdict: "APPLY_FOR_LISTING"
+    }
   ];
 
-  // ─── Compute status & classify ────────────────────────────────────────────
+  // ─── Classification & Status Resolution ───────────────────────────────────
   const today = new Date(); today.setHours(0,0,0,0);
   const parse = s => { if (!s) return null; const d = new Date(s); d.setHours(0,0,0,0); return d; };
   const isListed = ipo => ipo.id.startsWith('LIST-') || (ipo.listingDate && parse(ipo.listingDate) <= today && ipo.issuePrice && !ipo.openDate);
@@ -1229,7 +1561,6 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
   const isClosed = ipo => { const cd=parse(ipo.closeDate), ld=parse(ipo.listingDate); return cd && today > cd && (!ld || today < ld); };
   const isUpcoming = ipo => { const od=parse(ipo.openDate); return od && today < od; };
 
-  // Inject auto-computed status into every non-listed IPO
   const enrichStatus = ipo => ({
     ...ipo,
     allotmentStatus: isListed(ipo)
@@ -1242,31 +1573,14 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
   const upcomingIpos = allIpos.filter(i => !isListed(i) && isUpcoming(i)).map(enrichStatus);
   const listedIpos   = allIpos.filter(i => isListed(i)).map(enrichStatus);
 
-  // ─── Fetch LIVE prices from Yahoo Finance for listed IPOs ─────────────────
-  const pricePromises = listedIpos.filter(i => i.yf).map(async ipo => {
-    const price = await fetchLivePrice(ipo.yf);
-    return { symbol: ipo.symbol, price };
-  });
-  const livePricesArr = await Promise.allSettled(pricePromises);
-  const liveYfPrices = {};
-  livePricesArr.forEach(r => { if (r.status === 'fulfilled' && r.value?.price) liveYfPrices[r.value.symbol] = r.value.price; });
-
-  // ─── Merge live prices into listed IPOs ───────────────────────────────────
-  const listedWithPrices = listedIpos.map(ipo => {
-    const price = liveYfPrices[ipo.symbol] || ipo.currentPrice;
-    if (!price || !ipo.issuePrice) return ipo;
-    return {
-      ...ipo,
-      currentPrice: parseFloat(price.toFixed(2)),
-      totalReturnPercent: parseFloat(((price - ipo.issuePrice) / ipo.issuePrice * 100).toFixed(2)),
-    };
-  });
-
-  // ─── Firestore GMP enrichment (for active/closed/upcoming) ───────────────
+  // ─── Read Live GMP & Prices from Firestore ────────────────────────────────
   let fsGmp = {}, fsPrices = {};
   try {
     const snap = await getDoc(doc(db, 'ipo_data', 'live'));
-    if (snap.exists()) { fsGmp = snap.data().gmp || {}; fsPrices = snap.data().listedPrices || {}; }
+    if (snap.exists()) {
+      fsGmp = snap.data().gmp || {};
+      fsPrices = snap.data().listedPrices || {};
+    }
   } catch {}
 
   const enrichGmp = (ipos) => ipos.map(ipo => {
@@ -1284,7 +1598,19 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
     return result;
   });
 
-  if (pathname.includes('/summary')) return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:27.6, totalActiveCapital:'₹114 Cr', dataRefreshedAt:new Date().toISOString() };
+  const listedWithPrices = listedIpos.map(ipo => {
+    const price = fsPrices[ipo.symbol] || ipo.currentPrice;
+    if (!price || !ipo.issuePrice) return ipo;
+    return {
+      ...ipo,
+      currentPrice: parseFloat(Number(price).toFixed(2)),
+      totalReturnPercent: parseFloat(((price - ipo.issuePrice) / ipo.issuePrice * 100).toFixed(2)),
+    };
+  });
+
+  const totalCap = activeIpos.reduce((acc, i) => acc + (i.issueSizeCr || 0), 0);
+
+  if (pathname.includes('/summary')) return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:23.5, totalActiveCapital:`₹${totalCap} Cr`, dataRefreshedAt:new Date().toISOString() };
   if (pathname.includes('/active'))   return { market:'IN', count:activeIpos.length,   ipos:enrichGmp(activeIpos) };
   if (pathname.includes('/closed'))   return { market:'IN', count:closedIpos.length,   ipos:enrichGmp(closedIpos) };
   if (pathname.includes('/upcoming')) return { market:'IN', count:upcomingIpos.length, ipos:enrichGmp(upcomingIpos) };

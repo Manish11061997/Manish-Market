@@ -330,10 +330,49 @@ def refresh_universe_prices():
                 stock["prevClose"] = prices[sym]["prevClose"]
                 updated_us += 1
         logger.info(f"Universe price refresh: {updated_in}/{len(in_symbols)} IN, {updated_us}/{len(us_symbols)} US stocks updated")
+        # Automatically push live universe prices to Firestore
+        _push_prices_to_firestore(INDIAN_STOCKS_UNIVERSE, US_STOCKS_UNIVERSE)
     except Exception as e:
         logger.warning(f"Universe price refresh failed: {e}")
     finally:
         _UNIVERSE_REFRESH_LOCK.release()
+
+def _push_prices_to_firestore(in_stocks, us_stocks):
+    """Sync live prices to Firestore so Firebase-hosted web app always has real-time market data."""
+    try:
+        FIREBASE_PROJECT = "manishmarket-web"
+        FIREBASE_API_KEY = "AIzaSyD4YkCxqFyzj0qIbgjK6evooCGT47MkTAE"
+        
+        def fv(v):
+            if isinstance(v, float): return {"doubleValue": round(v, 2)}
+            if isinstance(v, int): return {"integerValue": str(v)}
+            return {"stringValue": str(v)}
+
+        for doc_name, stocks in [("live_in", in_stocks), ("live_us", us_stocks)]:
+            url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/market_data/{doc_name}?key={FIREBASE_API_KEY}"
+            fields = {}
+            for s in stocks:
+                sym = s.get("symbol")
+                p = s.get("price")
+                prev = s.get("prevClose") or p
+                if sym and p:
+                    chg = round(p - prev, 2)
+                    chg_pct = round((chg / prev) * 100, 2) if prev else 0.0
+                    fields[sym] = {"mapValue": {"fields": {
+                        "symbol": fv(sym),
+                        "price": fv(float(p)),
+                        "previousClose": fv(float(prev)),
+                        "change": fv(float(chg)),
+                        "changePercent": fv(float(chg_pct)),
+                        "high52": fv(float(s.get("high52", p * 1.25))),
+                        "low52": fv(float(s.get("low52", p * 0.78))),
+                        "volume": fv(int(s.get("volume", 1000000)))
+                    }}}
+            body = {"fields": {"quotes": {"mapValue": {"fields": fields}}, "updatedAt": {"stringValue": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime())}}}
+            _http_session.patch(url, json=body, timeout=5.0)
+    except Exception as e:
+        logger.debug(f"Firestore price push notice: {e}")
+
 
 def _start_universe_price_refresh_loop():
     """Background thread that keeps universe prices fresh every 60 seconds."""

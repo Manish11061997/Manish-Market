@@ -6,9 +6,12 @@ service cloud.firestore {
       allow read, write: if true;
     }
     // IPO live data: public read (for Firebase hosted site), open write (for backend push via API key)
-    match /ipo_data/{document} {
-      allow read: if true;
-      allow write: if true;
+    match /ipo_data/{document=**} {
+      allow read, write: if true;
+    }
+    // Real-time market data: public read (for Firebase hosted site), open write (for backend push)
+    match /market_data/{document=**} {
+      allow read, write: if true;
     }
   }
 }
