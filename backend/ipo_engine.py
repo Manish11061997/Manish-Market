@@ -1342,6 +1342,7 @@ def _enrich_ipo(ipo: Dict, today: date) -> Dict:
     - Dynamic allotmentStatus from date math
     - Live currentPrice + totalReturnPercent for listed IPOs (from cache)
     - Live gmp/gmpPercent/subscription for active IPOs (from GMP cache)
+    Always returns immediately — never blocks on locks.
     """
     enriched = dict(ipo)
 
@@ -1350,9 +1351,13 @@ def _enrich_ipo(ipo: Dict, today: date) -> Dict:
 
     sym = ipo.get("symbol", "").upper()
 
-    # Inject live price for listed IPOs
-    with _LISTED_PRICE_LOCK:
-        price_data = _LISTED_PRICE_CACHE.get(sym)
+    # Inject live price for listed IPOs — non-blocking read from cache
+    price_data = None
+    if _LISTED_PRICE_LOCK.acquire(blocking=False):
+        try:
+            price_data = _LISTED_PRICE_CACHE.get(sym)
+        finally:
+            _LISTED_PRICE_LOCK.release()
     if price_data:
         enriched["currentPrice"] = price_data["currentPrice"]
         issue_price = ipo.get("issuePrice") or ipo.get("maxPrice")
@@ -1366,9 +1371,13 @@ def _enrich_ipo(ipo: Dict, today: date) -> Dict:
                     (listing_price - issue_price) / issue_price * 100, 2
                 )
 
-    # Inject live GMP/subscription for active/upcoming IPOs
-    with _GMP_CACHE_LOCK:
-        gmp_data = _GMP_CACHE.get(sym)
+    # Inject live GMP/subscription — non-blocking read from cache
+    gmp_data = None
+    if _GMP_CACHE_LOCK.acquire(blocking=False):
+        try:
+            gmp_data = _GMP_CACHE.get(sym)
+        finally:
+            _GMP_CACHE_LOCK.release()
     if gmp_data:
         if "gmp" in gmp_data:
             enriched["gmp"] = gmp_data["gmp"]
@@ -1388,6 +1397,7 @@ def _enrich_ipo(ipo: Dict, today: date) -> Dict:
             enriched["subscription"] = sub
 
     return enriched
+
 
 
 def refresh_listed_ipo_prices():
