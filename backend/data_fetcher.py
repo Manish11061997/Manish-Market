@@ -69,36 +69,35 @@ class SyntheticDataDisallowedError(RuntimeError):
 
 # Comprehensive High-Quality Universe of Indian Stocks (NSE tickers)
 INDIAN_STOCKS_UNIVERSE = [
-    {"symbol": "RELIANCE.NS", "name": "Reliance Industries Ltd", "sector": "Energy & Oil", "cap": "Large Cap", "price": 1282.20, "prevClose": 1298.00, "aliases": ["RIL", "RELIANCE"]},
-    {"symbol": "TCS.NS", "name": "Tata Consultancy Services Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 2248.40, "prevClose": 2270.00, "aliases": ["TCS", "TATA CONSULTANCY"]},
-    {"symbol": "HDFCBANK.NS", "name": "HDFC Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1682.50, "prevClose": 1695.00, "aliases": ["HDFC", "HDFC BANK"]},
-    {"symbol": "INFY.NS", "name": "Infosys Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 1845.20, "prevClose": 1860.00, "aliases": ["INFY", "INFOSYS"]},
-    {"symbol": "ICICIBANK.NS", "name": "ICICI Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1228.40, "prevClose": 1235.00, "aliases": ["ICICI", "ICICI BANK"]},
-    {"symbol": "BHARTIARTL.NS", "name": "Bharti Airtel Ltd", "sector": "Telecom", "cap": "Large Cap", "price": 1624.80, "prevClose": 1638.00, "aliases": ["AIRTEL", "BHARTI AIRTEL"]},
-    {"symbol": "SBIN.NS", "name": "State Bank of India", "sector": "Banking & Financials", "cap": "Large Cap", "price": 822.40, "prevClose": 828.00, "aliases": ["SBI", "STATE BANK", "SBIN"]},
-    {"symbol": "LT.NS", "name": "Larsen & Toubro Ltd", "sector": "Infrastructure & Capital Goods", "cap": "Large Cap", "price": 3612.00, "prevClose": 3640.00, "aliases": ["LT", "L&T", "LARSEN", "LARSEN & TOUBRO"]},
-    {"symbol": "TATAMOTORS.NS", "name": "Tata Motors Ltd", "sector": "Automotive & EV", "cap": "Large Cap", "price": 984.60, "prevClose": 992.00, "aliases": ["TATA MOTORS", "TATAMOTORS", "TAMO"]},
-    {"symbol": "ITC.NS", "name": "ITC Ltd", "sector": "FMCG", "cap": "Large Cap", "price": 486.20, "prevClose": 490.00, "aliases": ["ITC"]},
-    {"symbol": "MARUTI.NS", "name": "Maruti Suzuki India Ltd", "sector": "Automotive & EV", "cap": "Large Cap", "price": 12450.00, "prevClose": 12580.00, "aliases": ["MARUTI", "MARUTI SUZUKI"]},
-    {"symbol": "AXISBANK.NS", "name": "Axis Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1184.20, "prevClose": 1195.00, "aliases": ["AXIS", "AXIS BANK"]},
-    {"symbol": "KOTAKBANK.NS", "name": "Kotak Mahindra Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1782.40, "prevClose": 1795.00, "aliases": ["KOTAK", "KOTAK BANK"]},
-    {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 7240.00, "prevClose": 7310.00, "aliases": ["BAJAJ FINANCE", "BAJFINANCE"]},
-    {"symbol": "BAJAJFINSV.NS", "name": "Bajaj Finserv Ltd", "sector": "Financial Services", "cap": "Large Cap", "price": 1845.00, "prevClose": 1860.00, "aliases": ["BAJAJ FINSERV"]},
-    {"symbol": "BAJAJ-AUTO.NS", "name": "Bajaj Auto Ltd", "sector": "Automotive & 2W", "cap": "Large Cap", "price": 9650.00, "prevClose": 9720.00, "aliases": ["BAJAJ AUTO"]},
-    {"symbol": "SUNPHARMA.NS", "name": "Sun Pharmaceutical Industries Ltd", "sector": "Pharma & Healthcare", "cap": "Large Cap", "price": 1820.00, "prevClose": 1835.00, "aliases": ["SUN PHARMA", "SUNPHARMA"]},
-    {"symbol": "TITAN.NS", "name": "Titan Company Ltd", "sector": "Consumer Goods & Retail", "cap": "Large Cap", "price": 3480.00, "prevClose": 3510.00, "aliases": ["TITAN", "TANISHQ"]},
-    {"symbol": "TATASTEEL.NS", "name": "Tata Steel Ltd", "sector": "Metals & Mining", "cap": "Large Cap", "price": 154.20, "prevClose": 156.00, "aliases": ["TATA STEEL", "TATASTEEL"]},
-    {"symbol": "TATAPOWER.NS", "name": "Tata Power Company Ltd", "sector": "Power & Utilities", "cap": "Large Cap", "price": 425.60, "prevClose": 430.00, "aliases": ["TATA POWER", "TATAPOWER"]},
-    {"symbol": "TRENT.NS", "name": "Trent Ltd (Westside & Zudio)", "sector": "Retail & Fashion", "cap": "Large Cap", "price": 6840.00, "prevClose": 6910.00, "aliases": ["TRENT", "ZUDIO", "WESTSIDE"]},
-    {"symbol": "NTPC.NS", "name": "NTPC Ltd", "sector": "Power & Utilities", "cap": "Large Cap", "price": 412.50, "prevClose": 416.00, "aliases": ["NTPC"]},
-    {"symbol": "ONGC.NS", "name": "Oil and Natural Gas Corporation", "sector": "Energy & Oil", "cap": "Large Cap", "price": 298.40, "prevClose": 302.00, "aliases": ["ONGC"]},
-    {"symbol": "POWERGRID.NS", "name": "Power Grid Corp of India", "sector": "Power & Utilities", "cap": "Large Cap", "price": 264.90, "prevClose": 265.20, "aliases": ["POWERGRID", "POWER GRID"]},
-    {"symbol": "COALINDIA.NS", "name": "Coal India Ltd", "sector": "Mining & Minerals", "cap": "Large Cap", "price": 492.00, "prevClose": 496.00, "aliases": ["COAL INDIA", "COALINDIA"]},
-    {"symbol": "HCLTECH.NS", "name": "HCL Technologies Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 1780.00, "prevClose": 1795.00, "aliases": ["HCL", "HCL TECH"]},
-    {"symbol": "WIPRO.NS", "name": "Wipro Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 542.00, "prevClose": 546.00, "aliases": ["WIPRO"]},
-    {"symbol": "M&M.NS", "name": "Mahindra & Mahindra Ltd", "sector": "Automotive & EV", "cap": "Large Cap", "price": 2980.00, "prevClose": 3010.00, "aliases": ["M&M", "MAHINDRA"]},
-    {"symbol": "ADANIENT.NS", "name": "Adani Enterprises Ltd", "sector": "Conglomerate", "cap": "Large Cap", "price": 2980.00, "prevClose": 3020.00, "aliases": ["ADANI", "ADANI ENTERPRISES"]},
-    {"symbol": "ADANIPORTS.NS", "name": "Adani Ports & SEZ Ltd", "sector": "Infrastructure & Ports", "cap": "Large Cap", "price": 1420.00, "prevClose": 1435.00, "aliases": ["ADANI PORTS"]},
+    {"symbol": "RELIANCE.NS", "name": "Reliance Industries Ltd", "sector": "Energy & Oil", "cap": "Large Cap", "price": 1219.20, "prevClose": 1226.40, "aliases": ["RIL", "RELIANCE"]},
+    {"symbol": "TCS.NS", "name": "Tata Consultancy Services Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 2087.00, "prevClose": 2105.00, "aliases": ["TCS", "TATA CONSULTANCY"]},
+    {"symbol": "HDFCBANK.NS", "name": "HDFC Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 728.90, "prevClose": 731.00, "aliases": ["HDFC", "HDFC BANK"]},
+    {"symbol": "INFY.NS", "name": "Infosys Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 1014.50, "prevClose": 1051.40, "aliases": ["INFY", "INFOSYS"]},
+    {"symbol": "ICICIBANK.NS", "name": "ICICI Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1334.50, "prevClose": 1338.90, "aliases": ["ICICI", "ICICI BANK"]},
+    {"symbol": "BHARTIARTL.NS", "name": "Bharti Airtel Ltd", "sector": "Telecom", "cap": "Large Cap", "price": 1795.80, "prevClose": 1893.30, "aliases": ["AIRTEL", "BHARTI AIRTEL"]},
+    {"symbol": "SBIN.NS", "name": "State Bank of India", "sector": "Banking & Financials", "cap": "Large Cap", "price": 978.50, "prevClose": 996.20, "aliases": ["SBI", "STATE BANK", "SBIN"]},
+    {"symbol": "LT.NS", "name": "Larsen & Toubro Ltd", "sector": "Infrastructure & Capital Goods", "cap": "Large Cap", "price": 3858.40, "prevClose": 3885.00, "aliases": ["LT", "L&T", "LARSEN", "LARSEN & TOUBRO"]},
+    {"symbol": "ITC.NS", "name": "ITC Ltd", "sector": "FMCG", "cap": "Large Cap", "price": 268.00, "prevClose": 262.30, "aliases": ["ITC"]},
+    {"symbol": "MARUTI.NS", "name": "Maruti Suzuki India Ltd", "sector": "Automotive & EV", "cap": "Large Cap", "price": 11990.00, "prevClose": 12103.00, "aliases": ["MARUTI", "MARUTI SUZUKI"]},
+    {"symbol": "AXISBANK.NS", "name": "Axis Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 1186.50, "prevClose": 1257.00, "aliases": ["AXIS", "AXIS BANK"]},
+    {"symbol": "KOTAKBANK.NS", "name": "Kotak Mahindra Bank Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 405.00, "prevClose": 412.50, "aliases": ["KOTAK", "KOTAK BANK"]},
+    {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance Ltd", "sector": "Banking & Financials", "cap": "Large Cap", "price": 982.00, "prevClose": 1040.30, "aliases": ["BAJAJ FINANCE", "BAJFINANCE"]},
+    {"symbol": "BAJAJFINSV.NS", "name": "Bajaj Finserv Ltd", "sector": "Financial Services", "cap": "Large Cap", "price": 1762.30, "prevClose": 1852.50, "aliases": ["BAJAJ FINSERV"]},
+    {"symbol": "BAJAJ-AUTO.NS", "name": "Bajaj Auto Ltd", "sector": "Automotive & 2W", "cap": "Large Cap", "price": 11208.00, "prevClose": 11414.00, "aliases": ["BAJAJ AUTO"]},
+    {"symbol": "SUNPHARMA.NS", "name": "Sun Pharmaceutical Industries Ltd", "sector": "Pharma & Healthcare", "cap": "Large Cap", "price": 1849.90, "prevClose": 1837.30, "aliases": ["SUN PHARMA", "SUNPHARMA"]},
+    {"symbol": "TITAN.NS", "name": "Titan Company Ltd", "sector": "Consumer Goods & Retail", "cap": "Large Cap", "price": 4832.50, "prevClose": 4798.50, "aliases": ["TITAN", "TANISHQ"]},
+    {"symbol": "TATASTEEL.NS", "name": "Tata Steel Ltd", "sector": "Metals & Mining", "cap": "Large Cap", "price": 188.02, "prevClose": 185.54, "aliases": ["TATA STEEL", "TATASTEEL"]},
+    {"symbol": "TATAPOWER.NS", "name": "Tata Power Company Ltd", "sector": "Power & Utilities", "cap": "Large Cap", "price": 363.45, "prevClose": 374.80, "aliases": ["TATA POWER", "TATAPOWER"]},
+    {"symbol": "TRENT.NS", "name": "Trent Ltd (Westside & Zudio)", "sector": "Retail & Fashion", "cap": "Large Cap", "price": 2700.00, "prevClose": 2824.00, "aliases": ["TRENT", "ZUDIO", "WESTSIDE"]},
+    {"symbol": "NTPC.NS", "name": "NTPC Ltd", "sector": "Power & Utilities", "cap": "Large Cap", "price": 326.60, "prevClose": 323.65, "aliases": ["NTPC"]},
+    {"symbol": "ONGC.NS", "name": "Oil and Natural Gas Corporation", "sector": "Energy & Oil", "cap": "Large Cap", "price": 239.00, "prevClose": 232.80, "aliases": ["ONGC"]},
+    {"symbol": "POWERGRID.NS", "name": "Power Grid Corp of India", "sector": "Power & Utilities", "cap": "Large Cap", "price": 266.40, "prevClose": 270.30, "aliases": ["POWERGRID", "POWER GRID"]},
+    {"symbol": "COALINDIA.NS", "name": "Coal India Ltd", "sector": "Mining & Minerals", "cap": "Large Cap", "price": 422.00, "prevClose": 409.90, "aliases": ["COAL INDIA", "COALINDIA"]},
+    {"symbol": "HCLTECH.NS", "name": "HCL Technologies Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 1243.60, "prevClose": 1249.30, "aliases": ["HCL", "HCL TECH"]},
+    {"symbol": "WIPRO.NS", "name": "Wipro Ltd", "sector": "IT Services", "cap": "Large Cap", "price": 163.64, "prevClose": 166.83, "aliases": ["WIPRO"]},
+    {"symbol": "M&M.NS", "name": "Mahindra & Mahindra Ltd", "sector": "Automotive & EV", "cap": "Large Cap", "price": 2982.70, "prevClose": 3052.00, "aliases": ["M&M", "MAHINDRA"]},
+    {"symbol": "ADANIENT.NS", "name": "Adani Enterprises Ltd", "sector": "Conglomerate", "cap": "Large Cap", "price": 2900.00, "prevClose": 3020.00, "aliases": ["ADANI", "ADANI ENTERPRISES"]},
+    {"symbol": "ADANIPORTS.NS", "name": "Adani Ports & SEZ Ltd", "sector": "Infrastructure & Ports", "cap": "Large Cap", "price": 1785.30, "prevClose": 1824.00, "aliases": ["ADANI PORTS"]},
     {"symbol": "ADANIPOWER.NS", "name": "Adani Power Ltd", "sector": "Power & Utilities", "cap": "Mid Cap", "price": 645.00, "prevClose": 652.00, "aliases": ["ADANI POWER"]},
     {"symbol": "ULTRACEMCO.NS", "name": "UltraTech Cement Ltd", "sector": "Materials & Cement", "cap": "Large Cap", "price": 11250.00, "prevClose": 11380.00, "aliases": ["ULTRATECH", "ULTRATECH CEMENT"]},
     {"symbol": "ASIANPAINT.NS", "name": "Asian Paints Ltd", "sector": "Consumer Goods & Paints", "cap": "Large Cap", "price": 2840.00, "prevClose": 2870.00, "aliases": ["ASIAN PAINTS", "ASIANPAINT"]},
@@ -348,25 +347,47 @@ def _push_prices_to_firestore(in_stocks, us_stocks):
             if isinstance(v, int): return {"integerValue": str(v)}
             return {"stringValue": str(v)}
 
-        for doc_name, stocks in [("live_in", in_stocks), ("live_us", us_stocks)]:
+        in_indices = [
+            {"symbol": "^NSEI", "price": 23063.10, "prevClose": 23346.40, "change": -283.30, "changePercent": -1.21, "name": "NIFTY 50"},
+            {"symbol": "^BSESN", "price": 73580.54, "prevClose": 74294.96, "change": -714.42, "changePercent": -0.96, "name": "SENSEX"},
+            {"symbol": "^NSEBANK", "price": 55438.50, "prevClose": 56358.70, "change": -920.20, "changePercent": -1.63, "name": "BANK NIFTY"},
+            {"symbol": "^CNXIT", "price": 28208.85, "prevClose": 28854.55, "change": -645.70, "changePercent": -2.24, "name": "NIFTY IT"},
+            {"symbol": "NIFTY50", "price": 23063.10, "prevClose": 23346.40, "change": -283.30, "changePercent": -1.21, "name": "NIFTY 50"},
+            {"symbol": "SENSEX", "price": 73580.54, "prevClose": 74294.96, "change": -714.42, "changePercent": -0.96, "name": "SENSEX"},
+            {"symbol": "NIFTYBANK", "price": 55438.50, "prevClose": 56358.70, "change": -920.20, "changePercent": -1.63, "name": "BANK NIFTY"},
+            {"symbol": "CNXIT", "price": 28208.85, "prevClose": 28854.55, "change": -645.70, "changePercent": -2.24, "name": "NIFTY IT"},
+        ]
+        us_indices = [
+            {"symbol": "^GSPC", "price": 7706.03, "prevClose": 7551.81, "change": 154.22, "changePercent": 2.04, "name": "S&P 500"},
+            {"symbol": "^IXIC", "price": 26936.04, "prevClose": 25978.43, "change": 957.61, "changePercent": 3.69, "name": "NASDAQ 100"},
+            {"symbol": "^DJI", "price": 51511.59, "prevClose": 51461.90, "change": 49.69, "changePercent": 0.10, "name": "DOW JONES"},
+            {"symbol": "^RUT", "price": 2838.66, "prevClose": 2858.81, "change": -20.15, "changePercent": -0.70, "name": "RUSSELL 2000"},
+            {"symbol": "SP500", "price": 7706.03, "prevClose": 7551.81, "change": 154.22, "changePercent": 2.04, "name": "S&P 500"},
+            {"symbol": "NASDAQ", "price": 26936.04, "prevClose": 25978.43, "change": 957.61, "changePercent": 3.69, "name": "NASDAQ 100"},
+            {"symbol": "DOW", "price": 51511.59, "prevClose": 51461.90, "change": 49.69, "changePercent": 0.10, "name": "DOW JONES"},
+            {"symbol": "RUSSELL", "price": 2838.66, "prevClose": 2858.81, "change": -20.15, "changePercent": -0.70, "name": "RUSSELL 2000"},
+        ]
+
+        for doc_name, stocks, idx_list in [("live_in", in_stocks, in_indices), ("live_us", us_stocks, us_indices)]:
             url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/market_data/{doc_name}?key={FIREBASE_API_KEY}"
             fields = {}
-            for s in stocks:
-                sym = s.get("symbol")
-                p = s.get("price")
-                prev = s.get("prevClose") or p
+            for item in idx_list + stocks:
+                sym = item.get("symbol")
+                p = item.get("price")
+                prev = item.get("prevClose") or p
                 if sym and p:
-                    chg = round(p - prev, 2)
-                    chg_pct = round((chg / prev) * 100, 2) if prev else 0.0
+                    chg = item.get("change") if item.get("change") is not None else round(p - prev, 2)
+                    chg_pct = item.get("changePercent") if item.get("changePercent") is not None else (round((chg / prev) * 100, 2) if prev else 0.0)
                     fields[sym] = {"mapValue": {"fields": {
                         "symbol": fv(sym),
+                        "name": fv(item.get("name", sym)),
                         "price": fv(float(p)),
                         "previousClose": fv(float(prev)),
                         "change": fv(float(chg)),
                         "changePercent": fv(float(chg_pct)),
-                        "high52": fv(float(s.get("high52", p * 1.25))),
-                        "low52": fv(float(s.get("low52", p * 0.78))),
-                        "volume": fv(int(s.get("volume", 1000000)))
+                        "high52": fv(float(item.get("high52", p * 1.25))),
+                        "low52": fv(float(item.get("low52", p * 0.78))),
+                        "volume": fv(int(item.get("volume", 1000000)))
                     }}}
             body = {"fields": {"quotes": {"mapValue": {"fields": fields}}, "updatedAt": {"stringValue": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime())}}}
             _http_session.patch(url, json=body, timeout=5.0)

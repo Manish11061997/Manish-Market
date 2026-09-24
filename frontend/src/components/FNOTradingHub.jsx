@@ -10,69 +10,69 @@ const DEFAULT_FNO_SIGNALS_IN = [
     name: "Nifty 50 Index",
     type: "INDEX OPTION",
     lotSize: 25,
-    spotPrice: 23446.80,
+    spotPrice: 23063.10,
     fnoDirection: "NEUTRAL",
     strategyName: "IRON CONDOR",
     winProbability: "82.4%",
     profitFactor: "2.85x",
-    strike: "24100 CE / 24000 PE",
+    strike: "23100 CE / 23000 PE",
     iv: "13.8%",
     pcr: "1.12",
     greeks: { delta: "0.50", theta: "-0.12" },
-    optionSetup: { strike: "24100 CE", estimatedPremium: "₹125.00", targetPremium1: "₹190.00", targetPremium2: "₹250.00", stopLossPremium: "₹75.00" }
+    optionSetup: { strike: "23100 CE", estimatedPremium: "₹125.00", targetPremium1: "₹190.00", targetPremium2: "₹250.00", stopLossPremium: "₹75.00" }
   },
   {
     symbol: "NIFTYBANK",
     name: "Bank Nifty Index",
     type: "INDEX OPTION",
     lotSize: 15,
-    spotPrice: 56548.90,
+    spotPrice: 55438.50,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "79.1%",
     profitFactor: "2.40x",
-    strike: "57500 CE",
+    strike: "55500 CE",
     iv: "16.4%",
     pcr: "1.25",
     greeks: { delta: "0.48", theta: "-0.22" },
-    optionSetup: { strike: "57500 CE", estimatedPremium: "₹360.00", targetPremium1: "₹520.00", targetPremium2: "₹680.00", stopLossPremium: "₹220.00" }
+    optionSetup: { strike: "55500 CE", estimatedPremium: "₹360.00", targetPremium1: "₹520.00", targetPremium2: "₹680.00", stopLossPremium: "₹220.00" }
   },
   {
     symbol: "RELIANCE.NS",
     name: "Reliance Industries",
     type: "STOCK OPTION",
     lotSize: 250,
-    spotPrice: 1248.00,
+    spotPrice: 1219.20,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "84.0%",
     profitFactor: "3.10x",
-    strike: "1300 CE",
+    strike: "1240 CE",
     iv: "18.2%",
     pcr: "1.08",
     greeks: { delta: "0.52", theta: "-0.08" },
-    optionSetup: { strike: "1300 CE", estimatedPremium: "₹21.50", targetPremium1: "₹34.00", targetPremium2: "₹46.00", stopLossPremium: "₹13.00" }
+    optionSetup: { strike: "1240 CE", estimatedPremium: "₹21.50", targetPremium1: "₹34.00", targetPremium2: "₹46.00", stopLossPremium: "₹13.00" }
   },
   {
     symbol: "HDFCBANK.NS",
     name: "HDFC Bank Ltd",
     type: "STOCK OPTION",
     lotSize: 550,
-    spotPrice: 737.25,
+    spotPrice: 728.90,
     fnoDirection: "WATCH / RANGE",
     strategyName: "COVERED CALL",
     winProbability: "81.5%",
     profitFactor: "2.60x",
-    strike: "720 CE",
+    strike: "730 CE",
     iv: "15.6%",
     pcr: "1.18",
     greeks: { delta: "0.45", theta: "-0.05" },
-    optionSetup: { strike: "720 CE", estimatedPremium: "₹11.50", targetPremium1: "₹18.00", targetPremium2: "₹25.00", stopLossPremium: "₹6.50" }
+    optionSetup: { strike: "730 CE", estimatedPremium: "₹11.50", targetPremium1: "₹18.00", targetPremium2: "₹25.00", stopLossPremium: "₹6.50" }
   }
 ];
 
 const DEFAULT_CHAIN_DATA_IN = {
-  underlyingValue: 23446.80,
+  underlyingValue: 23063.10,
   atmStrike: 24050,
   pcr: 1.12,
   nearestExpiry: "24-Sep-2026",

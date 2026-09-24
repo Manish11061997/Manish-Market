@@ -81,7 +81,7 @@ const DEFAULT_BRIEFING = {
       symbol: "NIFTY50",
       name: "Nifty 50 Index",
       type: "INDEX",
-      spotPrice: 23446.80,
+      spotPrice: 23063.10,
       direction: "NEUTRAL / RANGEBOUND",
       strategyName: "Iron Condor (Delta-Neutral Theta Harvester)",
       strategyTag: "🦅 HIGH THETA DECAY",
