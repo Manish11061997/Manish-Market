@@ -347,18 +347,22 @@ async function handleOfflineFallback(endpointPath) {
     if (pathname.includes('/market-summary') || pathname.includes('/market/summary')) {
       const region = searchParams.get('market') || searchParams.get('region') || 'IN';
       const raw = await getDirectMarketSummary(region);
-      // Transform indices array → keyed object expected by App.jsx
-      const indicesKey = {
-        NIFTY50:   { name: 'Nifty 50',   ...raw.indices?.find?.(i => i.symbol === '^NSEI')    || raw.indices?.[0] },
-        SENSEX:    { name: 'BSE Sensex', ...raw.indices?.find?.(i => i.symbol === '^BSESN')   || raw.indices?.[1] },
-        NIFTYBANK: { name: 'Bank Nifty', ...raw.indices?.find?.(i => i.symbol === '^NSEBANK') || raw.indices?.[2] },
-        CNXIT:     { name: 'Nifty IT',   ...raw.indices?.find?.(i => i.symbol === '^CNXIT')   || raw.indices?.[3] }
+      const isUS = region === 'US';
+      const indicesKey = isUS ? {
+        SP500:   { name: 'S&P 500',    ...raw.indices?.find?.(i => i.symbol === '^GSPC') || raw.indices?.[0] },
+        NASDAQ:  { name: 'NASDAQ 100', ...raw.indices?.find?.(i => i.symbol === '^IXIC') || raw.indices?.[1] },
+        DOW:     { name: 'DOW JONES',  ...raw.indices?.find?.(i => i.symbol === '^DJI')  || raw.indices?.[2] },
+        RUSSELL: { name: 'RUSSELL 2000', ...raw.indices?.find?.(i => i.symbol === '^RUT') || raw.indices?.[3] }
+      } : {
+        NIFTY50:   { name: 'NIFTY 50',   ...raw.indices?.find?.(i => i.symbol === '^NSEI')    || raw.indices?.[0] },
+        SENSEX:    { name: 'SENSEX',     ...raw.indices?.find?.(i => i.symbol === '^BSESN')   || raw.indices?.[1] },
+        NIFTYBANK: { name: 'BANK NIFTY', ...raw.indices?.find?.(i => i.symbol === '^NSEBANK') || raw.indices?.[2] },
+        CNXIT:     { name: 'NIFTY IT',   ...raw.indices?.find?.(i => i.symbol === '^CNXIT')   || raw.indices?.[3] }
       };
-      // Ensure pChange field exists (used by MarketHeader for colours)
       Object.values(indicesKey).forEach(idx => {
         if (idx) idx.pChange = idx.changePercent ?? idx.pChange ?? 0;
       });
-      const data = { ...raw, indices: indicesKey };
+      const data = { ...raw, indices: indicesKey, market: region };
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

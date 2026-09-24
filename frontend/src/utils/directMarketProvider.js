@@ -107,32 +107,41 @@ export async function fetchBatchQuotesV7(symbols, timeoutMs = 8000) {
 
   // ── Tier 0: Firestore live market snapshot (instant cloud sync) ────────────
   try {
-    const isUS = symbols.some(s => !s.endsWith('.NS') && !s.endsWith('.BO') && !s.startsWith('^'));
-    const docName = isUS ? 'live_us' : 'live_in';
-    const snap = await getDoc(doc(db, 'market_data', docName));
-    if (snap.exists()) {
-      const quotes = snap.data().quotes || {};
-      symbols.forEach(sym => {
-        const q = quotes[sym] || quotes[toYFTicker(sym)];
-        if (q && q.price) {
-          resultMap.set(sym, {
-            symbol: sym,
-            price: q.price,
-            change: q.change ?? 0,
-            changePercent: q.changePercent ?? 0,
-            previousClose: q.previousClose || q.price,
-            volume: q.volume || 1000000,
-            dayHigh: q.high52 || q.price,
-            dayLow: q.low52 || q.price,
-            high52: q.high52,
-            low52: q.low52
-          });
-        }
-      });
-      if (resultMap.size > 0) {
-        quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
-        return resultMap;
+    const hasUS = symbols.some(s => !s.endsWith('.NS') && !s.endsWith('.BO') && (s.startsWith('^GSPC') || s.startsWith('^IXIC') || s.startsWith('^DJI') || s.startsWith('^RUT') || (!s.startsWith('^') && !s.includes('.'))));
+    const hasIN = symbols.some(s => s.endsWith('.NS') || s.endsWith('.BO') || s === '^NSEI' || s === '^BSESN' || s === '^NSEBANK' || s === '^CNXIT');
+
+    const docsToFetch = [];
+    if (hasIN || (!hasIN && !hasUS)) docsToFetch.push('live_in');
+    if (hasUS) docsToFetch.push('live_us');
+
+    const snaps = await Promise.all(docsToFetch.map(d => getDoc(doc(db, 'market_data', d))));
+    let combinedQuotes = {};
+    snaps.forEach(snap => {
+      if (snap.exists()) {
+        Object.assign(combinedQuotes, snap.data().quotes || {});
       }
+    });
+
+    symbols.forEach(sym => {
+      const q = combinedQuotes[sym] || combinedQuotes[toYFTicker(sym)] || combinedQuotes[sym.replace('.NS', '')];
+      if (q && q.price) {
+        resultMap.set(sym, {
+          symbol: sym,
+          price: q.price,
+          change: q.change ?? 0,
+          changePercent: q.changePercent ?? 0,
+          previousClose: q.previousClose || q.price,
+          volume: q.volume || 1000000,
+          dayHigh: q.high52 || q.price,
+          dayLow: q.low52 || q.price,
+          high52: q.high52,
+          low52: q.low52
+        });
+      }
+    });
+    if (resultMap.size > 0) {
+      quoteCache.set(cacheKey, { data: resultMap, ts: Date.now() });
+      return resultMap;
     }
   } catch (e) {
     // Firestore offline — fall through to direct fetch tiers
@@ -1209,7 +1218,41 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
 
   if (isUS) {
     const usActive = [{ id:"IPO-LINE", symbol:"LINE", companyName:"Lineage, Inc.", sector:"Cold Storage Logistics & REIT Infrastructure", category:"NYSE Mainboard", priceBand:"$78 - $82", lotSize:1, minInvestment:82.0, issueSizeCr:4440.0, gmp:6.5, gmpPercent:7.93, expectedListingPrice:88.5, allotmentStatus:"🟢 LIVE BIDDING", subscription:{total:4.8,qib:6.2,nii:3.4,retail:2.1}, aiVerdict:"APPLY_FOR_LONG_TERM", recommendation:{recommendedStrategy:"World's largest temperature-controlled industrial REIT."} }];
-    if (pathname.includes('/summary')) return { market:'US', activeCount:1, closedCount:0, upcomingCount:0, listedCount:0, averageGmpPercent:7.93, totalActiveCapital:'$4,440 M' };
+    if (pathname.includes('/details')) {
+    const parts = pathname.split('/');
+    const detailsIdx = parts.indexOf('details');
+    const rawTarget = detailsIdx > 0 ? parts[detailsIdx - 1] : parts[parts.length - 1];
+    const target = decodeURIComponent(rawTarget).toUpperCase().replace('.NS','').replace('.BO','');
+    const cleanSym = target.replace('IPO-', '').replace('LIST-', '').replace('UPCOMING-', '');
+    const found = allIpos.find(i => 
+      i.symbol?.toUpperCase() === target ||
+      i.symbol?.toUpperCase() === cleanSym ||
+      i.id?.toUpperCase() === target ||
+      i.id?.toUpperCase() === `IPO-${cleanSym}` ||
+      i.id?.toUpperCase() === `LIST-${cleanSym}` ||
+      i.id?.toUpperCase() === `UPCOMING-${cleanSym}`
+    );
+    if (found) {
+      const g = fsGmp[found.symbol] || {};
+      const price = fsPrices[found.symbol] || found.currentPrice;
+      const res = { ...found };
+      if (g.gmp !== undefined) res.gmp = g.gmp;
+      if (g.gmpPercent !== undefined) res.gmpPercent = g.gmpPercent;
+      if (g.subscriptionTotal !== undefined) {
+        res.subscription = { ...(found.subscription || {}), total: parseFloat(String(g.subscriptionTotal).replace('x','')) || found.subscription?.total };
+      }
+      if (price) {
+        res.currentPrice = price;
+        if (res.issuePrice) {
+          res.totalReturnPercent = parseFloat(((price - res.issuePrice) / res.issuePrice * 100).toFixed(2));
+        }
+      }
+      return enrichStatus(res);
+    }
+    return { error: 'IPO not found' };
+  }
+
+  if (pathname.includes('/summary')) return { market:'US', activeCount:1, closedCount:0, upcomingCount:0, listedCount:0, averageGmpPercent:7.93, totalActiveCapital:'$4,440 M' };
     if (pathname.includes('/active'))   return { market:'US', count:1, ipos:usActive };
     return { market:'US', count:0, ipos:[] };
   }
@@ -1609,6 +1652,40 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
   });
 
   const totalCap = activeIpos.reduce((acc, i) => acc + (i.issueSizeCr || 0), 0);
+
+  if (pathname.includes('/details')) {
+    const parts = pathname.split('/');
+    const detailsIdx = parts.indexOf('details');
+    const rawTarget = detailsIdx > 0 ? parts[detailsIdx - 1] : parts[parts.length - 1];
+    const target = decodeURIComponent(rawTarget).toUpperCase().replace('.NS','').replace('.BO','');
+    const cleanSym = target.replace('IPO-', '').replace('LIST-', '').replace('UPCOMING-', '');
+    const found = allIpos.find(i => 
+      i.symbol?.toUpperCase() === target ||
+      i.symbol?.toUpperCase() === cleanSym ||
+      i.id?.toUpperCase() === target ||
+      i.id?.toUpperCase() === `IPO-${cleanSym}` ||
+      i.id?.toUpperCase() === `LIST-${cleanSym}` ||
+      i.id?.toUpperCase() === `UPCOMING-${cleanSym}`
+    );
+    if (found) {
+      const g = fsGmp[found.symbol] || {};
+      const price = fsPrices[found.symbol] || found.currentPrice;
+      const res = { ...found };
+      if (g.gmp !== undefined) res.gmp = g.gmp;
+      if (g.gmpPercent !== undefined) res.gmpPercent = g.gmpPercent;
+      if (g.subscriptionTotal !== undefined) {
+        res.subscription = { ...(found.subscription || {}), total: parseFloat(String(g.subscriptionTotal).replace('x','')) || found.subscription?.total };
+      }
+      if (price) {
+        res.currentPrice = price;
+        if (res.issuePrice) {
+          res.totalReturnPercent = parseFloat(((price - res.issuePrice) / res.issuePrice * 100).toFixed(2));
+        }
+      }
+      return enrichStatus(res);
+    }
+    return { error: 'IPO not found' };
+  }
 
   if (pathname.includes('/summary')) return { market:'IN', activeCount:activeIpos.length, closedCount:closedIpos.length, upcomingCount:upcomingIpos.length, listedCount:listedIpos.length, averageGmpPercent:23.5, totalActiveCapital:`₹${totalCap} Cr`, dataRefreshedAt:new Date().toISOString() };
   if (pathname.includes('/active'))   return { market:'IN', count:activeIpos.length,   ipos:enrichGmp(activeIpos) };

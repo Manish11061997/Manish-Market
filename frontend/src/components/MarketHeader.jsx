@@ -29,7 +29,7 @@ function MarketHeader({
     // Try to read last-known real prices from localStorage (saved by syncLiveAnchors)
     let cached = null;
     try {
-      const raw = localStorage.getItem('mm_price_cache_v2');
+      const raw = localStorage.getItem('mm_price_cache_v4');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.data && Date.now() - parsed.ts < 24 * 3600_000) {
@@ -40,35 +40,36 @@ function MarketHeader({
 
     if (currentMarket === 'US') {
       return {
-        SP500:  { name: 'S&P 500',   price: 7711.76, change: -19.20,  pChange: -0.25 },
-        NASDAQ: { name: 'NASDAQ',    price: 26402.42, change: -138.10, pChange: -0.52 },
-        DOW:    { name: 'Dow Jones', price: 53559.99, change: -11.00,  pChange: -0.02 }
+        SP500:   { name: 'S&P 500',    price: cached?.SP500?.price   ?? 7705.52, change: cached?.SP500?.change   ?? 154.20, pChange: cached?.SP500?.changePercent   ?? 2.04 },
+        NASDAQ:  { name: 'NASDAQ 100', price: cached?.NASDAQ?.price  ?? 26940.17, change: cached?.NASDAQ?.change  ?? 961.50, pChange: cached?.NASDAQ?.changePercent  ?? 3.70 },
+        DOW:     { name: 'DOW JONES',  price: cached?.DOW?.price     ?? 51539.14, change: cached?.DOW?.change     ?? 77.20,  pChange: cached?.DOW?.changePercent     ?? 0.15 },
+        RUSSELL: { name: 'RUSSELL 2000', price: cached?.RUSSELL?.price ?? 2845.20, change: cached?.RUSSELL?.change ?? -13.70, pChange: cached?.RUSSELL?.changePercent ?? -0.48 }
       };
     }
     return {
       NIFTY50:   {
         name: 'NIFTY 50',
-        price:   cached?.NIFTY50?.price   ?? 24065.25,
-        change:  cached?.NIFTY50?.change  ?? -110.40,
-        pChange: cached?.NIFTY50?.changePercent ?? -0.46
+        price:   cached?.NIFTY50?.price   ?? 23446.80,
+        change:  cached?.NIFTY50?.change  ?? 176.20,
+        pChange: cached?.NIFTY50?.changePercent ?? 0.76
       },
       SENSEX:    {
         name: 'SENSEX',
-        price:   cached?.SENSEX?.price   ?? 77034.69,
-        change:  cached?.SENSEX?.change  ?? -229.82,
-        pChange: cached?.SENSEX?.changePercent ?? -0.30
+        price:   cached?.SENSEX?.price   ?? 74828.25,
+        change:  cached?.SENSEX?.change  ?? 513.66,
+        pChange: cached?.SENSEX?.changePercent ?? 0.69
       },
       NIFTYBANK: {
         name: 'BANK NIFTY',
-        price:   cached?.NIFTYBANK?.price   ?? 57417.10,
-        change:  cached?.NIFTYBANK?.change  ?? -79.20,
-        pChange: cached?.NIFTYBANK?.changePercent ?? -0.14
+        price:   cached?.NIFTYBANK?.price   ?? 56548.90,
+        change:  cached?.NIFTYBANK?.change  ?? 492.15,
+        pChange: cached?.NIFTYBANK?.changePercent ?? 0.88
       },
       CNXIT:     {
         name: 'NIFTY IT',
-        price:   cached?.CNXIT?.price   ?? 30896.30,
-        change:  cached?.CNXIT?.change  ?? -385.40,
-        pChange: cached?.CNXIT?.changePercent ?? -1.23
+        price:   cached?.CNXIT?.price   ?? 28334.05,
+        change:  cached?.CNXIT?.change  ?? -822.40,
+        pChange: cached?.CNXIT?.changePercent ?? -2.82
       }
     };
   });
@@ -77,23 +78,23 @@ function MarketHeader({
   const prevPrices = useRef({});  // Sync when marketData or currentMarket prop change
   useEffect(() => {
     if (currentMarket === 'US') {
-      const usIdx = (marketData?.indices && typeof marketData.indices === 'object' && marketData.market === 'US' && Object.keys(marketData.indices).length > 0)
+      const usIdx = (marketData?.indices && typeof marketData.indices === 'object' && (marketData.market === 'US' || marketData.indices.SP500) && Object.keys(marketData.indices).length > 0)
         ? marketData.indices
         : {
-            SP500:   { name: 'S&P 500',    price: 5980.25, change: 18.40,  pChange: 0.31 },
-            NASDAQ:  { name: 'NASDAQ 100', price: 19250.80, change: 95.60, pChange: 0.50 },
-            DOW:     { name: 'DOW JONES',  price: 43810.50, change: -45.20, pChange: -0.10 },
-            RUSSELL: { name: 'RUSSELL 2000', price: 2245.10, change: 12.30, pChange: 0.55 }
+            SP500:   { name: 'S&P 500',    price: 7705.52, change: 154.20, pChange: 2.04 },
+            NASDAQ:  { name: 'NASDAQ 100', price: 26940.17, change: 961.50, pChange: 3.70 },
+            DOW:     { name: 'DOW JONES',  price: 51539.14, change: 77.20,  pChange: 0.15 },
+            RUSSELL: { name: 'RUSSELL 2000', price: 2845.20, change: -13.70, pChange: -0.48 }
           };
       setLiveIndices(usIdx);
     } else {
-      const inIdx = (marketData?.indices && typeof marketData.indices === 'object' && marketData.market !== 'US' && Object.keys(marketData.indices).length > 0)
+      const inIdx = (marketData?.indices && typeof marketData.indices === 'object' && marketData.market !== 'US' && marketData.indices.NIFTY50 && Object.keys(marketData.indices).length > 0)
         ? marketData.indices
         : {
-            NIFTY50:   { name: 'NIFTY 50',   price: 24065.25, change: -110.40, pChange: -0.46 },
-            SENSEX:    { name: 'SENSEX',     price: 76957.27, change: -307.24, pChange: -0.40 },
-            NIFTYBANK: { name: 'BANK NIFTY', price: 58024.95, change: 529.50,  pChange: 0.92 },
-            CNXIT:     { name: 'NIFTY IT',   price: 31191.45, change: -90.80,  pChange: -0.29 }
+            NIFTY50:   { name: 'NIFTY 50',   price: 23446.80, change: 176.20, pChange: 0.76 },
+            SENSEX:    { name: 'SENSEX',     price: 74828.25, change: 513.66, pChange: 0.69 },
+            NIFTYBANK: { name: 'BANK NIFTY', price: 56548.90, change: 492.15, pChange: 0.88 },
+            CNXIT:     { name: 'NIFTY IT',   price: 28334.05, change: -822.40, pChange: -2.82 }
           };
       setLiveIndices(inIdx);
     }

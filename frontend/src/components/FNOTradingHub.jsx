@@ -10,7 +10,7 @@ const DEFAULT_FNO_SIGNALS_IN = [
     name: "Nifty 50 Index",
     type: "INDEX OPTION",
     lotSize: 25,
-    spotPrice: 24065.25,
+    spotPrice: 23446.80,
     fnoDirection: "NEUTRAL",
     strategyName: "IRON CONDOR",
     winProbability: "82.4%",
@@ -26,7 +26,7 @@ const DEFAULT_FNO_SIGNALS_IN = [
     name: "Bank Nifty Index",
     type: "INDEX OPTION",
     lotSize: 15,
-    spotPrice: 57417.10,
+    spotPrice: 56548.90,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "79.1%",
@@ -42,7 +42,7 @@ const DEFAULT_FNO_SIGNALS_IN = [
     name: "Reliance Industries",
     type: "STOCK OPTION",
     lotSize: 250,
-    spotPrice: 1296.10,
+    spotPrice: 1248.00,
     fnoDirection: "BULLISH",
     strategyName: "BULL CALL SPREAD",
     winProbability: "84.0%",
@@ -58,7 +58,7 @@ const DEFAULT_FNO_SIGNALS_IN = [
     name: "HDFC Bank Ltd",
     type: "STOCK OPTION",
     lotSize: 550,
-    spotPrice: 710.30,
+    spotPrice: 737.25,
     fnoDirection: "WATCH / RANGE",
     strategyName: "COVERED CALL",
     winProbability: "81.5%",
@@ -72,10 +72,10 @@ const DEFAULT_FNO_SIGNALS_IN = [
 ];
 
 const DEFAULT_CHAIN_DATA_IN = {
-  underlyingValue: 24065.25,
+  underlyingValue: 23446.80,
   atmStrike: 24050,
   pcr: 1.12,
-  nearestExpiry: "3-Sep-2026",
+  nearestExpiry: "24-Sep-2026",
   strikes: [
     { strike: 23900, callOI: 92400, callDelta: 0.68, callLtp: 178.0, putLtp: 42.0, putDelta: -0.32, putOI: 168000 },
     { strike: 23950, callOI: 115000, callDelta: 0.61, callLtp: 142.0, putLtp: 58.0, putDelta: -0.39, putOI: 152000 },

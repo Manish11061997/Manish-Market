@@ -198,7 +198,7 @@ class WebSocketClient {
   // On the next page load, we read from localStorage FIRST (instant, no network),
   // so users never see stale hardcoded defaults — they see yesterday's closing prices.
   // Cache TTL: 24 hours (prices older than 24h are discarded; weekends re-use Friday close).
-  static CACHE_KEY = 'mm_price_cache_v2';
+  static CACHE_KEY = 'mm_price_cache_v4';
   static CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   savePriceCache() {
@@ -244,6 +244,13 @@ class WebSocketClient {
   initLiveTickStore() {
     if (this.liveTickStore) return;
     this.liveTickStore = new Map();
+
+    // Purge obsolete cache keys from earlier builds
+    try {
+      localStorage.removeItem('mm_price_cache_v2');
+      localStorage.removeItem('mm_price_cache_v1');
+      localStorage.removeItem('mm_price_cache');
+    } catch {}
 
     const cache = this.loadPriceCache();
 
