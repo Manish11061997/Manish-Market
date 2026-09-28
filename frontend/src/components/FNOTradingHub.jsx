@@ -315,7 +315,7 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Spot Price</div>
                       <div className="mono-num" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
-                        {fnoCurrPrefix}{typeof item.spotPrice === 'number' ? item.spotPrice.toLocaleString('en-US') : item.spotPrice}
+                        {fnoCurrPrefix}{typeof item.spotPrice === 'number' ? Number(item.spotPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.spotPrice}
                       </div>
                     </div>
                   </div>
