@@ -602,22 +602,24 @@ class WebSocketClient {
       ticks,
       breadth: {
         IN: {
-          // Use actual tick store to count gainers/losers when market is open
-          // When closed, use last known Friday close breadth (22 Adv, 28 Dec = negative day matches Sep 24 data)
           advances: isINOpen ? (24 + Math.floor(Math.random() * 4)) : 22,
           declines: isINOpen ? (18 + Math.floor(Math.random() * 4)) : 28,
           unchanged: isINOpen ? 8 : 0,
           advanceDeclineRatio: isINOpen ? 1.35 : 0.79,
+          adRatio: isINOpen ? 1.35 : 0.79,
           indiaVix: 13.85,
-          indiaVixChange: isINOpen ? (Math.random() > 0.5 ? 0.12 : -0.15) : -2.94
+          indiaVixChange: isINOpen ? (Math.random() > 0.5 ? 0.12 : -0.15) : -2.94,
+          vix: { symbol: 'INDIAVIX', price: 13.85, pChange: isINOpen ? (Math.random() > 0.5 ? 0.12 : -0.15) : -2.94 }
         },
         US: {
           advances: isUSOpen ? (28 + Math.floor(Math.random() * 4)) : 24,
           declines: isUSOpen ? (20 + Math.floor(Math.random() * 4)) : 26,
           unchanged: isUSOpen ? 5 : 0,
           advanceDeclineRatio: isUSOpen ? 1.40 : 0.92,
-          indiaVix: 15.40,
-          indiaVixChange: -1.20
+          adRatio: isUSOpen ? 1.40 : 0.92,
+          indiaVix: 20.10,
+          indiaVixChange: -3.82,
+          vix: { symbol: 'CBOE VIX', price: 20.10, pChange: -3.82 }
         }
       },
       session: {
