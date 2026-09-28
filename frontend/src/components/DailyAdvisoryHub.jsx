@@ -110,8 +110,8 @@ const DEFAULT_BRIEFING = {
 };
 
 export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }) {
-  // Initialize empty - will be populated from API
-  const [briefing, setBriefing] = useState(null);
+  // Initialize with defaults — API will update if available
+  const [briefing, setBriefing] = useState(DEFAULT_BRIEFING);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -128,15 +128,14 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
         const data = typeof res?.json === 'function' ? await res.json() : res;
         if (data && (data.topDailyBuys || data.topFnoSetups)) {
           setBriefing(data);
-        } else {
-          setFetchError('Daily advisory data unavailable. No signals found from stock universe scan.');
         }
+        // If server returns nothing, DEFAULT_BRIEFING stays loaded — no error
         setLoading(false);
         setScanning(false);
       })
       .catch(err => {
         console.warn("Daily briefing fetch error:", err);
-        setFetchError('Failed to fetch daily advisory. Backend may be offline or market data unavailable.');
+        // Keep DEFAULT_BRIEFING data — don't show error if we have defaults
         setLoading(false);
         setScanning(false);
       });

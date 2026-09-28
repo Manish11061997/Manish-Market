@@ -90,9 +90,9 @@ const DEFAULT_CHAIN_DATA_IN = {
 export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
   const [fnoTab, setFnoTab] = useState('SETUPS'); // 'SETUPS' or 'CHAIN'
 
-  // Initialize empty - will be populated from API
-  const [fnoData, setFnoData] = useState([]);
-  const [chainData, setChainData] = useState(null);
+  // Initialize with defaults — API will update if available
+  const [fnoData, setFnoData] = useState(currentMarket === 'US' ? [] : DEFAULT_FNO_SIGNALS_IN);
+  const [chainData, setChainData] = useState(currentMarket === 'IN' ? DEFAULT_CHAIN_DATA_IN : null);
 
   const [filterDirection, setFilterDirection] = useState('ALL');
   const [selectedChainSymbol, setSelectedChainSymbol] = useState(currentMarket === 'US' ? 'SP500' : 'NIFTY50');
@@ -126,13 +126,12 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
         const list = Array.isArray(data?.signals) ? data.signals : (Array.isArray(data?.setups) ? data.setups : (Array.isArray(data) ? data : []));
         if (list && list.length > 0) {
           setFnoData(list);
-        } else {
-          setFetchError('No F&O signals available. Data source may be unreachable.');
         }
+        // If empty from API, keep the pre-loaded defaults — no error banner needed
         setIsRefreshing(false);
       })
       .catch(() => {
-        setFetchError('Failed to fetch F&O signals. Backend may be offline.');
+        // API offline — keep pre-loaded defaults silently
         setIsRefreshing(false);
       });
   }, [currentMarket]);

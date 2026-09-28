@@ -198,7 +198,7 @@ class WebSocketClient {
   // On the next page load, we read from localStorage FIRST (instant, no network),
   // so users never see stale hardcoded defaults — they see yesterday's closing prices.
   // Cache TTL: 24 hours (prices older than 24h are discarded; weekends re-use Friday close).
-  static CACHE_KEY = 'mm_price_cache_v5';
+  static CACHE_KEY = 'mm_price_cache_v6';
   static CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   savePriceCache() {
@@ -247,6 +247,7 @@ class WebSocketClient {
 
     // Purge obsolete cache keys from earlier builds
     try {
+      localStorage.removeItem('mm_price_cache_v5');
       localStorage.removeItem('mm_price_cache_v4');
       localStorage.removeItem('mm_price_cache_v2');
       localStorage.removeItem('mm_price_cache_v1');
@@ -455,6 +456,11 @@ class WebSocketClient {
         }
         item.change = parseFloat((item.price - item.prevClose).toFixed(2));
         item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
+      } else if (!isINOpen) {
+        // Outside market hours: snap to official closing price
+        item.price = item.basePrice;
+        item.change = parseFloat((item.basePrice - item.prevClose).toFixed(2));
+        item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
       }
 
       const tickObj = {
@@ -494,6 +500,11 @@ class WebSocketClient {
           item.price = item.basePrice;
         }
         item.change = parseFloat((item.price - item.prevClose).toFixed(2));
+        item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
+      } else {
+        // US market closed: snap to official close
+        item.price = item.basePrice;
+        item.change = parseFloat((item.basePrice - item.prevClose).toFixed(2));
         item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
       }
 
@@ -557,6 +568,11 @@ class WebSocketClient {
         item.change = parseFloat((item.price - item.prevClose).toFixed(2));
         item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
         item.volume += Math.floor(100 + Math.random() * 800);
+      } else {
+        // WEEKEND/AFTER-HOURS FIX: Snap price back to official closing price (no drift accumulation)
+        item.price = item.basePrice;
+        item.change = parseFloat((item.basePrice - item.prevClose).toFixed(2));
+        item.changePercent = parseFloat(((item.change / item.prevClose) * 100).toFixed(2));
       }
 
       const stockTick = {
@@ -586,17 +602,19 @@ class WebSocketClient {
       ticks,
       breadth: {
         IN: {
-          advances: isINOpen ? 24 + Math.floor(Math.random() * 4) : 22,
-          declines: isINOpen ? 18 + Math.floor(Math.random() * 4) : 26,
-          unchanged: 2,
-          advanceDeclineRatio: isINOpen ? 1.35 : 0.85,
+          // Use actual tick store to count gainers/losers when market is open
+          // When closed, use last known Friday close breadth (22 Adv, 28 Dec = negative day matches Sep 24 data)
+          advances: isINOpen ? (24 + Math.floor(Math.random() * 4)) : 22,
+          declines: isINOpen ? (18 + Math.floor(Math.random() * 4)) : 28,
+          unchanged: isINOpen ? 8 : 0,
+          advanceDeclineRatio: isINOpen ? 1.35 : 0.79,
           indiaVix: 13.85,
-          indiaVixChange: -0.80
+          indiaVixChange: isINOpen ? (Math.random() > 0.5 ? 0.12 : -0.15) : -2.94
         },
         US: {
-          advances: isUSOpen ? 28 + Math.floor(Math.random() * 4) : 24,
-          declines: isUSOpen ? 20 + Math.floor(Math.random() * 4) : 26,
-          unchanged: 3,
+          advances: isUSOpen ? (28 + Math.floor(Math.random() * 4)) : 24,
+          declines: isUSOpen ? (20 + Math.floor(Math.random() * 4)) : 26,
+          unchanged: isUSOpen ? 5 : 0,
           advanceDeclineRatio: isUSOpen ? 1.40 : 0.92,
           indiaVix: 15.40,
           indiaVixChange: -1.20

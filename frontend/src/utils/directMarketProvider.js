@@ -335,7 +335,8 @@ export const DEFAULT_INDIAN_SECURITIES = [
   { symbol: "ASIANPAINT.NS",name: "Asian Paints Ltd",                 sector: "Consumer Goods & Paints",   ltp: 2392.70, change: -2.39, high52: 3200.0, low52: 2350.0, volume: 1450000, pe: 48.0, mcap: "2.3L Cr",  beta: 0.75 },
   { symbol: "JSWSTEEL.NS",  name: "JSW Steel Ltd",                    sector: "Metals & Steel",            ltp: 1273.20, change: -0.19, high52: 1351.0, low52: 1073.2, volume: 1355585, pe: 22.0, mcap: "3.1L Cr",  beta: 1.25 },
   { symbol: "HINDUNILVR.NS",name: "Hindustan Unilever Ltd",           sector: "FMCG & Consumer Goods",     ltp: 1933.50, change: 0.08,  high52: 2450.0, low52: 1880.0, volume: 1890000, pe: 52.0, mcap: "4.5L Cr",  beta: 0.55 },
-  { symbol: "INDUSINDBK.NS",name: "IndusInd Bank Ltd",                sector: "Banking & Financials",      ltp: 919.50,  change: -4.84, high52: 1450.0, low52: 890.0,  volume: 3800000, pe: 11.0, mcap: "0.7L Cr",  beta: 1.30 }
+  { symbol: "INDUSINDBK.NS",name: "IndusInd Bank Ltd",                sector: "Banking & Financials",      ltp: 919.50,  change: -4.84, high52: 1450.0, low52: 890.0,  volume: 3800000, pe: 11.0, mcap: "0.7L Cr",  beta: 1.30 },
+  { symbol: "TATAMOTORS.NS",name: "Tata Motors Ltd",                  sector: "Automotive & EV",           ltp: 816.20,  change: -1.34, high52: 1120.0, low52: 759.2,  volume: 9450000, pe: 8.5,  mcap: "2.9L Cr",  beta: 1.45 }
 ];
 
 export const DEFAULT_INDICES = [

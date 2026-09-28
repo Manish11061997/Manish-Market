@@ -29,7 +29,7 @@ function MarketHeader({
     // Try to read last-known real prices from localStorage (saved by syncLiveAnchors)
     let cached = null;
     try {
-      const raw = localStorage.getItem('mm_price_cache_v5');
+      const raw = localStorage.getItem('mm_price_cache_v6');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.data && Date.now() - parsed.ts < 24 * 3600_000) {
@@ -102,6 +102,12 @@ function MarketHeader({
 
   const [liveSession, setLiveSession] = useState(null);
 
+  // Reset liveSession whenever the active market switches so stale status from
+  // the previous market doesn't bleed through before a new tick arrives.
+  useEffect(() => {
+    setLiveSession(null);
+  }, [currentMarket]);
+
   // Direct WebSocket tick listener for instant index pill updates & flash animations
   useEffect(() => {
     const unsub = wsClient.onTick((payload) => {
@@ -163,8 +169,14 @@ function MarketHeader({
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [replaySpeed, setReplaySpeed] = useState(1.0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(true);
-  // liveSession from tick payload takes priority — it's computed from real IST clock
-  const currentSession = liveSession || sessionInfo?.[currentMarket] || { status: 'CLOSED', label: 'MARKET CLOSED', marketOpen: false };
+  // sessionInfo prop (from App.jsx, always fresh from latest tick) takes priority over
+  // liveSession when it explicitly marks the market as non-LIVE, preventing stale
+  // 'LIVE' status from persisting after market close when ticks stop carrying session data.
+  const propSession = sessionInfo?.[currentMarket];
+  const currentSession = (propSession && propSession.status !== 'LIVE')
+    ? propSession
+    : (liveSession || propSession || { status: 'CLOSED', label: 'MARKET CLOSED', marketOpen: false });
+
 
 
   const [liveSearchResults, setLiveSearchResults] = useState([]);
@@ -854,7 +866,7 @@ function MarketHeader({
               transition: 'all 0.2s ease'
             }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{idx.name}</span>
-              <span className="mono-num" style={{ fontWeight: 800, color: 'var(--text-main)' }}>{currPrefix}{idx.price?.toLocaleString('en-US')}</span>
+              <span className="mono-num" style={{ fontWeight: 800, color: 'var(--text-main)' }}>{currPrefix}{Number(idx.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               <span className="mono-num" style={{
                 fontSize: '10px',
                 fontWeight: 800,
