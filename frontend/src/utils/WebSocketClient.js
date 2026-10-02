@@ -198,7 +198,7 @@ class WebSocketClient {
   // On the next page load, we read from localStorage FIRST (instant, no network),
   // so users never see stale hardcoded defaults — they see yesterday's closing prices.
   // Cache TTL: 24 hours (prices older than 24h are discarded; weekends re-use Friday close).
-  static CACHE_KEY = 'mm_price_cache_v6';
+  static CACHE_KEY = 'mm_price_cache_v7';
   static CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   savePriceCache() {
@@ -248,6 +248,7 @@ class WebSocketClient {
     // Purge obsolete cache keys from earlier builds
     try {
       localStorage.removeItem('mm_price_cache_v5');
+      localStorage.removeItem('mm_price_cache_v6');
       localStorage.removeItem('mm_price_cache_v4');
       localStorage.removeItem('mm_price_cache_v2');
       localStorage.removeItem('mm_price_cache_v1');
@@ -373,9 +374,13 @@ class WebSocketClient {
         if (existing) {
           existing.basePrice    = q.price;
           existing.price        = q.price;
-          existing.prevClose    = q.previousClose || (q.price - q.change) || q.price;
-          existing.change       = q.change ?? 0;
-          existing.changePercent = q.changePercent ?? 0;
+          const pc = q.previousClose || (q.price - (q.change || 0)) || q.price;
+          existing.prevClose    = pc;
+          // Only use Firestore change if it's non-zero, otherwise compute from price vs prevClose
+          const computedChange = parseFloat((q.price - pc).toFixed(2));
+          const computedChangePct = pc > 0 ? parseFloat(((computedChange / pc) * 100).toFixed(2)) : 0;
+          existing.change       = (q.change && q.change !== 0) ? q.change : computedChange;
+          existing.changePercent = (q.changePercent && q.changePercent !== 0) ? q.changePercent : computedChangePct;
           if (q.volume) existing.volume = q.volume;
         }
 
@@ -385,9 +390,12 @@ class WebSocketClient {
         if (cleanExisting && cleanExisting !== existing) {
           cleanExisting.basePrice    = q.price;
           cleanExisting.price        = q.price;
-          cleanExisting.prevClose    = q.previousClose || (q.price - q.change) || q.price;
-          cleanExisting.change       = q.change ?? 0;
-          cleanExisting.changePercent = q.changePercent ?? 0;
+          const pc2 = q.previousClose || (q.price - (q.change || 0)) || q.price;
+          cleanExisting.prevClose    = pc2;
+          const computedChange2 = parseFloat((q.price - pc2).toFixed(2));
+          const computedChangePct2 = pc2 > 0 ? parseFloat(((computedChange2 / pc2) * 100).toFixed(2)) : 0;
+          cleanExisting.change       = (q.change && q.change !== 0) ? q.change : computedChange2;
+          cleanExisting.changePercent = (q.changePercent && q.changePercent !== 0) ? q.changePercent : computedChangePct2;
           if (q.volume) cleanExisting.volume = q.volume;
         }
       });
