@@ -771,8 +771,11 @@ export async function getDirectRecommendations(market = 'IN') {
       action: isBuy ? (score >= 84 ? 'Strong Buy' : 'Buy') : 'Watch / Reduce',
       currentPrice: ltp,
       price: ltp,
-      change: chg,
+      change: liveQ?.change !== undefined ? liveQ.change : parseFloat(((ltp * chg) / 100).toFixed(2)),
       changePercent: chg,
+      pe: sec.pe,
+      peRatio: sec.pe,
+      mcap: sec.mcap,
       targetPrice: parseFloat(target.toFixed(2)),
       stopLoss: parseFloat(stopLoss.toFixed(2)),
       tradePlan: {
