@@ -105,7 +105,7 @@ function MarketBreadthBar({ breadthData, currentMarket = 'IN' }) {
           </span>
         </div>
 
-        {/* FII / DII Institutional Flow Badge */}
+        {/* Institutional Flow Badge (FII / DII for IN, Inst. Net / Dark Pool for US) */}
         <div className="hide-on-mobile" style={{
           display: 'flex',
           alignItems: 'center',
@@ -117,13 +117,15 @@ function MarketBreadthBar({ breadthData, currentMarket = 'IN' }) {
           whiteSpace: 'nowrap'
         }}>
           <DollarSign style={{ width: '12px', height: '12px', color: 'var(--accent-green)' }} />
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Institutions:</span>
+          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+            {currentMarket === 'US' ? 'Inst. Flow:' : 'Institutions:'}
+          </span>
           <span className="mono-num" style={{ fontWeight: 800, color: institutionalFlow.fiiNet >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-            FII: {currPrefix}{institutionalFlow.fiiNet > 0 ? '+' : ''}{institutionalFlow.fiiNet} {flowUnit}
+            {currentMarket === 'US' ? 'Inst. Net: ' : 'FII: '}{currPrefix}{institutionalFlow.fiiNet > 0 ? '+' : ''}{institutionalFlow.fiiNet} {flowUnit}
           </span>
           <span style={{ color: 'var(--text-muted)' }}>|</span>
           <span className="mono-num" style={{ fontWeight: 800, color: institutionalFlow.diiNet >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-            DII: {currPrefix}{institutionalFlow.diiNet > 0 ? '+' : ''}{institutionalFlow.diiNet} {flowUnit}
+            {currentMarket === 'US' ? 'Dark Pool: ' : 'DII: '}{currPrefix}{institutionalFlow.diiNet > 0 ? '+' : ''}{institutionalFlow.diiNet} {flowUnit}
           </span>
         </div>
 

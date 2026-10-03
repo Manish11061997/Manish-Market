@@ -280,7 +280,7 @@ export default function StockScreener({ recommendations, onSelectStock, currentM
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontFamily: 'sans-serif' }}>{stock.sector}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                    {(stock?.symbol?.endsWith?.('.NS') || stock?.symbol?.startsWith?.('^')) ? '₹' : '$'}{stock?.currentPrice != null ? stock.currentPrice.toLocaleString('en-US') : '—'}
+                    {currentMarket === 'US' ? '$' : '₹'}{stock?.currentPrice != null ? Number(stock.currentPrice).toLocaleString(currentMarket === 'US' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <span style={{

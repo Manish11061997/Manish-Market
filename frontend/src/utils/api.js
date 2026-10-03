@@ -717,7 +717,8 @@ async function handleOfflineFallback(endpointPath, options = {}) {
     }
 
     if (pathname.includes('/fno-signals') || pathname.includes('/fno/signals')) {
-      const data = await getDirectFnoSignals();
+      const market = searchParams.get('market') || 'IN';
+      const data = await getDirectFnoSignals(market);
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

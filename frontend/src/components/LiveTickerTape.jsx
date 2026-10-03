@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { wsClient } from '../utils/WebSocketClient';
 import { findTick } from '../utils/symbolMatcher';
-import { DEFAULT_INDIAN_SECURITIES, DEFAULT_INDICES } from '../utils/directMarketProvider';
+import { DEFAULT_INDIAN_SECURITIES, DEFAULT_INDICES, DEFAULT_US_SECURITIES, DEFAULT_US_INDICES } from '../utils/directMarketProvider';
 
 const INDIAN_TICKERS = [
   { symbol: 'NIFTY50',       name: 'NIFTY 50'     },
@@ -37,16 +37,21 @@ const US_TICKERS = [
   { symbol: 'NFLX',   name: 'NETFLIX'   },
 ];
 
-export default function LiveTickerTape({ currentMarket = 'IN' }) {
-  const tickers = useMemo(
-    () => (currentMarket === 'US' ? US_TICKERS : INDIAN_TICKERS),
-    [currentMarket]
-  );
-  const currPrefix = currentMarket === 'US' ? '$' : '₹';
-
-  // price map: pre-populated with baseline real prices so tape immediately shows live prices
-  const [prices, setPrices] = useState(() => {
-    const init = {};
+function buildDefaultPrices(market) {
+  const init = {};
+  if (market === 'US') {
+    DEFAULT_US_INDICES.forEach(idx => {
+      const pObj = { price: idx.price, pChange: idx.changePercent, change: idx.change };
+      init[idx.symbol] = pObj;
+      if (idx.symbol === '^GSPC') init['SP500'] = pObj;
+      if (idx.symbol === '^IXIC') init['NASDAQ'] = pObj;
+      if (idx.symbol === '^DJI')  init['DOW'] = pObj;
+      if (idx.symbol === '^RUT')  init['RUSSELL'] = pObj;
+    });
+    DEFAULT_US_SECURITIES.forEach(sec => {
+      init[sec.symbol] = { price: sec.ltp, pChange: sec.change, change: (sec.ltp * sec.change) / 100 };
+    });
+  } else {
     DEFAULT_INDICES.forEach(idx => {
       const pObj = { price: idx.price, pChange: idx.changePercent, change: idx.change };
       init[idx.symbol] = pObj;
@@ -58,8 +63,23 @@ export default function LiveTickerTape({ currentMarket = 'IN' }) {
     DEFAULT_INDIAN_SECURITIES.forEach(sec => {
       init[sec.symbol] = { price: sec.ltp, pChange: sec.change, change: (sec.ltp * sec.change) / 100 };
     });
-    return init;
-  });
+  }
+  return init;
+}
+
+export default function LiveTickerTape({ currentMarket = 'IN' }) {
+  const tickers = useMemo(
+    () => (currentMarket === 'US' ? US_TICKERS : INDIAN_TICKERS),
+    [currentMarket]
+  );
+  const currPrefix = currentMarket === 'US' ? '$' : '₹';
+
+  // price map: pre-populated with baseline real prices so tape immediately shows live prices
+  const [prices, setPrices] = useState(() => buildDefaultPrices(currentMarket));
+
+  useEffect(() => {
+    setPrices(buildDefaultPrices(currentMarket));
+  }, [currentMarket]);
   const flashTimers = useRef({});
 
 

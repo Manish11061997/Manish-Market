@@ -29,7 +29,7 @@ function MarketHeader({
     // Try to read last-known real prices from localStorage (saved by syncLiveAnchors)
     let cached = null;
     try {
-      const raw = localStorage.getItem('mm_price_cache_v8');
+      const raw = localStorage.getItem('mm_price_cache_v9');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.data && Date.now() - parsed.ts < 24 * 3600_000) {
@@ -866,7 +866,9 @@ function MarketHeader({
               transition: 'all 0.2s ease'
             }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{idx.name}</span>
-              <span className="mono-num" style={{ fontWeight: 800, color: 'var(--text-main)' }}>{currPrefix}{Number(idx.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="mono-num" style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                {currPrefix}{Number(idx.price).toLocaleString(currentMarket === 'US' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
               <span className="mono-num" style={{
                 fontSize: '10px',
                 fontWeight: 800,
@@ -878,7 +880,7 @@ function MarketHeader({
                 backgroundColor: isUp ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
                 color: isUp ? 'var(--accent-green)' : 'var(--accent-red)'
               }}>
-                {isUp ? '+' : ''}{idx.pChange}%
+                {isUp ? '+' : ''}{Number(idx.pChange).toFixed(2)}%
               </span>
             </div>
           );

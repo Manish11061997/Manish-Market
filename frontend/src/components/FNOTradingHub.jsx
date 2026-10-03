@@ -3,73 +3,7 @@ import { Zap, TrendingUp, TrendingDown, ArrowUpRight, Table, RefreshCw } from 'l
 import { wsClient } from '../utils/WebSocketClient';
 import { apiFetch } from '../utils/api';
 import { findTick } from '../utils/symbolMatcher';
-
-const DEFAULT_FNO_SIGNALS_IN = [
-  {
-    symbol: "NIFTY50",
-    name: "Nifty 50 Index",
-    type: "INDEX OPTION",
-    lotSize: 25,
-    spotPrice: 23063.10,
-    fnoDirection: "NEUTRAL",
-    strategyName: "IRON CONDOR",
-    winProbability: "82.4%",
-    profitFactor: "2.85x",
-    strike: "23100 CE / 23000 PE",
-    iv: "13.8%",
-    pcr: "1.12",
-    greeks: { delta: "0.50", theta: "-0.12" },
-    optionSetup: { strike: "23100 CE", estimatedPremium: "₹125.00", targetPremium1: "₹190.00", targetPremium2: "₹250.00", stopLossPremium: "₹75.00" }
-  },
-  {
-    symbol: "NIFTYBANK",
-    name: "Bank Nifty Index",
-    type: "INDEX OPTION",
-    lotSize: 15,
-    spotPrice: 55438.50,
-    fnoDirection: "BULLISH",
-    strategyName: "BULL CALL SPREAD",
-    winProbability: "79.1%",
-    profitFactor: "2.40x",
-    strike: "55500 CE",
-    iv: "16.4%",
-    pcr: "1.25",
-    greeks: { delta: "0.48", theta: "-0.22" },
-    optionSetup: { strike: "55500 CE", estimatedPremium: "₹360.00", targetPremium1: "₹520.00", targetPremium2: "₹680.00", stopLossPremium: "₹220.00" }
-  },
-  {
-    symbol: "RELIANCE.NS",
-    name: "Reliance Industries",
-    type: "STOCK OPTION",
-    lotSize: 250,
-    spotPrice: 1219.20,
-    fnoDirection: "BULLISH",
-    strategyName: "BULL CALL SPREAD",
-    winProbability: "84.0%",
-    profitFactor: "3.10x",
-    strike: "1240 CE",
-    iv: "18.2%",
-    pcr: "1.08",
-    greeks: { delta: "0.52", theta: "-0.08" },
-    optionSetup: { strike: "1240 CE", estimatedPremium: "₹21.50", targetPremium1: "₹34.00", targetPremium2: "₹46.00", stopLossPremium: "₹13.00" }
-  },
-  {
-    symbol: "HDFCBANK.NS",
-    name: "HDFC Bank Ltd",
-    type: "STOCK OPTION",
-    lotSize: 550,
-    spotPrice: 728.90,
-    fnoDirection: "WATCH / RANGE",
-    strategyName: "COVERED CALL",
-    winProbability: "81.5%",
-    profitFactor: "2.60x",
-    strike: "730 CE",
-    iv: "15.6%",
-    pcr: "1.18",
-    greeks: { delta: "0.45", theta: "-0.05" },
-    optionSetup: { strike: "730 CE", estimatedPremium: "₹11.50", targetPremium1: "₹18.00", targetPremium2: "₹25.00", stopLossPremium: "₹6.50" }
-  }
-];
+import { DEFAULT_FNO_SIGNALS_IN, DEFAULT_FNO_SIGNALS_US } from '../utils/directMarketProvider';
 
 const DEFAULT_CHAIN_DATA_IN = {
   underlyingValue: 23063.10,
@@ -87,12 +21,28 @@ const DEFAULT_CHAIN_DATA_IN = {
   ]
 };
 
+const DEFAULT_CHAIN_DATA_US = {
+  underlyingValue: 7706.03,
+  atmStrike: 7700,
+  pcr: 1.22,
+  nearestExpiry: "08-Oct-2026",
+  strikes: [
+    { strike: 7625, callOI: 78300, callDelta: 0.72, callLtp: 98.5, putLtp: 17.5, putDelta: -0.28, putOI: 142000 },
+    { strike: 7650, callOI: 104000, callDelta: 0.65, callLtp: 78.0, putLtp: 24.5, putDelta: -0.35, putOI: 128000 },
+    { strike: 7675, callOI: 139000, callDelta: 0.58, callLtp: 59.5, putLtp: 33.0, putDelta: -0.42, putOI: 115000 },
+    { strike: 7700, callOI: 185000, callDelta: 0.51, callLtp: 42.0, putLtp: 44.5, putDelta: -0.49, putOI: 112000 },
+    { strike: 7725, callOI: 160000, callDelta: 0.44, callLtp: 28.0, putLtp: 58.5, putDelta: -0.56, putOI: 89000 },
+    { strike: 7750, callOI: 125000, callDelta: 0.37, callLtp: 18.5, putLtp: 76.0, putDelta: -0.63, putOI: 68000 },
+    { strike: 7775, callOI: 81000, callDelta: 0.30, callLtp: 11.5, putLtp: 98.0, putDelta: -0.70, putOI: 51000 }
+  ]
+};
+
 export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
   const [fnoTab, setFnoTab] = useState('SETUPS'); // 'SETUPS' or 'CHAIN'
 
-  // Initialize with defaults — API will update if available
-  const [fnoData, setFnoData] = useState(currentMarket === 'US' ? [] : DEFAULT_FNO_SIGNALS_IN);
-  const [chainData, setChainData] = useState(currentMarket === 'IN' ? DEFAULT_CHAIN_DATA_IN : null);
+  // Initialize with defaults according to active market
+  const [fnoData, setFnoData] = useState(currentMarket === 'US' ? DEFAULT_FNO_SIGNALS_US : DEFAULT_FNO_SIGNALS_IN);
+  const [chainData, setChainData] = useState(currentMarket === 'US' ? DEFAULT_CHAIN_DATA_US : DEFAULT_CHAIN_DATA_IN);
 
   const [filterDirection, setFilterDirection] = useState('ALL');
   const [selectedChainSymbol, setSelectedChainSymbol] = useState(currentMarket === 'US' ? 'SP500' : 'NIFTY50');
@@ -126,12 +76,13 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
         const list = Array.isArray(data?.signals) ? data.signals : (Array.isArray(data?.setups) ? data.setups : (Array.isArray(data) ? data : []));
         if (list && list.length > 0) {
           setFnoData(list);
+        } else {
+          setFnoData(currentMarket === 'US' ? DEFAULT_FNO_SIGNALS_US : DEFAULT_FNO_SIGNALS_IN);
         }
-        // If empty from API, keep the pre-loaded defaults — no error banner needed
         setIsRefreshing(false);
       })
       .catch(() => {
-        // API offline — keep pre-loaded defaults silently
+        setFnoData(currentMarket === 'US' ? DEFAULT_FNO_SIGNALS_US : DEFAULT_FNO_SIGNALS_IN);
         setIsRefreshing(false);
       });
   }, [currentMarket]);
@@ -143,23 +94,25 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
         const data = typeof res?.json === 'function' ? await res.json() : res;
         if (data && data.strikes && data.strikes.length > 0) {
           setChainData(data);
+        } else {
+          setChainData(currentMarket === 'US' ? DEFAULT_CHAIN_DATA_US : DEFAULT_CHAIN_DATA_IN);
         }
         setIsRefreshing(false);
       })
       .catch(() => {
+        setChainData(currentMarket === 'US' ? DEFAULT_CHAIN_DATA_US : DEFAULT_CHAIN_DATA_IN);
         setIsRefreshing(false);
       });
-  }, []);
+  }, [currentMarket]);
 
   useEffect(() => {
-    fetchFnoSignals();
-  }, [fetchFnoSignals]);
-
-  useEffect(() => {
+    setFnoData(currentMarket === 'US' ? DEFAULT_FNO_SIGNALS_US : DEFAULT_FNO_SIGNALS_IN);
     const defaultSym = currentMarket === 'US' ? 'SP500' : 'NIFTY50';
     setSelectedChainSymbol(defaultSym);
+    setChainData(currentMarket === 'US' ? DEFAULT_CHAIN_DATA_US : DEFAULT_CHAIN_DATA_IN);
     fetchOptionChain(defaultSym);
-  }, [currentMarket, fetchOptionChain]);
+    fetchFnoSignals();
+  }, [currentMarket, fetchOptionChain, fetchFnoSignals]);
 
   // Connect to native WebSocket tick stream for sub-second F&O price updates
   useEffect(() => {
@@ -426,8 +379,8 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
           {chainData && (
             <div className="pro-card-glass" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' }} className="mono-num">
-                <div>Underlying Spot: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{chainData.underlyingValue?.toLocaleString('en-US')}</strong></div>
-                <div>ATM Strike: <strong style={{ color: 'var(--accent-blue)' }}>{chainData.atmStrike}</strong></div>
+                <div>Underlying Spot: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{Number(chainData.underlyingValue).toLocaleString(currentMarket === 'US' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div>ATM Strike: <strong style={{ color: 'var(--accent-blue)' }}>{Number(chainData.atmStrike).toLocaleString(currentMarket === 'US' ? 'en-US' : 'en-IN')}</strong></div>
                 <div>PCR: <strong style={{ color: chainData.pcr >= 1 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chainData.pcr}</strong></div>
                 <div>Expiry: <strong style={{ color: 'var(--accent-gold)' }}>{chainData.nearestExpiry}</strong></div>
               </div>
@@ -463,11 +416,11 @@ export default function FNOTradingHub({ onSelectStock, currentMarket = 'IN' }) {
                         >
                           <td style={{ padding: '8px', color: 'var(--text-secondary)' }} className="mono-num">{row.callOI?.toLocaleString('en-US')}</td>
                           <td style={{ padding: '8px', color: 'var(--accent-blue)' }} className="mono-num">{row.callDelta}</td>
-                          <td style={{ padding: '8px', fontWeight: 800, color: 'var(--accent-green)' }} className="mono-num">{currPrefix}{row.callLtp}</td>
+                          <td style={{ padding: '8px', fontWeight: 800, color: 'var(--accent-green)' }} className="mono-num">{currPrefix}{Number(row.callLtp).toFixed(2)}</td>
                           <td style={{ padding: '8px 12px', fontWeight: 900, color: isAtm ? 'var(--accent-gold)' : 'var(--text-main)', backgroundColor: isAtm ? 'rgba(245, 158, 11, 0.15)' : 'var(--hover-white-2)' }} className="mono-num">
-                            {row.strike} {isAtm && '🎯 ATM'}
+                            {Number(row.strike).toLocaleString(currentMarket === 'US' ? 'en-US' : 'en-IN')} {isAtm && '🎯 ATM'}
                           </td>
-                          <td style={{ padding: '8px', fontWeight: 800, color: 'var(--accent-red)' }} className="mono-num">{currPrefix}{row.putLtp}</td>
+                          <td style={{ padding: '8px', fontWeight: 800, color: 'var(--accent-red)' }} className="mono-num">{currPrefix}{Number(row.putLtp).toFixed(2)}</td>
                           <td style={{ padding: '8px', color: 'var(--accent-blue)' }} className="mono-num">{row.putDelta}</td>
                           <td style={{ padding: '8px', color: 'var(--text-secondary)' }} className="mono-num">{row.putOI?.toLocaleString('en-US')}</td>
                         </tr>

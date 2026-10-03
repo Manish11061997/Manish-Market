@@ -345,10 +345,10 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                 </strong>
                 <span className="mono-num" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({topFeatured.symbol})</span>
                 <span className="mono-num" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-green)' }}>
-                  {currPrefix}{topFeatured.currentPrice?.toLocaleString('en-US')}
+                  {currPrefix}{Number(topFeatured.currentPrice).toLocaleString(currPrefix === '$' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="mono-num hide-on-mobile" style={{ fontSize: '11px', color: 'var(--accent-blue)' }}>
-                  Target: <strong>{currPrefix}{topFeatured.tradePlan?.target1}</strong>
+                  Target: <strong>{currPrefix}{topFeatured.tradePlan?.target1 ? Number(topFeatured.tradePlan.target1).toLocaleString(currPrefix === '$' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</strong>
                 </span>
                 <span className="mono-num hide-on-mobile" style={{ fontSize: '10px', color: 'var(--accent-gold)', backgroundColor: 'var(--hover-white-2)', padding: '1px 4px', borderRadius: '4px' }}>
                   Score: {topFeatured.overallScore}/100
@@ -534,7 +534,9 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                     <div style={{ fontSize: '10px', color: 'var(--accent-blue)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>{stock.sector}</span>
                       <span style={{ color: 'var(--text-muted)' }}>•</span>
-                      <span style={{ color: 'var(--accent-green)' }}>Tgt: {stockCurrPrefix}{tp1}</span>
+                      <span style={{ color: 'var(--accent-green)' }}>
+                        Tgt: {stockCurrPrefix}{tp1 ? Number(tp1).toLocaleString(stockCurrPrefix === '$' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -543,7 +545,7 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                   <div style={{ textAlign: 'right' }}>
                     <div className={`mono-num ${stock.tickDirection === 'UP' ? 'flash-up' : (stock.tickDirection === 'DOWN' ? 'flash-down' : '')}`} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {stockCurrPrefix}{stock.currentPrice?.toLocaleString('en-US')}
+                      {stockCurrPrefix}{stock.currentPrice != null ? Number(stock.currentPrice).toLocaleString(stockCurrPrefix === '$' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                     </div>
                     {(() => {
                       const chg = stock.change ?? 0;
