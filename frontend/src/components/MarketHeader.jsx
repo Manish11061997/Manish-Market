@@ -29,7 +29,7 @@ function MarketHeader({
     // Try to read last-known real prices from localStorage (saved by syncLiveAnchors)
     let cached = null;
     try {
-      const raw = localStorage.getItem('mm_price_cache_v7');
+      const raw = localStorage.getItem('mm_price_cache_v8');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.data && Date.now() - parsed.ts < 24 * 3600_000) {

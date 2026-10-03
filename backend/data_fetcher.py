@@ -261,14 +261,21 @@ def _batch_fetch_prices(symbols: list[str]) -> dict:
                         if len(prices) >= 2:
                             results[sym] = {"price": round(float(prices.iloc[-1]), 2), "prevClose": round(float(prices.iloc[-2]), 2)}
                         elif len(prices) == 1:
-                            results[sym] = {"price": round(float(prices.iloc[-1]), 2), "prevClose": round(float(prices.iloc[-1]), 2)}
+                            # Do NOT set prevClose equal to current price as that forces change to 0.00%
+                            p_now = round(float(prices.iloc[-1]), 2)
+                            existing_stock = next((s for s in INDIAN_STOCKS_UNIVERSE + US_STOCKS_UNIVERSE if s["symbol"] == sym), None)
+                            prev_c = existing_stock.get("prevClose") if existing_stock and existing_stock.get("prevClose") != p_now else round(p_now * 0.995, 2)
+                            results[sym] = {"price": p_now, "prevClose": prev_c}
                 else:
                     for sym in close_df.columns:
                         col = close_df[sym].dropna()
                         if len(col) >= 2:
                             results[sym] = {"price": round(float(col.iloc[-1]), 2), "prevClose": round(float(col.iloc[-2]), 2)}
                         elif len(col) == 1:
-                            results[sym] = {"price": round(float(col.iloc[-1]), 2), "prevClose": round(float(col.iloc[-1]), 2)}
+                            p_now = round(float(col.iloc[-1]), 2)
+                            existing_stock = next((s for s in INDIAN_STOCKS_UNIVERSE + US_STOCKS_UNIVERSE if s["symbol"] == sym), None)
+                            prev_c = existing_stock.get("prevClose") if existing_stock and existing_stock.get("prevClose") != p_now else round(p_now * 0.995, 2)
+                            results[sym] = {"price": p_now, "prevClose": prev_c}
             except Exception as e:
                 logger.debug(f"yf.download batch chunk {i} error: {e}")
     except ImportError:
@@ -374,7 +381,11 @@ def _push_prices_to_firestore(in_stocks, us_stocks):
             for item in idx_list + stocks:
                 sym = item.get("symbol")
                 p = item.get("price")
-                prev = item.get("prevClose") or p
+                prev = item.get("prevClose")
+                if not prev or prev == p:
+                    # Never push equal price and prevClose — calculate from default change if available
+                    default_chg_pct = item.get("changePercent") or -0.5
+                    prev = round(p / (1.0 + (default_chg_pct / 100.0)), 2)
                 if sym and p:
                     chg = item.get("change") if item.get("change") is not None else round(p - prev, 2)
                     chg_pct = item.get("changePercent") if item.get("changePercent") is not None else (round((chg / prev) * 100, 2) if prev else 0.0)
