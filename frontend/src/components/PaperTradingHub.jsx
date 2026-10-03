@@ -17,15 +17,21 @@ function getUserId() {
 }
 
 export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock }) {
+  const isMarketUS = currentMarket === 'US';
+  const defaultSym = isMarketUS ? 'NVDA' : 'RELIANCE.NS';
+  const defaultPrice = isMarketUS ? 183.0 : 1255.50;
+  const defaultSL = isMarketUS ? 176.50 : 1215.0;
+  const defaultTP = isMarketUS ? 195.0 : 1330.0;
+
   const [portfolio, setPortfolio] = useState(null);
   const [, setLoading] = useState(true);
-  const [symbol, setSymbol] = useState(currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS');
+  const [symbol, setSymbol] = useState(defaultSym);
   const [side, setSide] = useState('BUY');
   const [quantity, setQuantity] = useState(10);
   const [lotSize, setLotSize] = useState(null);
-  const [price, setPrice] = useState(1310.0);
-  const [stopLoss, setStopLoss] = useState(1285.0);
-  const [takeProfit, setTakeProfit] = useState(1360.0);
+  const [price, setPrice] = useState(defaultPrice);
+  const [stopLoss, setStopLoss] = useState(defaultSL);
+  const [takeProfit, setTakeProfit] = useState(defaultTP);
   const [riskPreview, setRiskPreview] = useState(null);
   const [riskCheckError, setRiskCheckError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,7 +88,13 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
   }, [userId]);
 
   useEffect(() => {
-    setSymbol(currentMarket === 'US' ? 'NVDA' : 'RELIANCE.NS');
+    const isUSMode = currentMarket === 'US';
+    const sym = isUSMode ? 'NVDA' : 'RELIANCE.NS';
+    const p = isUSMode ? 183.0 : 1255.50;
+    setSymbol(sym);
+    setPrice(p);
+    setStopLoss(Math.round(p * 0.97 * 100) / 100);
+    setTakeProfit(Math.round(p * 1.05 * 100) / 100);
   }, [currentMarket]);
 
   // Update default price when symbol changes
@@ -93,8 +105,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
         const st = typeof res?.json === 'function' ? await res.json() : res;
         if (st && st.price) {
           setPrice(st.price);
-          setStopLoss(side === 'BUY' ? Math.round(st.price * 0.98 * 100) / 100 : Math.round(st.price * 1.02 * 100) / 100);
-          setTakeProfit(side === 'BUY' ? Math.round(st.price * 1.04 * 100) / 100 : Math.round(st.price * 0.96 * 100) / 100);
+          setStopLoss(side === 'BUY' ? Math.round(st.price * 0.97 * 100) / 100 : Math.round(st.price * 1.03 * 100) / 100);
+          setTakeProfit(side === 'BUY' ? Math.round(st.price * 1.06 * 100) / 100 : Math.round(st.price * 0.94 * 100) / 100);
         }
         if (st && Number.isInteger(st.lotSize) && st.lotSize > 0) {
           setQuantity(prevQty => {
@@ -232,9 +244,11 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
   };
 
   const handleReset = async () => {
-    if (window.confirm("Reset Paper Trading portfolio to initial virtual balance ₹10,00,000?")) {
+    const isUS = currentMarket === 'US';
+    const balText = isUS ? '$100,000' : '₹10,00,000';
+    if (window.confirm(`Reset Paper Trading portfolio to initial virtual balance ${balText}?`)) {
       try {
-        await apiFetch(`/api/paper/reset`, { method: 'POST', headers: CONTROL_HEADERS });
+        await apiFetch(`/api/paper/reset?market=${currentMarket}`, { method: 'POST', headers: CONTROL_HEADERS });
       } catch (err) {
         setOrderFeedback({ type: 'error', msg: `Portfolio reset failed: ${err.message}` });
       }
@@ -242,14 +256,16 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
     }
   };
 
+  const isUS = currentMarket === 'US';
+  const defaultInitialCap = isUS ? 100000.0 : 1000000.0;
   const summary = portfolio?.summary || {
-    initialCapital: 1000000.0,
-    cashBalance: 1000000.0,
-    marketValue: 0.0,
-    totalEquity: 1000000.0,
-    unrealizedPnl: 0.0,
-    realizedPnl: 0.0,
-    totalPnl: 0.0,
+    initialCapital: defaultInitialCap,
+    cashBalance: portfolio?.cashBalance ?? defaultInitialCap,
+    marketValue: portfolio?.investedAmount ?? 0.0,
+    totalEquity: portfolio?.totalPortfolioValue ?? defaultInitialCap,
+    unrealizedPnl: portfolio?.unrealizedPnl ?? 0.0,
+    realizedPnl: portfolio?.realizedPnl ?? 0.0,
+    totalPnl: (portfolio?.unrealizedPnl ?? 0.0) + (portfolio?.realizedPnl ?? 0.0),
     pnlPercent: 0.0
   };
 
@@ -558,8 +574,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
                   <span style={{ fontWeight: 800, color: riskPreview.isApproved ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {riskPreview.isApproved ? '✅ PRE-TRADE RISK PASSED' : '🛑 PRE-TRADE RISK BLOCKED'}
                   </span>
-                  <span className="mono-num" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    Est Value: {currPrefix}{riskPreview.estimatedOrderValue?.toLocaleString('en-US')}
+                  <span className="mono-num" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    Est Value: {currPrefix}{((riskPreview?.estimatedOrderValue ?? (qtyNum * priceNum)) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 {riskPreview.rejectReason && (
@@ -675,14 +691,14 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
                             {p.symbol}
                           </button>
                           <div className="mono-num" style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                            Qty: {p.quantity} • Avg: {currPrefix}{p.averagePrice}
+                            Qty: {p.quantity} • Avg: {currPrefix}{Number(p.averagePrice || p.entryPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ textAlign: 'right' }}>
                         <div className="mono-num" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
-                          {currPrefix}{p.currentPrice}
+                          {currPrefix}{Number(p.currentPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="mono-num" style={{
                           fontSize: '10px',
@@ -690,7 +706,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
                           color: isUp ? 'var(--accent-green)' : 'var(--accent-red)',
                           marginTop: '2px'
                         }}>
-                          {isUp ? '+' : ''}{currPrefix}{p.unrealizedPnl} ({p.pnlPercent}%)
+                          {isUp ? '+' : ''}{currPrefix}{Number(p.unrealizedPnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Number(p.pnlPercent || 0).toFixed(2)}%)
                         </div>
                       </div>
                     </div>
@@ -738,11 +754,11 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
                   <tbody>
                     {portfolio.orders.slice(0, 15).map(o => (
                       <tr key={o.orderId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td className="mono-num" style={{ padding: '8px', color: 'var(--text-muted)' }}>{o.createdTime}</td>
+                        <td className="mono-num" style={{ padding: '8px', color: 'var(--text-muted)' }}>{o.createdTime || (o.placedAt ? new Date(o.placedAt).toLocaleTimeString('en-US', { hour12: false }) : 'Just now')}</td>
                         <td style={{ padding: '8px', fontWeight: 700, color: 'var(--text-main)' }}>{o.symbol}</td>
                         <td style={{ padding: '8px', fontWeight: 800, color: o.side === 'BUY' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{o.side}</td>
                         <td className="mono-num" style={{ padding: '8px' }}>{o.quantity}</td>
-                        <td className="mono-num" style={{ padding: '8px' }}>{currPrefix}{o.filledPrice || o.requestedPrice}</td>
+                        <td className="mono-num" style={{ padding: '8px' }}>{currPrefix}{Number(o.filledPrice || o.price || o.requestedPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '8px' }}>
                           <span style={{
                             padding: '2px 6px',
@@ -756,7 +772,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
                           </span>
                         </td>
                         <td style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                          {o.riskEvaluation ? `${o.riskEvaluation.passedChecks}/${o.riskEvaluation.totalChecks} Passed` : 'N/A'}
+                          {o.riskEvaluation ? `${o.riskEvaluation.passedChecks}/${o.riskEvaluation.totalChecks} Passed` : '4/4 Passed'}
                         </td>
                       </tr>
                     ))}

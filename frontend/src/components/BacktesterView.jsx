@@ -36,11 +36,37 @@ const DEFAULT_BACKTEST_RESULT = {
   ]
 };
 
-export default function BacktesterView() {
+export default function BacktesterView({ currentMarket = 'IN' }) {
+  const isMarketUS = currentMarket === 'US';
   const [activeTab, setActiveTab] = useState('LIBRARY'); // 'LIBRARY', 'BUILDER', 'SAVED'
-  const [selectedStock, setSelectedStock] = useState('RELIANCE.NS');
-  const [initialCapital, setInitialCapital] = useState(100000);
-  const [results, setResults] = useState(DEFAULT_BACKTEST_RESULT);
+  const [selectedStock, setSelectedStock] = useState(isMarketUS ? 'NVDA' : 'RELIANCE.NS');
+  const [initialCapital, setInitialCapital] = useState(isMarketUS ? 10000 : 100000);
+  const [results, setResults] = useState(isMarketUS ? {
+    symbol: 'NVDA',
+    initialCapital: 10000,
+    finalCapital: 14280,
+    netReturnPct: 42.80,
+    buyHoldReturnPct: 22.40,
+    strategyBeatsBuyHold: true,
+    winRate: 81.2,
+    totalTrades: 16,
+    winningTrades: 13,
+    losingTrades: 3,
+    maxDrawdownPct: 3.9,
+    profitFactor: 3.15,
+    sharpeRatio: 2.24,
+    trades: [
+      { entryDate: '2026-03-05', exitDate: '2026-03-18', side: 'BUY', entryPrice: 162.0, exitPrice: 178.5, pnl: 1020, pnlPct: 10.18, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+      { entryDate: '2026-04-02', exitDate: '2026-04-14', side: 'BUY', entryPrice: 168.0, exitPrice: 182.0, pnl: 840, pnlPct: 8.33, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+      { entryDate: '2026-05-10', exitDate: '2026-05-19', side: 'BUY', entryPrice: 175.0, exitPrice: 171.0, pnl: -240, pnlPct: -2.28, outcome: 'LOSS', reason: 'STOP_LOSS' }
+    ],
+    equityCurve: [
+      { date: '2026-03-01', equity: 10000, benchmark: 10000 },
+      { date: '2026-04-15', equity: 11860, benchmark: 10800 },
+      { date: '2026-06-01', equity: 13120, benchmark: 11400 },
+      { date: '2026-08-20', equity: 14280, benchmark: 12240 }
+    ]
+  } : DEFAULT_BACKTEST_RESULT);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [strategiesList, setStrategiesList] = useState([]);
@@ -65,21 +91,25 @@ export default function BacktesterView() {
   const [trailingStop, setTrailingStop] = useState(true);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(null);
 
-  const stocks = [
+  const stocks = isMarketUS ? [
+    { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+    { symbol: 'AAPL', name: 'Apple Inc.' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation' },
+    { symbol: 'TSLA', name: 'Tesla Inc.' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' }
+  ] : [
     { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd' },
     { symbol: 'TCS.NS', name: 'Tata Consultancy Services' },
     { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd' },
     { symbol: 'INFY.NS', name: 'Infosys Ltd' },
     { symbol: 'TATAMOTORS.NS', name: 'Tata Motors Ltd' },
     { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd' },
-    { symbol: 'SBIN.NS', name: 'State Bank of India' },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation (US)' },
-    { symbol: 'AAPL', name: 'Apple Inc. (US)' },
-    { symbol: 'MSFT', name: 'Microsoft Corporation (US)' }
+    { symbol: 'SBIN.NS', name: 'State Bank of India' }
   ];
 
   const capitalValid = Number.isFinite(initialCapital) && initialCapital > 0;
-  const isUS = results?.symbol && !results.symbol.endsWith('.NS') && !results.symbol.startsWith('^');
+  const isUS = results?.symbol && !results.symbol.endsWith('.NS') && !results.symbol.endsWith('.BO') && !results.symbol.startsWith('^');
   const currPrefix = isUS ? '$' : '₹';
 
   // Load Strategies Library

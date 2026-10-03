@@ -2264,10 +2264,10 @@ export default function TradingViewCandleChart({
       {/* Real-time OHLC Bar Stats */}
       {lastCandle && (
         <div className="mono-num" style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '0 4px' }}>
-          <span>O: <strong style={{ color: 'var(--text-main)' }}>{currPrefix}{lastCandle.open}</strong></span>
-          <span>H: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{lastCandle.high}</strong></span>
-          <span>L: <strong style={{ color: 'var(--accent-red)' }}>{currPrefix}{lastCandle.low}</strong></span>
-          <span>C: <strong style={{ color: lastCandle.close >= lastCandle.open ? 'var(--accent-green)' : 'var(--accent-red)' }}>{currPrefix}{lastCandle.close}</strong></span>
+          <span>O: <strong style={{ color: 'var(--text-main)' }}>{currPrefix}{Number(lastCandle.open).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+          <span>H: <strong style={{ color: 'var(--accent-green)' }}>{currPrefix}{Number(lastCandle.high).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+          <span>L: <strong style={{ color: 'var(--accent-red)' }}>{currPrefix}{Number(lastCandle.low).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+          <span>C: <strong style={{ color: lastCandle.close >= lastCandle.open ? 'var(--accent-green)' : 'var(--accent-red)' }}>{currPrefix}{Number(lastCandle.close).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
         </div>
       )}
 
@@ -2378,37 +2378,37 @@ export default function TradingViewCandleChart({
         }}>
           {activeIndicators.EMA_20 && indicatorValues.ema20 && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', border: '1px solid rgba(0,229,255,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              EMA 20: {currPrefix}{indicatorValues.ema20}
+              EMA 20: {currPrefix}{Number(indicatorValues.ema20).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_20: false }))} style={{ background: 'none', border: 'none', color: '#00e5ff', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}
           {activeIndicators.EMA_50 && indicatorValues.ema50 && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#ffd600', backgroundColor: 'rgba(255,214,0,0.12)', border: '1px solid rgba(255,214,0,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              EMA 50: {currPrefix}{indicatorValues.ema50}
+              EMA 50: {currPrefix}{Number(indicatorValues.ema50).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_50: false }))} style={{ background: 'none', border: 'none', color: '#ffd600', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}
           {activeIndicators.EMA_200 && indicatorValues.ema200 && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#d500f9', backgroundColor: 'rgba(213,0,249,0.12)', border: '1px solid rgba(213,0,249,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              EMA 200: {currPrefix}{indicatorValues.ema200}
+              EMA 200: {currPrefix}{Number(indicatorValues.ema200).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, EMA_200: false }))} style={{ background: 'none', border: 'none', color: '#d500f9', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}
           {activeIndicators.SMA_20 && indicatorValues.sma20 && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#ff9100', backgroundColor: 'rgba(255,145,0,0.12)', border: '1px solid rgba(255,145,0,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              SMA 20: {currPrefix}{indicatorValues.sma20}
+              SMA 20: {currPrefix}{Number(indicatorValues.sma20).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, SMA_20: false }))} style={{ background: 'none', border: 'none', color: '#ff9100', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}
           {activeIndicators.VWAP && indicatorValues.vwap && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#00e676', backgroundColor: 'rgba(0,230,118,0.12)', border: '1px solid rgba(0,230,118,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              VWAP: {currPrefix}{indicatorValues.vwap}
+              VWAP: {currPrefix}{Number(indicatorValues.vwap).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, VWAP: false }))} style={{ background: 'none', border: 'none', color: '#00e676', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}
           {activeIndicators.BB_20_2 && indicatorValues.bbUpper && (
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#29b6f6', backgroundColor: 'rgba(41,182,246,0.12)', border: '1px solid rgba(41,182,246,0.35)', padding: '1px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              BB: [{indicatorValues.bbLower} - {indicatorValues.bbUpper}]
+              BB: [{Number(indicatorValues.bbLower).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - {Number(indicatorValues.bbUpper).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}]
               <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, BB_20_2: false }))} style={{ background: 'none', border: 'none', color: '#29b6f6', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 900 }}>✕</button>
             </span>
           )}

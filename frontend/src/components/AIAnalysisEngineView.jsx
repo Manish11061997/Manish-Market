@@ -112,16 +112,20 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
               <BarChart3 className="w-4 h-4" /> Multi-Horizon Quantitative Engine
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                Quantitative Market Analysis & Pattern Inspector: <span className="text-emerald-400 font-mono">{symbol}</span>
+              <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3 flex-wrap">
+                Quantitative Market Analysis & Pattern Inspector:
+                <span className="text-emerald-400 font-mono tracking-tight font-extrabold">{symbol.trim()}</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-sans font-medium">
+                  {symbol.endsWith('.NS') ? 'NSE' : symbol.endsWith('.BO') ? 'BSE' : (currentMarket === 'US' ? 'NASDAQ/NYSE' : 'EQ')}
+                </span>
               </h1>
               {liveTick && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-slate-950/80 border border-slate-700/80 rounded-xl font-mono text-xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span className="text-slate-400">LTP:</span>
-                  <span className="text-emerald-400 font-bold">{currencySymbol}{liveTick.price?.toLocaleString()}</span>
+                  <span className="text-emerald-400 font-bold">{currencySymbol}{Number(liveTick.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className={liveTick.change >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                    {liveTick.change >= 0 ? '+' : ''}{liveTick.changePercent}%
+                    {liveTick.change >= 0 ? '+' : ''}{Number(liveTick.changePercent ?? 0).toFixed(2)}%
                   </span>
                 </div>
               )}
@@ -421,7 +425,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
                   </span>
                 </div>
                 <div className="text-lg font-extrabold text-slate-100 font-mono">
-                  {currencySymbol}{analysisData.entryZone?.low} – {currencySymbol}{analysisData.entryZone?.high}
+                  {currencySymbol}{analysisData.entryZone?.low ? Number(analysisData.entryZone.low).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'} – {currencySymbol}{analysisData.entryZone?.high ? Number(analysisData.entryZone.high).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}
                 </div>
                 <div className="text-[11px] text-slate-400">
                   <strong className="text-slate-300">Trigger Condition:</strong> {analysisData.suggestedEntryPoint?.triggerCondition || 'Pullback or retest of support level'}
@@ -439,7 +443,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-1.5">
                     <div className="text-[11px] font-semibold text-emerald-400 flex items-center justify-between">
                       <span>Exit Target 1 (Partial)</span>
-                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[0]}</span>
+                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[0] ? Number(analysisData.targets[0]).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded w-fit font-mono font-medium">
                       ⏱ Est: {analysisData.suggestedExitPoints?.exitTarget1?.timeframe || analysisData.targetTimeframes?.[0] || (activeHorizon === 'SWING' ? '3-5 Days' : (activeHorizon === 'LONG_TERM' ? '6-12 Months' : '1-2 Hours'))}
@@ -453,7 +457,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-1.5">
                     <div className="text-[11px] font-semibold text-emerald-400 flex items-center justify-between">
                       <span>Exit Target 2 (Full)</span>
-                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[1]}</span>
+                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[1] ? Number(analysisData.targets[1]).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded w-fit font-mono font-medium">
                       ⏱ Est: {analysisData.suggestedExitPoints?.exitTarget2?.timeframe || analysisData.targetTimeframes?.[1] || (activeHorizon === 'SWING' ? '1-2 Weeks' : (activeHorizon === 'LONG_TERM' ? '18-24 Months' : '3-4 Hours'))}
@@ -467,7 +471,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-1.5">
                     <div className="text-[11px] font-semibold text-emerald-400 flex items-center justify-between">
                       <span>Exit Target 3 (Runner)</span>
-                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[2]}</span>
+                      <span className="font-mono text-emerald-300 font-bold">{currencySymbol}{analysisData.targets?.[2] ? Number(analysisData.targets[2]).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded w-fit font-mono font-medium">
                       ⏱ Est: {analysisData.suggestedExitPoints?.exitTarget3?.timeframe || analysisData.targetTimeframes?.[2] || (activeHorizon === 'SWING' ? '3-4 Weeks' : (activeHorizon === 'LONG_TERM' ? '3-5 Years' : 'Session Close'))}
@@ -481,7 +485,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-rose-500/40 space-y-1.5">
                     <div className="text-[11px] font-semibold text-rose-400 flex items-center justify-between">
                       <span>Stop Loss Exit (Risk Cut)</span>
-                      <span className="font-mono text-rose-300 font-bold">{currencySymbol}{analysisData.stopLoss}</span>
+                      <span className="font-mono text-rose-300 font-bold">{currencySymbol}{analysisData.stopLoss ? Number(analysisData.stopLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded w-fit font-mono font-medium">
                       ⏱ Risk Cut: Immediate

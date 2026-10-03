@@ -496,6 +496,37 @@ async function handleOfflineFallback(endpointPath, options = {}) {
       });
     }
 
+    if (pathname.includes('/paper/reset')) {
+      const isUS = searchParams.get('market') === 'US';
+      const initialBal = isUS ? 100000.0 : 1000000.0;
+      const cleanPortfolio = {
+        cashBalance: initialBal,
+        investedAmount: 0.0,
+        totalPortfolioValue: initialBal,
+        unrealizedPnl: 0.0,
+        realizedPnl: 0.0,
+        positions: [],
+        orders: [],
+        summary: {
+          initialCapital: initialBal,
+          cashBalance: initialBal,
+          marketValue: 0.0,
+          totalEquity: initialBal,
+          unrealizedPnl: 0.0,
+          realizedPnl: 0.0,
+          totalPnl: 0.0,
+          pnlPercent: 0.0
+        }
+      };
+      try {
+        localStorage.setItem('mm_paper_portfolio_v1', JSON.stringify(cleanPortfolio));
+      } catch {}
+      return new Response(JSON.stringify(cleanPortfolio), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     if (pathname.includes('/paper/portfolio')) {
       let portfolio = {
         cashBalance: 1000000.0,
@@ -504,11 +535,36 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         unrealizedPnl: 0.0,
         realizedPnl: 0.0,
         positions: [],
-        orders: []
+        orders: [],
+        summary: {
+          initialCapital: 1000000.0,
+          cashBalance: 1000000.0,
+          marketValue: 0.0,
+          totalEquity: 1000000.0,
+          unrealizedPnl: 0.0,
+          realizedPnl: 0.0,
+          totalPnl: 0.0,
+          pnlPercent: 0.0
+        }
       };
       try {
         const saved = localStorage.getItem('mm_paper_portfolio_v1');
-        if (saved) portfolio = JSON.parse(saved);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          portfolio = {
+            ...parsed,
+            summary: parsed.summary || {
+              initialCapital: 1000000.0,
+              cashBalance: parsed.cashBalance ?? 1000000.0,
+              marketValue: parsed.investedAmount ?? 0.0,
+              totalEquity: parsed.totalPortfolioValue ?? (parsed.cashBalance ?? 1000000.0),
+              unrealizedPnl: parsed.unrealizedPnl ?? 0.0,
+              realizedPnl: parsed.realizedPnl ?? 0.0,
+              totalPnl: (parsed.unrealizedPnl ?? 0.0) + (parsed.realizedPnl ?? 0.0),
+              pnlPercent: 0.0
+            }
+          };
+        }
       } catch {}
       return new Response(JSON.stringify(portfolio), {
         status: 200,
@@ -517,16 +573,124 @@ async function handleOfflineFallback(endpointPath, options = {}) {
     }
 
     if (pathname.includes('/paper/order')) {
-      return new Response(JSON.stringify({ status: 'FILLED', orderId: `ORD_${Date.now()}`, timestamp: new Date().toISOString() }), {
+      let body = {};
+      try {
+        if (options.body) body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      } catch {}
+
+      const filledQty = Number(body.quantity) || 10;
+      const filledPrice = Number(body.price) || 1255.50;
+      const slippage = parseFloat((filledPrice * 0.0004).toFixed(2));
+      const orderId = `ORD_${Date.now()}`;
+      const symbol = body.symbol || 'RELIANCE.NS';
+      const side = body.side || 'BUY';
+      const nowIso = new Date().toISOString();
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+      const newOrder = {
+        orderId,
+        symbol,
+        side,
+        quantity: filledQty,
+        filledQuantity: filledQty,
+        requestedPrice: filledPrice,
+        filledPrice,
+        slippage,
+        status: 'FILLED',
+        createdTime: timeStr,
+        placedAt: nowIso,
+        riskEvaluation: { passedChecks: 4, totalChecks: 4 }
+      };
+
+      try {
+        const saved = localStorage.getItem('mm_paper_portfolio_v1');
+        let port = saved ? JSON.parse(saved) : {
+          cashBalance: 1000000.0,
+          investedAmount: 0.0,
+          totalPortfolioValue: 1000000.0,
+          unrealizedPnl: 0.0,
+          realizedPnl: 0.0,
+          positions: [],
+          orders: []
+        };
+
+        const tradeVal = filledQty * filledPrice;
+        if (side === 'BUY') {
+          port.cashBalance = Math.max(0, port.cashBalance - tradeVal);
+          port.investedAmount = parseFloat(((port.investedAmount || 0) + tradeVal).toFixed(2));
+
+          const existingPosIdx = (port.positions || []).findIndex(p => p.symbol === symbol && p.side === 'LONG');
+          if (existingPosIdx >= 0) {
+            const ep = port.positions[existingPosIdx];
+            const newTotalQty = ep.quantity + filledQty;
+            const newAvgPrice = parseFloat(((ep.quantity * ep.averagePrice + tradeVal) / newTotalQty).toFixed(2));
+            ep.quantity = newTotalQty;
+            ep.averagePrice = newAvgPrice;
+            ep.currentPrice = filledPrice;
+            ep.unrealizedPnl = parseFloat(((filledPrice - newAvgPrice) * newTotalQty).toFixed(2));
+            ep.pnlPercent = parseFloat((((filledPrice - newAvgPrice) / newAvgPrice) * 100).toFixed(2));
+          } else {
+            port.positions = [
+              {
+                id: `pos_${Date.now()}`,
+                symbol,
+                side: 'LONG',
+                quantity: filledQty,
+                entryPrice: filledPrice,
+                averagePrice: filledPrice,
+                currentPrice: filledPrice,
+                unrealizedPnl: 0.0,
+                pnlPercent: 0.0,
+                stopLoss: body.stopLoss || null,
+                takeProfit: body.takeProfit || null,
+                openedAt: nowIso
+              },
+              ...(port.positions || [])
+            ];
+          }
+        } else {
+          // Sell order
+          port.cashBalance = parseFloat(((port.cashBalance || 0) + tradeVal).toFixed(2));
+          port.investedAmount = Math.max(0, parseFloat(((port.investedAmount || 0) - tradeVal).toFixed(2)));
+        }
+
+        port.totalPortfolioValue = parseFloat((port.cashBalance + port.investedAmount).toFixed(2));
+        port.orders = [newOrder, ...(port.orders || [])].slice(0, 50);
+
+        port.summary = {
+          initialCapital: 1000000.0,
+          cashBalance: port.cashBalance,
+          marketValue: port.investedAmount,
+          totalEquity: port.totalPortfolioValue,
+          unrealizedPnl: 0.0,
+          realizedPnl: 0.0,
+          totalPnl: 0.0,
+          pnlPercent: 0.0
+        };
+
+        localStorage.setItem('mm_paper_portfolio_v1', JSON.stringify(port));
+      } catch {}
+
+      return new Response(JSON.stringify(newOrder), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     if (pathname.includes('/risk/evaluate')) {
+      let body = {};
+      try {
+        if (options.body) body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      } catch {}
+
+      const qty = Number(body.quantity) || 10;
+      const price = Number(body.price) || 1255.50;
+      const estimatedOrderValue = parseFloat((qty * price).toFixed(2));
+
       return new Response(JSON.stringify({
         isApproved: true,
         score: 95,
+        estimatedOrderValue,
         checks: [
           { name: 'Lot Size Increments', passed: true, detail: 'Single share cash increment verified' },
           { name: 'Max Trade Value Cap', passed: true, detail: 'Trade value is within 5% limits' },
@@ -752,6 +916,24 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         tradeProposal: data.tradeProposal || null
       };
       return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (pathname.includes('/market-state/')) {
+      const parts = pathname.split('/');
+      const stateIdx = parts.indexOf('market-state');
+      const symbol = stateIdx !== -1 && parts[stateIdx + 1] ? decodeURIComponent(parts[stateIdx + 1]) : 'RELIANCE.NS';
+      const detail = await getDirectStockDetail(symbol);
+      return new Response(JSON.stringify({
+        symbol: detail.symbol,
+        price: detail.price,
+        currentPrice: detail.price,
+        previousClose: parseFloat((detail.price - (detail.change || 0)).toFixed(2)),
+        lotSize: 1,
+        status: "ACTIVE"
+      }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });

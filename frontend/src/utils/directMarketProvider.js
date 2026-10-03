@@ -943,8 +943,11 @@ export async function getDirectStockDetail(rawSymbol) {
 export async function getDirectTradingAgentsReport(symbol) {
   const detail = await getDirectStockDetail(symbol);
   const currentPrice = detail.price;
-  const isBuy = detail.technicalRating.includes("Buy");
-  const score = isBuy ? 84 : 45;
+  const isUS = detail.currency === 'USD' || (!symbol.endsWith('.NS') && !symbol.endsWith('.BO'));
+  const currSym = isUS ? '$' : '₹';
+  const isShort = detail.technicalRating === 'Reduce' || detail.technicalRating === 'Sell' || detail.technicalRating === 'Strong Sell' || (detail.changePercent && detail.changePercent < -3.0);
+  const isBuy = !isShort;
+  const score = isBuy ? (detail.changePercent >= 0 ? 84 : 76) : 68;
   const target = isBuy ? currentPrice * 1.085 : currentPrice * 0.93;
   const stopLoss = isBuy ? currentPrice * 0.965 : currentPrice * 1.04;
 
@@ -960,7 +963,9 @@ export async function getDirectTradingAgentsReport(symbol) {
       low: parseFloat((currentPrice * 0.995).toFixed(2)),
       high: parseFloat((currentPrice * 1.005).toFixed(2))
     },
-    targetPrices: [parseFloat(target.toFixed(2)), parseFloat((target * 1.04).toFixed(2))],
+    targetPrices: isBuy 
+      ? [parseFloat(target.toFixed(2)), parseFloat((target * 1.04).toFixed(2))]
+      : [parseFloat(target.toFixed(2)), parseFloat((target * 0.96).toFixed(2))],
     stopLoss: parseFloat(stopLoss.toFixed(2)),
     riskRewardRatio: "1 : 2.4",
     recommendedAllocationPct: score >= 80 ? 4.5 : 2.5,
@@ -970,7 +975,7 @@ export async function getDirectTradingAgentsReport(symbol) {
         status: isBuy ? "BULLISH" : "NEUTRAL",
         observations: [
           `20-day Average Daily Volume: ${(detail.volume || 2500000).toLocaleString()} shares.`,
-          `Price Position: Trading above 20 EMA (₹${detail.ema20.toFixed(2)}) and 50 EMA (₹${detail.ema50.toFixed(2)}).`,
+          `Price Position: Trading ${isBuy ? 'above' : 'below'} 20 EMA (${currSym}${detail.ema20.toFixed(2)}) and 50 EMA (${currSym}${detail.ema50.toFixed(2)}).`,
           `Order Book Depth: Positive institutional bid-ask absorption.`
         ]
       },
@@ -978,7 +983,7 @@ export async function getDirectTradingAgentsReport(symbol) {
         name: "Technical & Pattern Analyst",
         status: isBuy ? "BULLISH" : "BEARISH",
         signals: [
-          `Moving Average Alignment: 20 EMA > 50 EMA > 200 EMA (Structural Trend).`,
+          `Moving Average Alignment: ${isBuy ? '20 EMA > 50 EMA > 200 EMA (Structural Trend)' : '20 EMA < 50 EMA (Corrective Phase)'}.`,
           `Momentum Oscillator: RSI 14 at ${detail.rsi14 || 58.4} (Optimal momentum expansion zone).`,
           `Volatility Bands: Bollinger Bands expansion signaling high-probability breakout.`
         ]
@@ -988,7 +993,7 @@ export async function getDirectTradingAgentsReport(symbol) {
         status: "FAVORABLE",
         metrics: [
           `Operating P/E Ratio: ${detail.peRatio || 24.5} vs Sector Average ${((detail.peRatio || 24.5) * 1.15).toFixed(1)}.`,
-          `Market Capitalization: ${detail.marketCap || '50K Cr'}.`,
+          `Market Capitalization: ${detail.marketCap || (isUS ? '$150B' : '₹50,000 Cr')}.`,
           `Beta: ${detail.beta || 1.0} with stable risk-adjusted trajectory.`
         ]
       },
@@ -1010,17 +1015,17 @@ export async function getDirectTradingAgentsReport(symbol) {
       },
       {
         speaker: "Bearish Researcher (Agent Beta)",
-        argument: `Near-term resistance at ₹${target.toFixed(2)} may trigger temporary consolidation if broader index encounters macro resistance.`
+        argument: `Near-term resistance at ${currSym}${target.toFixed(2)} may trigger temporary consolidation if broader index encounters macro resistance.`
       },
       {
         speaker: "Bullish Researcher (Agent Alpha)",
-        argument: `Stop-loss at ₹${stopLoss.toFixed(2)} strictly caps downside risk to 3.5%, preserving capital while capturing the larger multi-week wave.`
+        argument: `Stop-loss at ${currSym}${stopLoss.toFixed(2)} strictly caps downside risk to 3.5%, preserving capital while capturing the larger multi-week wave.`
       }
     ],
     risk_committee: {
       aggressive_risk_officer: { vote: "APPROVE", note: "High momentum confluence validates standard sizing." },
-      conservative_risk_officer: { vote: "APPROVE WITH ATR SL", note: `Enforce hard stop at ₹${stopLoss.toFixed(2)}.` },
-      macro_risk_officer: { vote: "PASS", note: "Indian benchmark indices operating in stable volatility regime." }
+      conservative_risk_officer: { vote: "APPROVE WITH ATR SL", note: `Enforce hard stop at ${currSym}${stopLoss.toFixed(2)}.` },
+      macro_risk_officer: { vote: "PASS", note: "Benchmark indices operating in stable volatility regime." }
     },
     final_verdict: `The TradingAgents Multi-Agent Committee issues a **${detail.technicalRating.toUpperCase()}** consensus rating for ${detail.symbol} with ${score}% confidence score. Maintain disciplined position sizing of 3–5% portfolio allocation.`,
     timestamp: new Date().toISOString()
@@ -1033,7 +1038,10 @@ export async function getDirectTradingAgentsReport(symbol) {
 export async function getDirectStockChartReading(symbol) {
   const detail = await getDirectStockDetail(symbol);
   const p = detail.price;
-  const isBull = detail.technicalRating.includes("Buy");
+  const isUS = detail.currency === 'USD' || (!symbol.endsWith('.NS') && !symbol.endsWith('.BO'));
+  const currSym = isUS ? '$' : '₹';
+  const isShort = detail.technicalRating === 'Reduce' || detail.technicalRating === 'Sell' || detail.technicalRating === 'Strong Sell' || (detail.changePercent && detail.changePercent < -3.0);
+  const isBull = !isShort;
   const lowEntry = parseFloat((p * 0.995).toFixed(2));
   const highEntry = parseFloat((p * 1.008).toFixed(2));
   const stopLoss = parseFloat((p * (isBull ? 0.965 : 1.035)).toFixed(2));
@@ -1041,31 +1049,31 @@ export async function getDirectStockChartReading(symbol) {
 
   return {
     symbol: detail.symbol,
-    trend: isBull ? "BULLISH_UPTREND" : "SIDEWAYS_CONSOLIDATION",
-    marketRegime: "EXPANSION_PHASE",
-    biasLabel: isBull ? "🟢 High-Probability Long / Buy Setup" : "🟡 Consolidation / Rangebound Setup",
-    confidenceScore: isBull ? 88 : 65,
+    trend: isBull ? "BULLISH_UPTREND" : "BEARISH_DOWNTREND",
+    marketRegime: isBull ? "EXPANSION_PHASE" : "DISTRIBUTION_PHASE",
+    biasLabel: isBull ? "🟢 High-Probability Long / Buy Setup" : "🔴 Distribution / Short Setup",
+    confidenceScore: isBull ? 88 : 72,
     tradeSuggestion: {
-      orderType: isBull ? "LIMIT / RETEST BUY" : "RANGE ACCUMULATION",
+      orderType: isBull ? "LIMIT / RETEST BUY" : "LIMIT SHORT / BREAKDOWN",
       holdingPeriod: "3 Days – 4 Weeks",
       riskRewardRatio: "1 : 2.8",
       entryZone: { low: lowEntry, high: highEntry },
       stopLoss: stopLoss,
       riskPct: riskPct,
-      invalidationLevel: `Daily close ${isBull ? 'below' : 'above'} ₹${stopLoss}`,
+      invalidationLevel: `Daily close ${isBull ? 'below' : 'above'} ${currSym}${stopLoss}`,
       targets: [
-        { target: "T1", price: parseFloat((p * (isBull ? 1.04 : 0.96)).toFixed(2)), gainPct: isBull ? "+4.0%" : "-4.0%", timeframe: "5-10 Days" },
-        { target: "T2", price: parseFloat((p * (isBull ? 1.08 : 0.92)).toFixed(2)), gainPct: isBull ? "+8.0%" : "-8.0%", timeframe: "2-4 Weeks" }
+        { target: "T1", price: parseFloat((p * (isBull ? 1.04 : 0.96)).toFixed(2)), gainPct: isBull ? "+4.0%" : "+4.0%", timeframe: "5-10 Days" },
+        { target: "T2", price: parseFloat((p * (isBull ? 1.08 : 0.92)).toFixed(2)), gainPct: isBull ? "+8.0%" : "+8.0%", timeframe: "2-4 Weeks" }
       ]
     },
     movingAverages: {
       ema20: parseFloat((p * 0.985).toFixed(2)),
       sma50: parseFloat((p * 0.96).toFixed(2)),
       sma200: parseFloat((p * 0.91).toFixed(2)),
-      status: isBull ? "Bullish Alignment (20 > 50 > 200)" : "Neutral Compression"
+      status: isBull ? "Bullish Alignment (20 > 50 > 200)" : "Bearish Compression"
     },
     candlestickPatterns: [
-      { name: isBull ? "Bullish Reversal Pin Bar" : "Consolidation Inside Bar", type: isBull ? "BULLISH" : "NEUTRAL", confidence: 85 }
+      { name: isBull ? "Bullish Reversal Pin Bar" : "Bearish Engulfing / Rejection", type: isBull ? "BULLISH" : "BEARISH", confidence: 85 }
     ],
     pivots: {
       r2: parseFloat((p * 1.06).toFixed(2)),
@@ -1075,7 +1083,7 @@ export async function getDirectStockChartReading(symbol) {
       s2: parseFloat((p * 0.94).toFixed(2))
     },
     forwardPredictions: [
-      { horizon: "1 Week", direction: isBull ? "UP" : "SIDEWAYS", target: parseFloat((p * (isBull ? 1.03 : 1.0)).toFixed(2)), confidence: 82 }
+      { horizon: "1 Week", direction: isBull ? "UP" : "DOWN", target: parseFloat((p * (isBull ? 1.03 : 0.97)).toFixed(2)), confidence: 82 }
     ],
     chartNarrative: `${detail.symbol} is trading in a constructive technical structure with defined risk-reward parameters.`,
     supportLevels: [parseFloat((p * 0.97).toFixed(2)), parseFloat((p * 0.94).toFixed(2))],
@@ -1094,29 +1102,42 @@ export async function getDirectStockChartReading(symbol) {
  */
 export async function getDirectHorizonAnalysis(symbol, horizon = 'INTRADAY') {
   const detail = await getDirectStockDetail(symbol);
-  const isBuy = detail.technicalRating.includes("Buy");
   const p = detail.price;
-  const score = isBuy ? 86 : 52;
-  const target1 = isBuy ? p * 1.04 : p * 0.96;
-  const target2 = isBuy ? p * 1.08 : p * 0.92;
-  const target3 = isBuy ? p * 1.14 : p * 0.88;
-  const stopLoss = isBuy ? p * 0.97 : p * 1.03;
+  const isUS = detail.currency === 'USD' || (!symbol.endsWith('.NS') && !symbol.endsWith('.BO'));
+  const currSym = isUS ? '$' : '₹';
+  const isShort = detail.technicalRating === 'Reduce' || detail.technicalRating === 'Sell' || detail.technicalRating === 'Strong Sell' || (detail.changePercent && detail.changePercent < -3.0);
+  const isLong = !isShort;
+
+  // For LONG setups: Targets are ABOVE entry, Stop Loss is BELOW entry
+  // For SHORT setups: Targets are BELOW entry, Stop Loss is ABOVE entry
+  const target1 = isLong ? p * 1.04 : p * 0.96;
+  const target2 = isLong ? p * 1.08 : p * 0.92;
+  const target3 = isLong ? p * 1.14 : p * 0.86;
+  const stopLoss = isLong ? p * 0.965 : p * 1.035;
+
+  const score = isLong ? (detail.changePercent >= 0 ? 86 : 78) : 65;
 
   return {
     symbol: detail.symbol,
     analysisType: horizon.toLowerCase(),
-    signal: isBuy ? (horizon === 'INTRADAY' ? 'STRONG_LONG' : 'STRONG_ACCUMULATE') : 'HOLD',
+    signal: isLong ? (horizon === 'INTRADAY' ? 'STRONG_LONG' : 'STRONG_ACCUMULATE') : 'SHORT_BREAKDOWN',
     score: score,
-    marketRegime: "STRUCTURED_UPTREND",
-    trend: "BULLISH",
-    setup: horizon === 'INTRADAY' ? "Opening Range Breakout + VWAP Reclaim" : (horizon === 'SWING' ? "Stage 2 Breakout Base" : "Compound Wealth Compounder"),
+    marketRegime: isLong ? "STRUCTURED_UPTREND" : "DISTRIBUTION_PHASE",
+    trend: isLong ? "BULLISH" : "BEARISH",
+    setup: isLong 
+      ? (horizon === 'INTRADAY' ? "Opening Range Breakout + VWAP Reclaim" : (horizon === 'SWING' ? "Stage 2 Breakout Base" : "Compound Wealth Compounder"))
+      : (horizon === 'INTRADAY' ? "VWAP Breakdown + High Volume Selloff" : "Stage 4 Distribution Breakdown"),
     riskReward: 2.4,
     entryZone: { low: parseFloat((p * 0.995).toFixed(2)), high: parseFloat((p * 1.005).toFixed(2)) },
+    suggestedEntryPoint: {
+      orderType: isLong ? "LIMIT / RETEST BUY" : "LIMIT SHORT / BREAKDOWN",
+      triggerCondition: isLong ? "Pullback or retest of 20-EMA / VWAP support" : "Breakdown below intraday support level"
+    },
     stopLoss: parseFloat(stopLoss.toFixed(2)),
     targets: [parseFloat(target1.toFixed(2)), parseFloat(target2.toFixed(2)), parseFloat(target3.toFixed(2))],
-    invalidation: `Hourly candle close below ₹${stopLoss.toFixed(2)}`,
+    invalidation: `Hourly candle close ${isLong ? 'below' : 'above'} ${currSym}${stopLoss.toFixed(2)}`,
     bullishEvidence: [
-      "20/50/200 Exponential Moving Averages stacked in textbook bullish alignment.",
+      "20/50/200 Exponential Moving Averages stacked in constructive alignment.",
       "RSI 14 momentum oscillator positioned in healthy expansion zone without divergence.",
       "Positive institutional volume flow confirmed on upward session closes."
     ],
@@ -1130,12 +1151,12 @@ export async function getDirectHorizonAnalysis(symbol, horizon = 'INTRADAY') {
       "Global macro volatility and crude price fluctuations."
     ],
     suggestedExitPoints: {
-      exitTarget1: { action: "Book 40% profit & move SL to breakeven", timeframe: "T+2 to T+5" },
-      exitTarget2: { action: "Book 30% profit & trail remaining", timeframe: "1-2 Weeks" },
-      exitTarget3: { action: "Trail final 30% via 20-EMA", timeframe: "Multi-Week" },
-      stopLossExit: { action: "Hard Stop Cut - Exit entire position", timeframe: "Immediate" }
+      exitTarget1: { action: isLong ? "Book 40% profit & move SL to breakeven" : "Cover 40% short & move SL to breakeven", timeframe: horizon === 'INTRADAY' ? "1-2 Hours" : (horizon === 'SWING' ? "3-5 Days" : "6-12 Months") },
+      exitTarget2: { action: isLong ? "Book 30% profit & trail remaining" : "Cover 30% short & lock gains", timeframe: horizon === 'INTRADAY' ? "3-4 Hours" : (horizon === 'SWING' ? "1-2 Weeks" : "18-24 Months") },
+      exitTarget3: { action: isLong ? "Trail final 30% via 20-EMA" : "Trail remaining 30% via EMA", timeframe: horizon === 'INTRADAY' ? "Session Close" : (horizon === 'SWING' ? "3-4 Weeks" : "3-5 Years") },
+      stopLossExit: { action: isLong ? "Hard Stop Cut - Exit entire position" : "Hard Stop Cut - Cover entire short", timeframe: "Immediate" }
     },
-    explanation: `### Quantitative Synthesis for ${detail.symbol}\n${detail.symbol} exhibits strong multi-horizon alignment with 1:2.4 risk/reward profile. Trade plan is strictly invalid if price closes below ₹${stopLoss.toFixed(2)}.`,
+    explanation: `### Quantitative Synthesis for ${detail.symbol}\n${detail.symbol} exhibits strong ${isLong ? 'bullish accumulation' : 'bearish distribution'} with a 1:2.4 risk/reward profile. Trade plan is strictly invalid if price closes ${isLong ? 'below' : 'above'} ${currSym}${stopLoss.toFixed(2)}.`,
     dataQualityStatus: "VERIFIED_REALTIME"
   };
 }

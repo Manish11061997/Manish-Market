@@ -544,6 +544,7 @@ export default function App() {
 
                   {activeView === 'ANALYSIS_ENGINE' && (
                   <AIAnalysisEngineView
+                    key={`${currentMarket}-${engineSymbol || 'default'}`}
                     selectedSymbol={engineSymbol}
                     currentMarket={currentMarket}
                   />
@@ -571,6 +572,7 @@ export default function App() {
 
                 {activeView === 'PAPER_TRADING' && (
                   <PaperTradingHub
+                    key={currentMarket}
                     currentMarket={currentMarket}
                     onSelectStock={(sym) => {
                       setSelectedStock(sym);
@@ -580,6 +582,7 @@ export default function App() {
 
                 {activeView === 'AUDIT_TRAIL' && (
                   <AuditTrailViewer
+                    key={currentMarket}
                     currentMarket={currentMarket}
                     onSelectStock={(sym) => {
                       setSelectedStock(sym);
@@ -623,7 +626,10 @@ export default function App() {
                 )}
 
                 {activeView === 'BACKTEST' && (
-                  <BacktesterView />
+                  <BacktesterView
+                    key={currentMarket}
+                    currentMarket={currentMarket}
+                  />
                 )}
                 </Suspense>
               </TabErrorBoundary>
