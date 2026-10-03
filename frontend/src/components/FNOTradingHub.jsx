@@ -73,17 +73,17 @@ const DEFAULT_FNO_SIGNALS_IN = [
 
 const DEFAULT_CHAIN_DATA_IN = {
   underlyingValue: 23063.10,
-  atmStrike: 24050,
-  pcr: 1.12,
-  nearestExpiry: "24-Sep-2026",
+  atmStrike: 23050,
+  pcr: 1.15,
+  nearestExpiry: "08-Oct-2026",
   strikes: [
-    { strike: 23900, callOI: 92400, callDelta: 0.68, callLtp: 178.0, putLtp: 42.0, putDelta: -0.32, putOI: 168000 },
-    { strike: 23950, callOI: 115000, callDelta: 0.61, callLtp: 142.0, putLtp: 58.0, putDelta: -0.39, putOI: 152000 },
-    { strike: 24000, callOI: 148000, callDelta: 0.54, callLtp: 110.0, putLtp: 76.0, putDelta: -0.46, putOI: 135400 },
-    { strike: 24050, callOI: 189000, callDelta: 0.50, callLtp: 82.0, putLtp: 98.0, putDelta: -0.50, putOI: 118000 },
-    { strike: 24100, callOI: 162000, callDelta: 0.43, callLtp: 58.0, putLtp: 124.0, putDelta: -0.57, putOI: 82100 },
-    { strike: 24150, callOI: 138000, callDelta: 0.36, callLtp: 39.0, putLtp: 155.0, putDelta: -0.64, putOI: 54800 },
-    { strike: 24200, callOI: 112000, callDelta: 0.29, callLtp: 25.0, putLtp: 192.0, putDelta: -0.71, putOI: 38200 }
+    { strike: 22900, callOI: 92400, callDelta: 0.72, callLtp: 182.0, putLtp: 22.0, putDelta: -0.28, putOI: 178000 },
+    { strike: 22950, callOI: 115000, callDelta: 0.65, callLtp: 145.0, putLtp: 34.0, putDelta: -0.35, putOI: 162000 },
+    { strike: 23000, callOI: 148000, callDelta: 0.58, callLtp: 112.0, putLtp: 52.0, putDelta: -0.42, putOI: 145400 },
+    { strike: 23050, callOI: 189000, callDelta: 0.51, callLtp: 82.0, putLtp: 72.0, putDelta: -0.49, putOI: 138000 },
+    { strike: 23100, callOI: 162000, callDelta: 0.44, callLtp: 58.0, putLtp: 98.0, putDelta: -0.56, putOI: 92100 },
+    { strike: 23150, callOI: 138000, callDelta: 0.37, callLtp: 39.0, putLtp: 128.0, putDelta: -0.63, putOI: 64800 },
+    { strike: 23200, callOI: 112000, callDelta: 0.30, callLtp: 24.0, putLtp: 165.0, putDelta: -0.70, putOI: 48200 }
   ]
 };
 

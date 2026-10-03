@@ -126,7 +126,7 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
     apiFetch(`/api/daily-briefing?market=${currentMarket}${force ? '&force=true' : ''}`)
       .then(async res => {
         const data = typeof res?.json === 'function' ? await res.json() : res;
-        if (data && (data.topDailyBuys || data.topFnoSetups)) {
+        if (data && ((data.topDailyBuys && data.topDailyBuys.length > 0) || (data.topFnoSetups && data.topFnoSetups.length > 0))) {
           setBriefing(data);
         }
         // If server returns nothing, DEFAULT_BRIEFING stays loaded — no error

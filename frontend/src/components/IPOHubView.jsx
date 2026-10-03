@@ -597,7 +597,7 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }} className="mono-num">
-                      {currPrefix}{l.issueSizeCr} {unit}
+                      {l.issueSizeCr ? `${currPrefix}${Number(l.issueSizeCr).toLocaleString()} ${unit}` : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }} className="mono-num">
                       {l.listingDate}

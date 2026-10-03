@@ -52,7 +52,7 @@ export default function AICopilotChat({ onSelectStock, onExecutePaperOrder }) {
         ...prev,
         {
           sender: 'ai',
-          text: data.response,
+          text: data.response || data.answer || data.text || "Market synthesis generated successfully.",
           stockData: data.stockData,
           liveContext: data.liveContext,
           evidence: data.evidence,
