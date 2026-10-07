@@ -131,11 +131,13 @@ export async function fetchBatchQuotesV7(symbols, timeoutMs = 8000) {
           change: q.change ?? 0,
           changePercent: q.changePercent ?? 0,
           previousClose: q.previousClose || q.price,
+          open: q.open || q.price,
           volume: q.volume || 1000000,
-          dayHigh: q.high52 || q.price,
-          dayLow: q.low52 || q.price,
-          high52: q.high52,
-          low52: q.low52
+          dayHigh: q.dayHigh || q.high52 || q.price,
+          dayLow: q.dayLow || q.low52 || q.price,
+          high52: q.high52 || q.price * 1.25,
+          low52: q.low52 || q.price * 0.8,
+          tradeDate: q.tradeDate
         });
       }
     });
@@ -412,11 +414,11 @@ async function fetchYFQuote(rawSymbol, timeoutMs = 5000) {
 
   // 1. Try Firestore live market snapshot
   try {
-    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO') && !symbol.startsWith('^');
+    const isUS = US_INDEX_SYMBOLS.includes(symbol) || ['SP500', 'NASDAQ', 'DOW', 'RUSSELL', 'VIX', '^VIX'].includes(symbol) || (!symbol.endsWith('.NS') && !symbol.endsWith('.BO') && !INDEX_SYMBOLS.includes(symbol));
     const docName = isUS ? 'live_us' : 'live_in';
     const snap = await getDoc(doc(db, 'market_data', docName));
     if (snap.exists()) {
-      const q = snap.data().quotes?.[symbol] || snap.data().quotes?.[rawSymbol];
+      const q = snap.data().quotes?.[symbol] || snap.data().quotes?.[rawSymbol] || snap.data().quotes?.[rawSymbol.replace('.NS', '')];
       if (q && q.price) {
         const data = {
           symbol: q.symbol || symbol,
@@ -424,11 +426,13 @@ async function fetchYFQuote(rawSymbol, timeoutMs = 5000) {
           previousClose: q.previousClose || q.price,
           change: q.change || 0,
           changePercent: q.changePercent || 0,
-          dayHigh: q.high52 || q.price,
-          dayLow: q.low52 || q.price,
+          open: q.open || q.price,
+          dayHigh: q.dayHigh || q.high52 || q.price,
+          dayLow: q.dayLow || q.low52 || q.price,
           volume: q.volume || 1000000,
           high52: q.high52 || q.price * 1.25,
           low52: q.low52 || q.price * 0.8,
+          tradeDate: q.tradeDate,
           currency: isUS ? 'USD' : 'INR',
           longName: symbol,
           exchangeName: isUS ? 'NASDAQ/NYSE' : 'NSE'
@@ -957,6 +961,7 @@ export async function getDirectTradingAgentsReport(symbol) {
     engine: "TradingAgents Multi-Agent Quantitative Graph",
     status: "SUCCESS",
     action: detail.technicalRating,
+    decision: isBuy ? 'BUY' : 'HOLD',
     convictionScore: score,
     currentPrice: currentPrice,
     entryZone: {
@@ -2211,7 +2216,7 @@ export async function getDirectOptionChain(symbol = 'NIFTY50') {
   }
 
   return {
-    symbol: sym,
+    symbol: rawSym,
     underlyingValue: spot,
     atmStrike: atmStrike,
     pcr: 1.15,
