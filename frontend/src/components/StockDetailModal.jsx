@@ -7,7 +7,7 @@ import { useWatchlist } from '../utils/useWatchlist';
 import TradingViewCandleChart from './TradingViewCandleChart';
 import { Modal } from './ui/primitives';
 
-export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine, onOpenAIEngine, currentMarket = 'IN' }) {
+export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine, onOpenAIEngine, onOpenPaperTrading, currentMarket = 'IN' }) {
   const rawSym = typeof symbol === 'string' ? symbol : symbol?.symbol || 'RELIANCE.NS';
   const initialStock = typeof symbol === 'object' ? symbol : null;
 
@@ -955,6 +955,33 @@ export default function StockDetailModal({ symbol, onClose, onOpenPatternEngine,
             >
               <TrendingUp style={{ width: '13px', height: '13px' }} />
               <span>Pattern Inspector</span>
+            </button>
+          )}
+
+          {onOpenPaperTrading && (
+            <button
+              onClick={() => {
+                onOpenPaperTrading(stock?.symbol || rawSym);
+                onClose();
+              }}
+              className="mobile-btn-touch"
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--accent-green-bg)',
+                border: '1px solid var(--accent-green-border)',
+                color: 'var(--accent-green)',
+                fontSize: '11px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>⚡ Paper Trade</span>
             </button>
           )}
 

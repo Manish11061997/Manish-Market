@@ -54,6 +54,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStock, setSelectedStock] = useState(null);
   const [engineSymbol, setEngineSymbol] = useState(null);
+  const [paperTradingSymbol, setPaperTradingSymbol] = useState(null);
   const [wsStatus, setWsStatus] = useState('DISCONNECTED');
   const [sessionInfo, setSessionInfo] = useState(null);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -572,8 +573,9 @@ export default function App() {
 
                 {activeView === 'PAPER_TRADING' && (
                   <PaperTradingHub
-                    key={currentMarket}
+                    key={`${currentMarket}-${paperTradingSymbol || 'default'}`}
                     currentMarket={currentMarket}
+                    initialSymbol={paperTradingSymbol}
                     onSelectStock={(sym) => {
                       setSelectedStock(sym);
                     }}
@@ -697,6 +699,11 @@ export default function App() {
                 setSelectedStock(null);
                 setEngineSymbol(sym);
                 setActiveView('ANALYSIS_ENGINE');
+              }}
+              onOpenPaperTrading={(sym) => {
+                setSelectedStock(null);
+                setPaperTradingSymbol(sym);
+                setActiveView('PAPER_TRADING');
               }}
             />
           </Suspense>

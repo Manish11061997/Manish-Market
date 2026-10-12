@@ -116,9 +116,19 @@ async function runRuthlessMasterAudit() {
         }
       }
 
-      // Close modal
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(1000);
+      // Test Quick Paper Trade CTA inside modal
+      const paperTradeBtn = page.locator('button:has-text("Paper Trade")').first();
+      if (await paperTradeBtn.isVisible()) {
+        console.log('   Testing Quick Paper Trade CTA routing button...');
+        await paperTradeBtn.click();
+        await page.waitForTimeout(1500);
+        await scanForAnomalies('Modal Quick Paper Trade Route');
+        console.log('   Routed into Paper Trading cleanly');
+      } else {
+        // Close modal
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(1000);
+      }
     }
   }
 
@@ -142,6 +152,34 @@ async function runRuthlessMasterAudit() {
     await ipoBtn.click();
     await page.waitForTimeout(2000);
     await scanForAnomalies('IPO Hub View');
+
+    // Test each IPO stage subtab
+    const ipoTabs = ['Live Bidding', 'Closed / Allotment', 'Upcoming', 'Recently Listed'];
+    for (const tabText of ipoTabs) {
+      const tabBtn = page.locator(`button:has-text("${tabText}")`).first();
+      if (await tabBtn.isVisible()) {
+        const text = await tabBtn.innerText();
+        console.log(`   Inspecting IPO Stage: ${text}`);
+        if (text.includes('(0)')) {
+          console.log(`❌ Empty IPO stage count detected: ${text}`);
+          visualBugs.push({ location: 'IPO Hub Tab ' + tabText, issues: ['Stage shows (0) IPOs'] });
+        }
+        await tabBtn.click();
+        await page.waitForTimeout(800);
+        await scanForAnomalies(`IPO Hub ${tabText}`);
+      }
+    }
+
+    // Click first IPO card to test Prospectus modal
+    const ipoCard = page.locator('button:has-text("HYUNDAI"), button:has-text("WAAREE")').first();
+    if (await ipoCard.isVisible()) {
+      await ipoCard.click();
+      await page.waitForTimeout(1500);
+      console.log('   Opened IPO prospectus modal');
+      await scanForAnomalies('IPO Prospectus Modal');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(600);
+    }
   }
 
   // -------------------------------------------------------------

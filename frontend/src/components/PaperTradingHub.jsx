@@ -16,9 +16,9 @@ function getUserId() {
   return 'guest';
 }
 
-export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock }) {
+export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, initialSymbol }) {
   const isMarketUS = currentMarket === 'US';
-  const defaultSym = isMarketUS ? 'NVDA' : 'RELIANCE.NS';
+  const defaultSym = initialSymbol || (isMarketUS ? 'NVDA' : 'RELIANCE.NS');
   const defaultPrice = isMarketUS ? 183.0 : 1255.50;
   const defaultSL = isMarketUS ? 176.50 : 1215.0;
   const defaultTP = isMarketUS ? 195.0 : 1330.0;
@@ -89,13 +89,13 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
 
   useEffect(() => {
     const isUSMode = currentMarket === 'US';
-    const sym = isUSMode ? 'NVDA' : 'RELIANCE.NS';
+    const sym = initialSymbol || (isUSMode ? 'NVDA' : 'RELIANCE.NS');
     const p = isUSMode ? 183.0 : 1255.50;
     setSymbol(sym);
     setPrice(p.toFixed(2));
     setStopLoss((p * 0.97).toFixed(2));
     setTakeProfit((p * 1.05).toFixed(2));
-  }, [currentMarket]);
+  }, [currentMarket, initialSymbol]);
 
   // Update default price when symbol changes
   useEffect(() => {

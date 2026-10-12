@@ -7,23 +7,26 @@ import { ErrorBanner } from './ui/primitives';
 const DEFAULT_BACKTEST_RESULT = {
   symbol: 'RELIANCE.NS',
   initialCapital: 100000,
-  finalCapital: 128450,
-  netReturnPct: 28.45,
-  buyHoldReturnPct: 14.20,
+  finalCapital: 141250,
+  netReturnPct: 41.25,
+  buyHoldReturnPct: 20.50,
   strategyBeatsBuyHold: true,
-  winRate: 78.5,
-  totalTrades: 14,
-  winningTrades: 11,
+  winRate: 80.0,
+  totalTrades: 15,
+  winningTrades: 12,
   losingTrades: 3,
   maxDrawdownPct: 4.8,
-  profitFactor: 2.74,
-  sharpeRatio: 1.85,
+  profitFactor: 2.85,
+  sharpeRatio: 1.92,
   trades: [
     { entryDate: '2026-03-05', exitDate: '2026-03-18', side: 'BUY', entryPrice: 1210.0, exitPrice: 1280.0, pnl: 7000, pnlPct: 5.78, outcome: 'WIN', reason: 'TAKE_PROFIT' },
     { entryDate: '2026-04-02', exitDate: '2026-04-14', side: 'BUY', entryPrice: 1250.0, exitPrice: 1315.0, pnl: 6500, pnlPct: 5.20, outcome: 'WIN', reason: 'TAKE_PROFIT' },
     { entryDate: '2026-05-10', exitDate: '2026-05-19', side: 'BUY', entryPrice: 1300.0, exitPrice: 1280.0, pnl: -2000, pnlPct: -1.54, outcome: 'LOSS', reason: 'STOP_LOSS' },
     { entryDate: '2026-06-01', exitDate: '2026-06-15', side: 'BUY', entryPrice: 1270.0, exitPrice: 1340.0, pnl: 7000, pnlPct: 5.51, outcome: 'WIN', reason: 'TAKE_PROFIT' },
-    { entryDate: '2026-07-08', exitDate: '2026-07-22', side: 'BUY', entryPrice: 1320.0, exitPrice: 1395.0, pnl: 7500, pnlPct: 5.68, outcome: 'WIN', reason: 'TAKE_PROFIT' }
+    { entryDate: '2026-07-08', exitDate: '2026-07-22', side: 'BUY', entryPrice: 1320.0, exitPrice: 1395.0, pnl: 7500, pnlPct: 5.68, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+    { entryDate: '2026-08-12', exitDate: '2026-08-26', side: 'BUY', entryPrice: 1240.0, exitPrice: 1308.0, pnl: 6800, pnlPct: 5.48, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+    { entryDate: '2026-09-15', exitDate: '2026-09-28', side: 'BUY', entryPrice: 1225.0, exitPrice: 1292.0, pnl: 6700, pnlPct: 5.47, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+    { entryDate: '2026-10-01', exitDate: '2026-10-10', side: 'BUY', entryPrice: 1238.0, exitPrice: 1255.5, pnl: 1750, pnlPct: 1.41, outcome: 'WIN', reason: 'TAKE_PROFIT' }
   ],
   equityCurve: [
     { date: '2026-03-01', equity: 100000, benchmark: 100000 },
@@ -32,7 +35,9 @@ const DEFAULT_BACKTEST_RESULT = {
     { date: '2026-05-19', equity: 111500, benchmark: 107200 },
     { date: '2026-06-15', equity: 118500, benchmark: 110400 },
     { date: '2026-07-22', equity: 126000, benchmark: 112800 },
-    { date: '2026-08-20', equity: 128450, benchmark: 114200 }
+    { date: '2026-08-26', equity: 132800, benchmark: 115100 },
+    { date: '2026-09-28', equity: 139500, benchmark: 118400 },
+    { date: '2026-10-12', equity: 141250, benchmark: 120500 }
   ]
 };
 
@@ -44,27 +49,32 @@ export default function BacktesterView({ currentMarket = 'IN' }) {
   const [results, setResults] = useState(isMarketUS ? {
     symbol: 'NVDA',
     initialCapital: 10000,
-    finalCapital: 14280,
-    netReturnPct: 42.80,
-    buyHoldReturnPct: 22.40,
+    finalCapital: 15750,
+    netReturnPct: 57.50,
+    buyHoldReturnPct: 31.00,
     strategyBeatsBuyHold: true,
-    winRate: 81.2,
-    totalTrades: 16,
-    winningTrades: 13,
+    winRate: 82.5,
+    totalTrades: 17,
+    winningTrades: 14,
     losingTrades: 3,
     maxDrawdownPct: 3.9,
-    profitFactor: 3.15,
-    sharpeRatio: 2.24,
+    profitFactor: 3.25,
+    sharpeRatio: 2.30,
     trades: [
       { entryDate: '2026-03-05', exitDate: '2026-03-18', side: 'BUY', entryPrice: 162.0, exitPrice: 178.5, pnl: 1020, pnlPct: 10.18, outcome: 'WIN', reason: 'TAKE_PROFIT' },
       { entryDate: '2026-04-02', exitDate: '2026-04-14', side: 'BUY', entryPrice: 168.0, exitPrice: 182.0, pnl: 840, pnlPct: 8.33, outcome: 'WIN', reason: 'TAKE_PROFIT' },
-      { entryDate: '2026-05-10', exitDate: '2026-05-19', side: 'BUY', entryPrice: 175.0, exitPrice: 171.0, pnl: -240, pnlPct: -2.28, outcome: 'LOSS', reason: 'STOP_LOSS' }
+      { entryDate: '2026-05-10', exitDate: '2026-05-19', side: 'BUY', entryPrice: 175.0, exitPrice: 171.0, pnl: -240, pnlPct: -2.28, outcome: 'LOSS', reason: 'STOP_LOSS' },
+      { entryDate: '2026-07-10', exitDate: '2026-07-25', side: 'BUY', entryPrice: 172.0, exitPrice: 189.0, pnl: 1050, pnlPct: 9.88, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+      { entryDate: '2026-09-08', exitDate: '2026-09-24', side: 'BUY', entryPrice: 178.0, exitPrice: 194.5, pnl: 1020, pnlPct: 9.27, outcome: 'WIN', reason: 'TAKE_PROFIT' },
+      { entryDate: '2026-10-02', exitDate: '2026-10-10', side: 'BUY', entryPrice: 182.0, exitPrice: 191.0, pnl: 560, pnlPct: 4.95, outcome: 'WIN', reason: 'TAKE_PROFIT' }
     ],
     equityCurve: [
       { date: '2026-03-01', equity: 10000, benchmark: 10000 },
       { date: '2026-04-15', equity: 11860, benchmark: 10800 },
       { date: '2026-06-01', equity: 13120, benchmark: 11400 },
-      { date: '2026-08-20', equity: 14280, benchmark: 12240 }
+      { date: '2026-07-25', equity: 14170, benchmark: 12240 },
+      { date: '2026-09-24', equity: 15190, benchmark: 12850 },
+      { date: '2026-10-12', equity: 15750, benchmark: 13100 }
     ]
   } : DEFAULT_BACKTEST_RESULT);
   const [loading, setLoading] = useState(false);
