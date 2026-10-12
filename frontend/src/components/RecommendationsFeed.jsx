@@ -114,11 +114,119 @@ const DEFAULT_RECOMMENDATIONS_IN = {
 };
 
 
+const DEFAULT_RECOMMENDATIONS_US = {
+  market: 'US',
+  all: [
+    {
+      symbol: "NVDA",
+      name: "NVIDIA Corporation",
+      sector: "Semiconductors & AI",
+      currentPrice: 183.00,
+      change: 5.43,
+      changePercent: 3.06,
+      signal: "STRONG_BUY",
+      confidence: 88,
+      targetPrice: 205.00,
+      stopLoss: 172.00,
+      horizon: "SWING",
+      setup: "Blackwell Ultra Architecture Supercycle",
+      catalyst: "Hyperscaler capex acceleration and sovereign AI compute orders",
+      riskRewardRatio: "2.65:1",
+      aiSummary: "Institutional volume breakout confirmed above key 50-day moving average."
+    },
+    {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      sector: "Consumer Tech & Devices",
+      currentPrice: 228.40,
+      change: 1.39,
+      changePercent: 0.61,
+      signal: "BUY",
+      confidence: 82,
+      targetPrice: 245.00,
+      stopLoss: 218.00,
+      horizon: "LONG_TERM",
+      setup: "Apple Intelligence Multi-Year Upgrade Wave",
+      catalyst: "High-margin services segment recurring revenue growth",
+      riskRewardRatio: "2.25:1",
+      aiSummary: "Consolidation base breakout with sustained institutional buy flow."
+    },
+    {
+      symbol: "MSFT",
+      name: "Microsoft Corporation",
+      sector: "Cloud & Software",
+      currentPrice: 428.50,
+      change: 2.10,
+      changePercent: 0.49,
+      signal: "STRONG_BUY",
+      confidence: 85,
+      targetPrice: 460.00,
+      stopLoss: 412.00,
+      horizon: "SWING",
+      setup: "Azure Cloud & Copilot Enterprise Expansion",
+      catalyst: "Enterprise GenAI adoption accelerating cloud run-rate above $150B",
+      riskRewardRatio: "2.40:1",
+      aiSummary: "Defensive enterprise moat with double-digit margin expansion."
+    },
+    {
+      symbol: "AMZN",
+      name: "Amazon.com Inc.",
+      sector: "E-Commerce & Cloud",
+      currentPrice: 189.20,
+      change: 1.35,
+      changePercent: 0.72,
+      signal: "BUY",
+      confidence: 80,
+      targetPrice: 210.00,
+      stopLoss: 178.00,
+      horizon: "INTRADAY",
+      setup: "AWS Re-acceleration & Inbound Logistics Efficiency",
+      catalyst: "Regional fulfillment network margin leverage and cloud backlog",
+      riskRewardRatio: "2.35:1",
+      aiSummary: "Free cash flow expansion with higher advertising contribution."
+    },
+    {
+      symbol: "META",
+      name: "Meta Platforms Inc.",
+      sector: "Social Media & AI",
+      currentPrice: 588.60,
+      change: 10.51,
+      changePercent: 1.82,
+      signal: "STRONG_BUY",
+      confidence: 86,
+      targetPrice: 635.00,
+      stopLoss: 565.00,
+      horizon: "SWING",
+      setup: "Open-Source AI Leadership & Advantage+ Ad Roas",
+      catalyst: "Reels monetization parity and AI-driven feed engagement records",
+      riskRewardRatio: "2.55:1",
+      aiSummary: "Superior return on invested capital with disciplined capex governance."
+    },
+    {
+      symbol: "TSLA",
+      name: "Tesla Inc.",
+      sector: "Automotive & Clean Tech",
+      currentPrice: 245.80,
+      change: 6.16,
+      changePercent: 2.57,
+      signal: "BUY",
+      confidence: 78,
+      targetPrice: 280.00,
+      stopLoss: 228.00,
+      horizon: "SWING",
+      setup: "Megapack Energy Storage & Next-Gen Vehicle Platform",
+      catalyst: "Stationary energy storage margins surging and autonomous rollout",
+      riskRewardRatio: "2.45:1",
+      aiSummary: "High-beta reversal pattern bouncing off long-term trendline support."
+    }
+  ]
+};
+
 function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, currentMarket = 'IN' }) {
   const { isWatchlisted, toggleWatchlist } = useWatchlist(currentMarket);
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedSector, setSelectedSector] = useState('ALL');
-  const [feedData, setFeedData] = useState(recommendations || (currentMarket === 'IN' ? DEFAULT_RECOMMENDATIONS_IN : null));
+  const [feedData, setFeedData] = useState(recommendations || (currentMarket === 'US' ? DEFAULT_RECOMMENDATIONS_US : DEFAULT_RECOMMENDATIONS_IN));
   const [loading, setLoading] = useState(false);
 
   // Sync when recommendations prop updates
@@ -151,7 +259,10 @@ function RecommendationsFeed({ recommendations, onSelectStock, searchQuery, curr
       })
       .catch(err => {
         console.error("RecommendationsFeed fetch error:", err);
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setFeedData(prev => prev || (currentMarket === 'US' ? DEFAULT_RECOMMENDATIONS_US : DEFAULT_RECOMMENDATIONS_IN));
+          setLoading(false);
+        }
       });
     return () => { isMounted = false; };
   }, [currentMarket, recommendations]);

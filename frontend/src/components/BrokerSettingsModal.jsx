@@ -64,6 +64,24 @@ export default function BrokerSettingsModal({ onClose }) {
       latency: '41ms',
       badge: 'PRO BROKER',
       desc: 'Live market depth Level 2 feeds for active traders.'
+    },
+    {
+      id: 'ALPACA_LIVE',
+      name: 'Alpaca Markets Commission-Free API',
+      type: 'WebSocket + REST (US)',
+      status: 'READY',
+      latency: '18ms',
+      badge: 'US BROKER',
+      desc: 'Institutional execution for NASDAQ & NYSE equities and real-time streaming.'
+    },
+    {
+      id: 'IBKR_GATEWAY',
+      name: 'Interactive Brokers Client Portal API',
+      type: 'Institutional Gateway',
+      status: 'READY',
+      latency: '22ms',
+      badge: 'GLOBAL BROKER',
+      desc: 'Direct market access across US, European, and Asian global exchanges.'
     }
   ];
 
