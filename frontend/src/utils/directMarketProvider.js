@@ -1369,11 +1369,130 @@ export async function getDirectIpoList(pathname = '', market = 'IN') {
   const isUS = market === 'US';
 
   if (isUS) {
-    const usActive = [{ id:"IPO-LINE", symbol:"LINE", companyName:"Lineage, Inc.", sector:"Cold Storage Logistics & REIT Infrastructure", category:"NYSE Mainboard", priceBand:"$78 - $82", lotSize:1, minInvestment:82.0, issueSizeCr:4440.0, gmp:6.5, gmpPercent:7.93, expectedListingPrice:88.5, allotmentStatus:"🟢 LIVE BIDDING", subscription:{total:4.8,qib:6.2,nii:3.4,retail:2.1}, aiVerdict:"APPLY_FOR_LONG_TERM", recommendation:{recommendedStrategy:"World's largest temperature-controlled industrial REIT."} }];
-    if (pathname.includes('/summary')) return { market:'US', activeCount:1, closedCount:0, upcomingCount:0, listedCount:0, averageGmpPercent:7.93, totalActiveCapital:'$4,440 M' };
-    if (pathname.includes('/active'))   return { market:'US', count:1, ipos:usActive };
-    if (pathname.includes('/details'))  return usActive[0];
-    return { market:'US', count:0, ipos:[] };
+    const usActive = [
+      {
+        id: "IPO-LINE", symbol: "LINE", companyName: "Lineage, Inc.",
+        sector: "Cold Storage Logistics & REIT Infrastructure", category: "NYSE Mainboard",
+        priceBand: "$78 - $82", lotSize: 1, minInvestment: 82.0, issueSizeCr: 4440.0,
+        gmp: 6.5, gmpPercent: 7.93, expectedListingPrice: 88.5,
+        allotmentStatus: "🟢 LIVE BIDDING",
+        subscription: { total: 4.8, qib: 6.2, nii: 3.4, retail: 2.1 },
+        aiVerdict: "APPLY_FOR_LONG_TERM",
+        recommendation: { verdict: "SUBSCRIBE ($82)", recommendedStrategy: "World's largest temperature-controlled industrial REIT." },
+        faceValue: "$0.01", registrar: "Computershare Trust Co"
+      },
+      {
+        id: "IPO-RBRK", symbol: "RBRK", companyName: "Rubrik, Inc.",
+        sector: "Cybersecurity & Zero-Trust Cloud Data Management", category: "NYSE Mainboard",
+        priceBand: "$31 - $32", lotSize: 1, minInvestment: 32.0, issueSizeCr: 752.0,
+        gmp: 4.8, gmpPercent: 15.00, expectedListingPrice: 36.8,
+        allotmentStatus: "🟢 LIVE BIDDING",
+        subscription: { total: 12.4, qib: 15.8, nii: 8.2, retail: 6.5 },
+        aiVerdict: "STRONG_APPLY_HIGH_GAIN",
+        recommendation: { verdict: "STRONG BUY ($32)", recommendedStrategy: "High-growth zero-trust enterprise security platform." },
+        faceValue: "$0.01", registrar: "Equiniti Trust Company"
+      }
+    ];
+
+    const usClosed = [
+      {
+        id: "IPO-RDDT", symbol: "RDDT", companyName: "Reddit, Inc.",
+        sector: "Social Media, Content & AI Training Data", category: "NYSE Mainboard",
+        priceBand: "$31 - $34", lotSize: 1, minInvestment: 34.0, issueSizeCr: 748.0,
+        gmp: 16.0, gmpPercent: 47.06, expectedListingPrice: 50.0,
+        allotmentStatus: "🔒 CLOSED / ALLOTTED",
+        subscription: { total: 18.2, qib: 24.5, nii: 14.1, retail: 10.3 },
+        aiVerdict: "STRONG_APPLY_HIGH_GAIN",
+        recommendation: { verdict: "ALLOTTED ($34)", recommendedStrategy: "Unique social knowledge graph monetization via AI licensing deals." },
+        faceValue: "$0.0001", registrar: "Computershare"
+      },
+      {
+        id: "IPO-ALAB", symbol: "ALAB", companyName: "Astera Labs, Inc.",
+        sector: "Semiconductor Connectivity for AI Cloud Data Centers", category: "NASDAQ",
+        priceBand: "$32 - $36", lotSize: 1, minInvestment: 36.0, issueSizeCr: 713.0,
+        gmp: 24.5, gmpPercent: 68.06, expectedListingPrice: 60.5,
+        allotmentStatus: "🔒 CLOSED / ALLOTTED",
+        subscription: { total: 28.6, qib: 34.2, nii: 22.0, retail: 16.8 },
+        aiVerdict: "STRONG_APPLY_HIGH_GAIN",
+        recommendation: { verdict: "ALLOTTED ($36)", recommendedStrategy: "Pure-play PCIe/CXL connectivity supplier for AI accelerator clusters." },
+        faceValue: "$0.0001", registrar: "American Stock Transfer"
+      }
+    ];
+
+    const usUpcoming = [
+      {
+        id: "IPO-STRIPE", symbol: "STRIPE", companyName: "Stripe, Inc.",
+        sector: "Global Financial Infrastructure & Payment Processing", category: "NYSE Mainboard",
+        priceBand: "$28 - $32", lotSize: 1, minInvestment: 32.0, issueSizeCr: 3500.0,
+        gmp: 8.5, gmpPercent: 26.56, expectedListingPrice: 40.5,
+        allotmentStatus: "📅 UPCOMING",
+        subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+        aiVerdict: "APPLY_FOR_LONG_TERM",
+        recommendation: { verdict: "WATCHLIST", recommendedStrategy: "Global fintech giant processing over $1T annually." },
+        faceValue: "$0.00001", registrar: "Computershare"
+      },
+      {
+        id: "IPO-DATABRICKS", symbol: "DATABRICKS", companyName: "Databricks, Inc.",
+        sector: "Enterprise Data Lakehouse & Generative AI Platform", category: "NASDAQ",
+        priceBand: "$65 - $72", lotSize: 1, minInvestment: 72.0, issueSizeCr: 2800.0,
+        gmp: 14.0, gmpPercent: 19.44, expectedListingPrice: 86.0,
+        allotmentStatus: "📅 UPCOMING",
+        subscription: { total: 0, qib: 0, nii: 0, retail: 0 },
+        aiVerdict: "APPLY_FOR_LONG_TERM",
+        recommendation: { verdict: "WATCHLIST", recommendedStrategy: "Dominant unified data intelligence and lakehouse architecture." },
+        faceValue: "$0.0001", registrar: "Continental Stock Transfer"
+      }
+    ];
+
+    const usListed = [
+      {
+        id: "LIST-ARM", symbol: "ARM", companyName: "Arm Holdings plc",
+        sector: "Energy-Efficient CPU Architecture & Semiconductor IP", category: "NASDAQ",
+        issuePrice: 51.0, listingPrice: 56.10, currentPrice: 142.50,
+        totalReturnPercent: 179.41, listingGainPercent: 10.00,
+        issueSizeCr: 4870.0, listingDate: "2023-09-14", allotmentStatus: "🏁 LISTED",
+        aiVerdict: "STRONG_APPLY_HIGH_GAIN"
+      },
+      {
+        id: "LIST-CART", symbol: "CART", companyName: "Maplebear Inc. (Instacart)",
+        sector: "Online Grocery Delivery & Retail Media Platform", category: "NASDAQ",
+        issuePrice: 30.0, listingPrice: 42.00, currentPrice: 43.15,
+        totalReturnPercent: 43.83, listingGainPercent: 40.00,
+        issueSizeCr: 660.0, listingDate: "2023-09-19", allotmentStatus: "🏁 LISTED",
+        aiVerdict: "APPLY_FOR_LISTING"
+      },
+      {
+        id: "LIST-KVUE", symbol: "KVUE", companyName: "Kenvue Inc.",
+        sector: "Consumer Health, Wellness & OTC Essentials", category: "NYSE Mainboard",
+        issuePrice: 22.0, listingPrice: 25.53, currentPrice: 24.80,
+        totalReturnPercent: 12.73, listingGainPercent: 16.05,
+        issueSizeCr: 3800.0, listingDate: "2023-05-04", allotmentStatus: "🏁 LISTED",
+        aiVerdict: "APPLY_FOR_LONG_TERM"
+      }
+    ];
+
+    const allUs = [...usActive, ...usClosed, ...usUpcoming, ...usListed];
+
+    if (pathname.includes('/summary')) {
+      return {
+        market: 'US',
+        activeCount: usActive.length,
+        closedCount: usClosed.length,
+        upcomingCount: usUpcoming.length,
+        listedCount: usListed.length,
+        averageGmpPercent: 12.8,
+        totalActiveCapital: '$5,192 M'
+      };
+    }
+    if (pathname.includes('/active'))   return { market: 'US', count: usActive.length, ipos: usActive };
+    if (pathname.includes('/closed'))   return { market: 'US', count: usClosed.length, ipos: usClosed };
+    if (pathname.includes('/upcoming')) return { market: 'US', count: usUpcoming.length, ipos: usUpcoming };
+    if (pathname.includes('/listed'))   return { market: 'US', count: usListed.length, ipos: usListed };
+    if (pathname.includes('/details')) {
+      const match = allUs.find(i => pathname.includes(i.symbol) || pathname.includes(i.id)) || usActive[0];
+      return match;
+    }
+    return { market: 'US', count: usActive.length, ipos: usActive };
   }
 
   // ─── Dynamic Date & Allotment Status Engine ────────────────────────────────

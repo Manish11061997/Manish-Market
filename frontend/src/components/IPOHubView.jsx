@@ -681,7 +681,7 @@ export default function IPOHubView({ currentMarket = 'IN', onSelectStock }) {
               <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Price Band</div>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{modalData.priceBand || modalData.priceBandExpected}</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>Face Value: {modalData.faceValue || '₹10'}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>Face Value: {modalData.faceValue || (currentMarket === 'US' ? '$0.01' : '₹10')}</div>
               </div>
 
               <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>

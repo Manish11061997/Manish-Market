@@ -417,28 +417,41 @@ class WebSocketClient {
     const ticks = {};
 
     // ── Market Session Guard ──────────────────────────────────────────────────
-    // Indian market: NSE/BSE open Mon–Fri 09:15–15:30 IST (UTC+5:30)
-    // US market:     NYSE/NASDAQ open Mon–Fri 09:30–16:00 EST (UTC-5)
-    // Outside these windows: emit static closing prices — NO random movement.
-    const nowUtcMs   = Date.now();
-    const nowIST     = new Date(nowUtcMs + 5.5 * 3600_000); // IST = UTC+5:30
-    const istDay     = nowIST.getUTCDay();   // 0=Sun, 6=Sat
-    const istH       = nowIST.getUTCHours();
-    const istM       = nowIST.getUTCMinutes();
-    const istMinutes = istH * 60 + istM;     // minutes since midnight IST
+    // Indian market: NSE/BSE open Mon–Fri 09:15–15:30 IST (Asia/Kolkata)
+    // US market:     NYSE/NASDAQ open Mon–Fri 09:30–16:00 ET (America/New_York, handles EDT/EST daylight saving time)
+    // Outside these windows: emit static closing prices — NO random drift.
+    const nowUtcMs = Date.now();
+    const now = new Date(nowUtcMs);
 
-    // NSE open: 09:15–15:30 IST on Mon(1)–Fri(5)
-    const isINOpen = istDay >= 1 && istDay <= 5
-      && istMinutes >= 9 * 60 + 15          // 09:15
-      && istMinutes <  15 * 60 + 30;        // 15:30
+    // 1. Precise IST Time (Asia/Kolkata)
+    const istParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour12: false,
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric'
+    }).formatToParts(now);
+    const istWeekday = istParts.find(p => p.type === 'weekday')?.value;
+    const istHour    = parseInt(istParts.find(p => p.type === 'hour')?.value || '0', 10);
+    const istMin     = parseInt(istParts.find(p => p.type === 'minute')?.value || '0', 10);
+    const istMinutes = istHour * 60 + istMin;
+    const isISTWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(istWeekday);
+    const isINOpen   = isISTWeekday && istMinutes >= 9 * 60 + 15 && istMinutes < 15 * 60 + 30;
 
-    // US market: NYSE/NASDAQ 09:30–16:00 EST (UTC-5) = 14:30–21:00 UTC on Mon–Fri
-    const nowUTC     = new Date(nowUtcMs);
-    const utcDay     = nowUTC.getUTCDay();
-    const utcMinutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-    const isUSOpen   = utcDay >= 1 && utcDay <= 5
-      && utcMinutes >= 14 * 60 + 30         // 14:30 UTC = 09:30 EST
-      && utcMinutes <  21 * 60;             // 21:00 UTC = 16:00 EST
+    // 2. Precise US Eastern Time (America/New_York)
+    const nyParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour12: false,
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric'
+    }).formatToParts(now);
+    const nyWeekday = nyParts.find(p => p.type === 'weekday')?.value;
+    const nyHour    = parseInt(nyParts.find(p => p.type === 'hour')?.value || '0', 10);
+    const nyMin     = parseInt(nyParts.find(p => p.type === 'minute')?.value || '0', 10);
+    const nyMinutes = nyHour * 60 + nyMin;
+    const isNYWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(nyWeekday);
+    const isUSOpen   = isNYWeekday && nyMinutes >= 9 * 60 + 30 && nyMinutes < 16 * 60;
 
     // If market is closed, emit static ticks (prices don't move)
     const generateMovement = isINOpen || isUSOpen;

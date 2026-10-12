@@ -33,10 +33,12 @@ async function runRuthlessMasterAudit() {
   });
 
   page.on('requestfailed', req => {
-    if (!req.url().includes('favicon') && !req.url().includes('analytics')) {
-      console.log(`🚫 [REQUEST FAILED]: ${req.url()} (${req.failure()?.errorText})`);
-      networkFailures.push({ url: req.url(), error: req.failure()?.errorText });
-    }
+    const url = req.url();
+    const errorText = req.failure()?.errorText;
+    if (url.includes('favicon') || url.includes('analytics')) return;
+    if (url.includes('firestore.googleapis.com') && errorText === 'net::ERR_ABORTED') return;
+    console.log(`🚫 [REQUEST FAILED]: ${url} (${errorText})`);
+    networkFailures.push({ url, error: errorText });
   });
 
   // Helper to scan DOM for broken strings
@@ -379,6 +381,22 @@ async function runRuthlessMasterAudit() {
       await scanForAnomalies('US Daily Advisory Hub');
       const usStockText = page.locator('text=NVDA').first();
       console.log('   US Advisory Cards visible:', await usStockText.isVisible());
+    }
+
+    // Test IPO Hub in US Market
+    if (await ipoBtn.isVisible()) {
+      await ipoBtn.click();
+      await page.waitForTimeout(2000);
+      console.log('   Testing IPO Hub in US Market...');
+      await scanForAnomalies('US IPO Hub View');
+      for (const tab of ['Live Bidding', 'Closed', 'Upcoming', 'Recently Listed']) {
+        const tBtn = page.locator(`button:has-text("${tab}")`).first();
+        if (await tBtn.isVisible()) {
+          await tBtn.click();
+          await page.waitForTimeout(800);
+          await scanForAnomalies(`US IPO Stage ${tab}`);
+        }
+      }
     }
 
     // Test Paper Trading in US Market
