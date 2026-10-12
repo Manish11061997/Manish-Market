@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, RefreshCw, Layers, Clock } from 'lucide-react';
 import { CONTROL_HEADERS, apiFetch } from '../utils/api';
 import { ErrorBanner } from './ui/primitives';
@@ -49,8 +49,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, i
     return () => window.removeEventListener('manish_market_auth_change', handleAuthChange);
   }, []);
 
-  const fetchPortfolio = () => {
-    apiFetch(`/api/paper/portfolio`)
+  const fetchPortfolio = useCallback(() => {
+    apiFetch(`/api/paper/portfolio?market=${currentMarket}`)
       .then(res => {
         if (!res.ok) throw new Error(`Portfolio HTTP ${res.status}`);
         return res.json();
@@ -68,7 +68,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, i
         setFetchError(err.message);
         setLoading(false);
       });
-  };
+  }, [currentMarket, userId]);
 
   // Real-time Cloud Firestore subscription
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, i
     fetchPortfolio();
     const interval = setInterval(fetchPortfolio, 4000);
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [fetchPortfolio]);
 
   useEffect(() => {
     const isUSMode = currentMarket === 'US';
@@ -192,7 +192,7 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, i
     setIsSubmitting(true);
 
     try {
-      const res = await apiFetch(`/api/paper/order`, {
+      const res = await apiFetch(`/api/paper/order?market=${currentMarket}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...CONTROL_HEADERS },
         body: JSON.stringify({
@@ -202,7 +202,8 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock, i
           price: priceNum,
           stopLoss: stopLoss ? Number(stopLoss) : null,
           takeProfit: takeProfit ? Number(takeProfit) : null,
-          orderType: 'MARKET'
+          orderType: 'MARKET',
+          market: currentMarket
         })
       });
       const data = typeof res?.json === 'function' ? await res.json() : res;

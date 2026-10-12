@@ -497,8 +497,9 @@ async function handleOfflineFallback(endpointPath, options = {}) {
     }
 
     if (pathname.includes('/paper/reset')) {
-      const isUS = searchParams.get('market') === 'US';
+      const isUS = searchParams.get('market') === 'US' || pathname.includes('market=US');
       const initialBal = isUS ? 100000.0 : 1000000.0;
+      const storageKey = isUS ? 'mm_paper_portfolio_us_v1' : 'mm_paper_portfolio_in_v1';
       const cleanPortfolio = {
         cashBalance: initialBal,
         investedAmount: 0.0,
@@ -519,7 +520,7 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         }
       };
       try {
-        localStorage.setItem('mm_paper_portfolio_v1', JSON.stringify(cleanPortfolio));
+        localStorage.setItem(storageKey, JSON.stringify(cleanPortfolio));
       } catch {}
       return new Response(JSON.stringify(cleanPortfolio), {
         status: 200,
@@ -528,19 +529,22 @@ async function handleOfflineFallback(endpointPath, options = {}) {
     }
 
     if (pathname.includes('/paper/portfolio')) {
+      const isUS = searchParams.get('market') === 'US' || pathname.includes('market=US');
+      const initialBal = isUS ? 100000.0 : 1000000.0;
+      const storageKey = isUS ? 'mm_paper_portfolio_us_v1' : 'mm_paper_portfolio_in_v1';
       let portfolio = {
-        cashBalance: 1000000.0,
+        cashBalance: initialBal,
         investedAmount: 0.0,
-        totalPortfolioValue: 1000000.0,
+        totalPortfolioValue: initialBal,
         unrealizedPnl: 0.0,
         realizedPnl: 0.0,
         positions: [],
         orders: [],
         summary: {
-          initialCapital: 1000000.0,
-          cashBalance: 1000000.0,
+          initialCapital: initialBal,
+          cashBalance: initialBal,
           marketValue: 0.0,
-          totalEquity: 1000000.0,
+          totalEquity: initialBal,
           unrealizedPnl: 0.0,
           realizedPnl: 0.0,
           totalPnl: 0.0,
@@ -548,16 +552,16 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         }
       };
       try {
-        const saved = localStorage.getItem('mm_paper_portfolio_v1');
+        const saved = localStorage.getItem(storageKey) || (!isUS ? localStorage.getItem('mm_paper_portfolio_v1') : null);
         if (saved) {
           const parsed = JSON.parse(saved);
           portfolio = {
             ...parsed,
             summary: parsed.summary || {
-              initialCapital: 1000000.0,
-              cashBalance: parsed.cashBalance ?? 1000000.0,
+              initialCapital: initialBal,
+              cashBalance: parsed.cashBalance ?? initialBal,
               marketValue: parsed.investedAmount ?? 0.0,
-              totalEquity: parsed.totalPortfolioValue ?? (parsed.cashBalance ?? 1000000.0),
+              totalEquity: parsed.totalPortfolioValue ?? (parsed.cashBalance ?? initialBal),
               unrealizedPnl: parsed.unrealizedPnl ?? 0.0,
               realizedPnl: parsed.realizedPnl ?? 0.0,
               totalPnl: (parsed.unrealizedPnl ?? 0.0) + (parsed.realizedPnl ?? 0.0),
@@ -578,11 +582,15 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         if (options.body) body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
       } catch {}
 
+      const symbol = body.symbol || 'RELIANCE.NS';
+      const isUS = searchParams.get('market') === 'US' || body.market === 'US' || (!symbol.includes('.NS') && !symbol.includes('.BO'));
+      const initialBal = isUS ? 100000.0 : 1000000.0;
+      const storageKey = isUS ? 'mm_paper_portfolio_us_v1' : 'mm_paper_portfolio_in_v1';
+
       const filledQty = Number(body.quantity) || 10;
-      const filledPrice = Number(body.price) || 1255.50;
+      const filledPrice = Number(body.price) || (isUS ? 183.00 : 1255.50);
       const slippage = parseFloat((filledPrice * 0.0004).toFixed(2));
       const orderId = `ORD_${Date.now()}`;
-      const symbol = body.symbol || 'RELIANCE.NS';
       const side = body.side || 'BUY';
       const nowIso = new Date().toISOString();
       const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -603,11 +611,11 @@ async function handleOfflineFallback(endpointPath, options = {}) {
       };
 
       try {
-        const saved = localStorage.getItem('mm_paper_portfolio_v1');
+        const saved = localStorage.getItem(storageKey) || (!isUS ? localStorage.getItem('mm_paper_portfolio_v1') : null);
         let port = saved ? JSON.parse(saved) : {
-          cashBalance: 1000000.0,
+          cashBalance: initialBal,
           investedAmount: 0.0,
-          totalPortfolioValue: 1000000.0,
+          totalPortfolioValue: initialBal,
           unrealizedPnl: 0.0,
           realizedPnl: 0.0,
           positions: [],
@@ -658,7 +666,7 @@ async function handleOfflineFallback(endpointPath, options = {}) {
         port.orders = [newOrder, ...(port.orders || [])].slice(0, 50);
 
         port.summary = {
-          initialCapital: 1000000.0,
+          initialCapital: initialBal,
           cashBalance: port.cashBalance,
           marketValue: port.investedAmount,
           totalEquity: port.totalPortfolioValue,
@@ -668,7 +676,7 @@ async function handleOfflineFallback(endpointPath, options = {}) {
           pnlPercent: 0.0
         };
 
-        localStorage.setItem('mm_paper_portfolio_v1', JSON.stringify(port));
+        localStorage.setItem(storageKey, JSON.stringify(port));
       } catch {}
 
       return new Response(JSON.stringify(newOrder), {

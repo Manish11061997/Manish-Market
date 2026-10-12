@@ -70,41 +70,41 @@ export default function AICopilotChat({ onSelectStock, onExecutePaperOrder }) {
       let tradeProposal = null;
 
       if (isRel) {
-        fallbackText = "### RELIANCE (Reliance Industries Ltd) Quantitative Signal\n\n• **Current Price**: ₹1,298.00\n• **Trend**: Bullish consolidation above 20 EMA (₹1,274).\n• **Technical Setup**: Triple-Confluence Alpha with target ₹1,360.\n• **Support Zone**: ₹1,250 - ₹1,270 with institutional accumulation.";
+        fallbackText = "### RELIANCE (Reliance Industries Ltd) Quantitative Signal\n\n• **Current Price**: ₹1,255.50\n• **Trend**: Bullish consolidation above 20 EMA (₹1,248).\n• **Technical Setup**: Triple-Confluence Alpha with target ₹1,330.00.\n• **Support Zone**: ₹1,210 - ₹1,225 with institutional accumulation.";
         tradeProposal = {
           symbol: "RELIANCE.NS",
           action: "BUY",
-          suggestedPrice: 1298.0,
+          suggestedPrice: 1255.50,
           currency: "₹",
           lotSize: 10,
-          target1: 1360.0,
-          stopLoss: 1250.0,
+          target1: 1330.0,
+          stopLoss: 1210.0,
           confidence: "88%",
           thesis: "Triple-Confluence Alpha setup supported by trend alignment and institutional money flow."
         };
       } else if (isNvda) {
-        fallbackText = "### NVIDIA Corp (NVDA) Quantitative Signal\n\n• **Current Price**: $128.50\n• **Trend**: Strong Bullish breakout above $124 resistance.\n• **Technical Setup**: Momentum continuation with target $142.\n• **Support Zone**: $120 stop loss.";
+        fallbackText = "### NVIDIA Corp (NVDA) Quantitative Signal\n\n• **Current Price**: $183.00\n• **Trend**: Strong Bullish breakout above key volume shelf.\n• **Technical Setup**: Momentum continuation with target $198.50.\n• **Support Zone**: $176.50 stop loss.";
         tradeProposal = {
           symbol: "NVDA",
           action: "BUY",
-          suggestedPrice: 128.5,
+          suggestedPrice: 183.00,
           currency: "$",
           lotSize: 5,
-          target1: 142.0,
-          stopLoss: 120.0,
+          target1: 198.5,
+          stopLoss: 176.5,
           confidence: "86%",
           thesis: "Bullish momentum continuation above key weekly pivot."
         };
       } else if (isInfy) {
-        fallbackText = "### Infosys Ltd (INFY.NS) Trade Plan\n\n• **Current Price**: ₹1,120.00\n• **Trend**: Pullback into 50 DMA value zone.\n• **Target**: ₹1,180.00 | **Stop Loss**: ₹1,080.00 | **R:R**: 1:2.4.";
+        fallbackText = "### Infosys Ltd (INFY.NS) Trade Plan\n\n• **Current Price**: ₹1,042.30\n• **Trend**: Pullback into 50 DMA value zone.\n• **Target**: ₹1,105.00 | **Stop Loss**: ₹995.00 | **R:R**: 1:2.4.";
         tradeProposal = {
           symbol: "INFY.NS",
           action: "BUY",
-          suggestedPrice: 1120.0,
+          suggestedPrice: 1042.30,
           currency: "₹",
           lotSize: 20,
-          target1: 1180.0,
-          stopLoss: 1080.0,
+          target1: 1105.0,
+          stopLoss: 995.0,
           confidence: "82%",
           thesis: "High R:R swing entry at 50 DMA support."
         };

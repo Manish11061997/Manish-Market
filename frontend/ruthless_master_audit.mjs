@@ -371,6 +371,16 @@ async function runRuthlessMasterAudit() {
       }
     }
 
+    // Test Daily Advisory in US Market
+    if (await advBtn.isVisible()) {
+      await advBtn.click();
+      await page.waitForTimeout(2000);
+      console.log('   Testing Daily Advisory in US Market...');
+      await scanForAnomalies('US Daily Advisory Hub');
+      const usStockText = page.locator('text=NVDA').first();
+      console.log('   US Advisory Cards visible:', await usStockText.isVisible());
+    }
+
     // Test Paper Trading in US Market
     if (await paperBtn.isVisible()) {
       await paperBtn.click();

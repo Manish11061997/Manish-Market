@@ -166,12 +166,16 @@ export default function WatchlistView({ currentMarket = 'IN', onSelectStock }) {
       const symUpper = sym.toUpperCase();
       const meta = stockDetailsMap[symUpper] || stockDetailsMap[`${symUpper}.NS`] || {};
       const tick = liveTicks[sym] || liveTicks[symUpper] || {};
+      const storeItem = wsClient?.liveTickStore?.get(sym) ||
+                        wsClient?.liveTickStore?.get(symUpper) ||
+                        wsClient?.liveTickStore?.get(sym.replace('.NS', '')) ||
+                        wsClient?.liveTickStore?.get(`${sym.replace('.NS', '')}.NS`);
 
-      const currentPrice = tick.price !== undefined ? Number(tick.price) : (meta.currentPrice || 0);
-      const change = tick.change !== undefined ? Number(tick.change) : (meta.change || 0);
-      const changePercent = tick.changePercent !== undefined ? Number(tick.changePercent) : (meta.changePercent || 0);
-      const name = meta.name || sym.replace('.NS', '').replace('^', '');
-      const sector = meta.sector || 'Equity';
+      const currentPrice = tick.price !== undefined ? Number(tick.price) : (meta.currentPrice || storeItem?.price || storeItem?.basePrice || 0);
+      const change = tick.change !== undefined ? Number(tick.change) : (meta.change !== undefined ? Number(meta.change) : (storeItem?.change || 0));
+      const changePercent = tick.changePercent !== undefined ? Number(tick.changePercent) : (meta.changePercent !== undefined ? Number(meta.changePercent) : (storeItem?.changePercent || 0));
+      const name = meta.name || storeItem?.name || sym.replace('.NS', '').replace('^', '');
+      const sector = meta.sector || storeItem?.sector || 'Equity';
       const signal = meta.signal || 'HOLD';
       const score = meta.overallScore || 75;
 
