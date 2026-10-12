@@ -485,7 +485,7 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
                 <div>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Spot Price</div>
                   <div className="mono-num" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
-                    {currPrefix}{stock.currentPrice?.toLocaleString('en-US')}
+                    {currPrefix}{Number(stock.currentPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
 
@@ -506,12 +506,12 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
 
                 <div style={{ backgroundColor: 'var(--accent-green-bg)', padding: '6px 4px', borderRadius: '8px', border: '1px solid var(--accent-green-border)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--accent-green)' }}>Target 1</div>
-                  <div style={{ fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{currPrefix}{stock.target1}</div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{currPrefix}{Number(stock.target1 ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
 
                 <div style={{ backgroundColor: 'var(--accent-red-bg)', padding: '6px 4px', borderRadius: '8px', border: '1px solid var(--accent-red-border)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--accent-red)' }}>Stop Loss</div>
-                  <div style={{ fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{currPrefix}{stock.stopLoss}</div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{currPrefix}{Number(stock.stopLoss ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
@@ -560,7 +560,7 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Spot Price</div>
                     <div className="mono-num" style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {currPrefix}{fno.spotPrice?.toLocaleString('en-US')}
+                      {currPrefix}{Number(fno.spotPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
@@ -673,14 +673,14 @@ export default function DailyAdvisoryHub({ onSelectStock, currentMarket = 'IN' }
                   <div style={{ backgroundColor: 'var(--accent-red-bg)', borderRadius: '10px', padding: '12px', margin: '12px 0', border: '1px solid var(--accent-red-border)', fontSize: '11px', color: 'var(--text-main)' }}>
                     <div style={{ fontWeight: 800, color: 'var(--accent-red)' }}>⚠️ Trend Breakdown Warning</div>
                     <div style={{ marginTop: '4px', lineHeight: '1.4' }}>
-                      Price trading below moving average support or showing severe momentum divergence. Book profits or respect stop-loss at {currPrefix}{stock.stopLoss}.
+                      Price trading below moving average support or showing severe momentum divergence. Book profits or respect stop-loss at {currPrefix}{Number(stock.stopLoss ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', fontSize: '11px' }}>
                   <span className="mono-num" style={{ color: 'var(--text-muted)' }}>
-                    LTP: {currPrefix}{stock.currentPrice}
+                    LTP: {currPrefix}{Number(stock.currentPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-red)', fontWeight: 700 }}>
                     Inspect Risk <ArrowUpRight style={{ width: '12px', height: '12px' }} />

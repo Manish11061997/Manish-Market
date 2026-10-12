@@ -92,9 +92,9 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
     const sym = isUSMode ? 'NVDA' : 'RELIANCE.NS';
     const p = isUSMode ? 183.0 : 1255.50;
     setSymbol(sym);
-    setPrice(p);
-    setStopLoss(Math.round(p * 0.97 * 100) / 100);
-    setTakeProfit(Math.round(p * 1.05 * 100) / 100);
+    setPrice(p.toFixed(2));
+    setStopLoss((p * 0.97).toFixed(2));
+    setTakeProfit((p * 1.05).toFixed(2));
   }, [currentMarket]);
 
   // Update default price when symbol changes
@@ -104,9 +104,10 @@ export default function PaperTradingHub({ currentMarket = 'IN', onSelectStock })
       .then(async res => {
         const st = typeof res?.json === 'function' ? await res.json() : res;
         if (st && st.price) {
-          setPrice(st.price);
-          setStopLoss(side === 'BUY' ? Math.round(st.price * 0.97 * 100) / 100 : Math.round(st.price * 1.03 * 100) / 100);
-          setTakeProfit(side === 'BUY' ? Math.round(st.price * 1.06 * 100) / 100 : Math.round(st.price * 0.94 * 100) / 100);
+          const numP = Number(st.price);
+          setPrice(numP.toFixed(2));
+          setStopLoss((side === 'BUY' ? numP * 0.97 : numP * 1.03).toFixed(2));
+          setTakeProfit((side === 'BUY' ? numP * 1.06 : numP * 0.94).toFixed(2));
         }
         if (st && Number.isInteger(st.lotSize) && st.lotSize > 0) {
           setQuantity(prevQty => {

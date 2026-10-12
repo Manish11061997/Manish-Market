@@ -106,8 +106,8 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
       {/* Header Banner */}
       <div className="glass-panel p-6 rounded-2xl border border-slate-800 bg-slate-900/80 backdrop-blur-xl relative overflow-hidden">
         <div className="absolute -right-12 -top-12 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
               <BarChart3 className="w-4 h-4" /> Multi-Horizon Quantitative Engine
             </div>
@@ -136,7 +136,7 @@ export default function AIAnalysisEngineView({ selectedSymbol, currentMarket }) 
           </div>
 
           {/* Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 flex-shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input

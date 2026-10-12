@@ -22,7 +22,24 @@ export default function LiveTickChart({ symbol, height = 140, currentMarket = 'I
 
   useEffect(() => {
     ticksRef.current = [];
-    setTicks([]);
+    const cleanSym = symbol ? symbol.replace('.NS', '').replace('.BO', '').trim() : '';
+    const cached = wsClient.liveTickStore?.get(symbol) || wsClient.liveTickStore?.get(cleanSym);
+    if (cached && cached.price) {
+      setLastTick(cached);
+      const now = Date.now();
+      const p = Number(cached.price);
+      const prev = Number(cached.prevClose || cached.basePrice || p);
+      const seed = [
+        { time: now - 120000, price: prev },
+        { time: now - 60000, price: parseFloat(((prev + p) / 2).toFixed(2)) },
+        { time: now, price: p }
+      ];
+      ticksRef.current = seed;
+      setTicks(seed);
+    } else {
+      setTicks([]);
+    }
+
     const subscribedSymbols = [symbol, symbol.replace('.NS', ''), `${symbol.replace('.NS', '')}.NS`];
     wsClient.subscribe(subscribedSymbols);
 
